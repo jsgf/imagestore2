@@ -1,21 +1,25 @@
 from quixote.errors import AccessError
 
 from imagestore.image import ImageUI
-from pages import html
+from pages import prefix
 import collection_page
 from calendarui import CalendarUI
+from search import SearchUI
 
 from sqlobject.sqlbuilder import AND
 from db import User, CollectionPerms
 
+from quixote.errors import AccessError
+
 class CollectionUI:
-    _q_exports = [ 'image', 'calendar' ]
+    _q_exports = [ 'image', 'calendar', 'search', 'admin' ]
 
     def __init__(self, dbobj):
         self.dbobj = dbobj  
 
         self.image = ImageUI(self)
         self.calendar = CalendarUI(self)
+        self.search = SearchUI(self)
         
     _q_index = collection_page._q_index
 
@@ -23,20 +27,20 @@ class CollectionUI:
         if not self.mayViewCollection(request):
             raise AccessError, "You may not view this collection"
 
-    def getperms(self, user):
-        perms = CollectionPerms.select(AND(CollectionPerms.q.userID == user.id,
-                                           CollectionPerms.q.collectionID == self.dbobj.id))
-        if perms.count() == 0:
-            return None
-        return perms[0]
+    def menupane_extra(self):
+        ret = self.calendar.menupane_extra()
+        ret += self.search.menupane_extra()
+        return ret
     
     def mayEdit(self, request, p):
         user = request.session.getuser()
         
         if user is None:
             return False
-            
-        return request.session.wantedit and p.mayEdit(user)
+
+        perms = self.dbobj.permissions(user)
+        
+        return (perms and perms.mayEdit) or p.mayEdit(user)
 
     def mayViewCollection(self, request):
         user = request.session.getuser()
@@ -44,7 +48,7 @@ class CollectionUI:
         if self.dbobj.visibility == 'public':
             return True
         if user and self.dbobj.visibility == 'private':
-            perms = self.getperms(user)
+            perms = self.dbobj.permissions(user)
             return user.mayAdmin or self.dbobj.ownerID == user.id or (perms and perms.mayView)
 
         return False
@@ -61,7 +65,7 @@ class CollectionUI:
         if self.dbobj.owner == user or p.owner == user:
             return p.mayView(user)
 
-        perms = self.getperms(user)
+        perms = self.dbobj.permissions(user)
         if perms is not None and (perms.mayAdmin or perms.mayViewall):
             return p.mayView(user)
         
@@ -79,4 +83,34 @@ class CollectionUI:
         if self.dbobj.owner == user:
             return p.mayView(user)
 
+        perms = self.dbobj.permissions(user)
+        if p.visibility == 'restricted' and perms.mayViewRestricted:
+            return True
+
         return False
+
+    def mayAdminCol(self, request):
+        user = request.session.getuser()
+
+        if user is None:
+            return False
+
+        if user.id == self.dbobj.ownerID:
+            return True
+
+        if user.mayAdmin:
+            return True
+
+        p = self.dbobj.permissions(user)
+        if p and p.mayAdmin:
+            return True
+
+        return False
+
+    def admin(self, request):
+        user = request.session.getuser()
+
+        if not self.mayAdminCol(request):
+            raise AccessError('You may not modify this collection')
+        
+        return collection_page.admin_page(self, request)

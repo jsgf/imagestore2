@@ -4,6 +4,8 @@
 arrow_width = 8
 arrow_height = 4
 
+visibility_mark = 13
+
 thumb_padding = 5
 thumb_hover_border = 1
 
@@ -56,8 +58,32 @@ A:active	{ color: %(active-color)s; }
 
 .picture	{ border: 0; padding: 0; }
 
-.thumb		{ border: 0; padding: %(thumb-padding)dpx; }
-A:hover .thumb	{ border: %(thumb-hover-border)dpx solid %(strong-active)s; padding: %(thumb-hover-padding)dpx; }
+/* Thumbnails, with overlaid visibility information */
+.thumb-img {
+  position: relative;
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+.thumb-img IMG.thumb {
+  border: 0;
+  padding: %(thumb-padding)dpx;
+}
+A:hover .thumb	{
+  border: %(thumb-hover-border)dpx solid %(strong-active)s;
+  padding: %(thumb-hover-padding)dpx;
+}
+.thumb-img IMG.visibility {
+  position: absolute;
+  border: 0;
+  z-index: 1;
+  left: .5em;
+  top: -0.5em;
+  width: %(visibility-mark)dpx;
+  height: %(visibility-mark)dpx;
+}
+
+
 /* If the URL targets this image, then emphasize it */
 .thumb:target	{ background-color: %(highlight-color)s; }
 
@@ -87,6 +113,17 @@ A.selected:hover { color: %(strong-active)s; }
 
 TABLE > THEAD {
   font-weight: bold;
+}
+
+INPUT[type="text"], INPUT[type="password"] {
+  background-color: #ccdcdc;
+  border: 1px solid white;
+  padding: 1px;
+}
+INPUT[type="text"]:focus, INPUT[type="password"]:focus {
+  background-color: white;
+  border: 2px solid %(active-color)s;
+  padding: 0px;
 }
 
 /* Menu pane */
@@ -137,6 +174,53 @@ TABLE > THEAD {
   right: 4px;
 }
 
+/* Forms */
+FORM.quixote {
+}
+FORM.quixote BR {
+  display: none;
+}
+FORM.quixote > .errornotice {
+  text-align: center;
+  color: white;
+
+  padding: 1em;
+  margin: 2em;
+  border: 3px solid red;
+}
+FORM.quixote > .widget {
+  position: relative;
+  height: 1.5em;
+}
+FORM.quixote > .widget .title {
+  position: absolute;
+  right: 60%%;
+  top: auto;
+}
+FORM.quixote > .widget .content {
+  position: absolute;
+  left: 50%%;
+  top: auto;
+}
+FORM.quixote > .widget .content INPUT {
+  display: inline;
+}
+FORM.quixote > .widget .content .error {
+  display: inline;
+  text-align: right;
+  font-size: 70%%;
+  margin: 0;
+  padding: 0;
+}
+FORM.quixote > .submit  {
+  margin-top: 2em;
+}
+FORM.quixote > .submit DIV  {
+  display: inline;
+  margin-left: 2em;
+  margin-top: 1em;
+}
+
 /* Login */
 .loginform { 
   background-color: #555555;
@@ -174,7 +258,7 @@ TABLE > THEAD {
         'thumb-padding':        thumb_padding,
         'thumb-hover-border':   thumb_hover_border,
         'thumb-hover-padding':  thumb_padding-thumb_hover_border,
-        
+        'visibility-mark':      visibility_mark,
         }
 
     if False and request.guess_browser_version()[0] == 'MSIE':
@@ -350,6 +434,7 @@ BODY#view > A {
   margin: 0;
   border: 0;
 }
+
 BODY#view IMG.picture {
   padding: 0;
   border: 0;
@@ -485,22 +570,102 @@ BODY#collection .sampler .image {
   height: 160px;
 }
 
+.title-box {
+  position: relative;
+  float: left;
+  padding: 1em;
+  margin: 1em;
+  border: 1px solid #555555;
+}
+.title-box > H2 {
+  border: 1px solid #555555;
+  background-color: %(background-color)s;
+  position: absolute;
+  top: -1.5em;
+  right: 0.5em;
+  font-size: 110%%;
+}
+.title-box H3 {
+  font-size: 100%%;
+}
+.title-box .footer {
+  position: absolute;
+  right: 0.2em;
+  bottom: 0.2em;
+  font-size: 60%%;
+}
+
+/* User details display */
+.user-summary {
+  float: left;
+}
+.user-summary .label {
+  font-weight: bold;
+}
+
+.collection-summary .collection-list LI {
+  list-style: none;
+}
+.collection-summary .new-collection-form {
+  border-top: 1px solid #555555;
+  padding-top: 1em;
+  margin-left: 0;
+  margin-right: 0;
+  padding-left: 0;
+  padding-right: 0;
+}
+  
 /* User details editing */
-#edituser .deleted {
+#editusers .deleted {
   background-color: red;
   font-weight: bold;
 }
-#edituser THEAD {
+#editusers THEAD {
   font-size: 70%%;
 }
-#edituser .UserListWidget > .content DIV {
+#editusers .UserListWidget > .content DIV {
   display: inline;
 }
-#edituser DIV.UserListWidget .title {
+#editusers DIV.UserListWidget .title {
   display: none;
 }
 
+
+/* Searching */
+.kwlist {
+  width: 80%%;
+}
+.kwlist .kw {
+  margin-left: .5em;
+  margin-right: .5em;
+}
+.kwlist > P {
+  clear: both;
+}
+.kwlist SPAN.emphasize {
+  margin-left: .5em;
+}
+.kwlist P.emphasize:first-letter {
+  font-weight: bold;
+  text-transform: uppercase;
+}
+.kwlist P.emphasize.bigletter:first-letter {
+  font-family: serif;
+  font-weight: bold;
+  font-size: 190%%;
+  text-transform: uppercase;
+  float: left;
+}
+
+#kwsearch .day {
+  margin-bottom: 2em;
+}
+#kwsearch .day h3 {
+  margin-left: -1em;
+  font-size: 60%%;
+}
 """ % {
+        'background-color':     '#444444',
         'highlight-color':      '#777777',      # for highlighting things
         'active-color':         '#ffa66b',      # orange
         'strong-active':        '#ff8b3e',      # brighter orange

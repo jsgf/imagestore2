@@ -1,25 +1,29 @@
 # -*- python -*-
 
-from pages import pre, post, menupane
+from pages import pre, post, menupane, prefix
 
-from db import User, getColByName
+from db import User, Picture, Collection, CollectionPerms
 from go_scgi import ImagestoreHandler
 prefix = ImagestoreHandler.prefix
 
 from quixote.errors import AccessError
 import quixote.form2 as form2
 
-def login_form [html] (request, username='', referer=''):
+def login_form [html] (request, username='', referer=None):
     """
     <div class="loginform">
     <form method="POST" action="login">
-    <div class="input username">User name: <input name="username" type="text" width=20 value="%s"></div>
-    <div class="input password">Password: <input name="password" type="password" width=20></div>
+    <div class="input username">
+      <label>User name: <input name="username" type="text" width=20 value="%s"></label>
+    </div>
+    <div class="input password">
+      <label>Password: <input name="password" type="password" width=20></label>
+    </div>
     <div class="input submit"><input value="Log in" type="submit"></div>
     <input name="referer" type="hidden" value="%s">
     </form>
     </div>
-    """ % (username, referer)
+    """ % (username, referer or '')
 
 def checkbox [html] (name, value, checked=False, title=None):
     '<input type="checkbox" name="%s" value="%s" %s %s>\n' % \
@@ -28,18 +32,18 @@ def checkbox [html] (name, value, checked=False, title=None):
              title and 'title="%s"' % title)
 
 
-def user_details [html] (self, request):
+def user_edit [html] (self, request):
     user = self.user
     sess_user = request.session.getuser()
 
     if user != sess_user and not sess_user.mayAdmin:
         raise AccessError("You may not see this user's private parts")
     
-    pre(request, 'User details')
+    pre(request, 'Edit details for %s' % user.fullname)
 
     menupane(request)
     
-    '<H1>Details for %s</H1>' % user.fullname
+    '<H1>Edit details for %s</H1>\n' % user.fullname
 
     form = form2.Form()
 
@@ -56,7 +60,7 @@ def user_details [html] (self, request):
     form.add_reset('reset', 'Revert to original')
 
     if form.get_submit() == 'cancel':
-        request.redirect(request.get_path())
+        request.redirect(request.get_path(1) + str('/'))
         return ''
 
     if not form.is_submitted() or form.has_errors():
@@ -64,9 +68,9 @@ def user_details [html] (self, request):
     else:
         if form['newpassword']:
             if form['newpassword'] != form['newpassword2']:
-                form.get_widget('newpassword2').set_error('Passwords do not match')
+                form.get_widget('newpassword').set_error('Passwords do not match')
             if form['password'] != user.password:
-                form.get_widget('password').set_error('Enter your current password to change it')
+                form.get_widget('password').set_error('Enter your current password')
         if form['username'] != user.username and \
            User.select(User.q.username == form['username']).count() != 0:
             form.get_widget('username').set_error('Username already taken')
@@ -84,3 +88,87 @@ def user_details [html] (self, request):
 
     post()
 
+
+def user_page [html] (self, request):
+    u = self.user
+    pre('user-page', u.fullname)
+
+    extra = []
+    if u.mayAdmin:
+        extra = [('User admin', '%s/user/editusers' % prefix)]
+
+    menupane(request, extra=extra)
+
+    user_details(u, request)
+    user_collections(u, request)
+
+    post()
+
+def user_details [html] (u, request):
+    
+    """
+    <h1>Summary page</h1>
+    <div class="title-box user-summary">
+      <h2>User details</h2>
+      <dl class="user-details">
+        <dt class="label">User name:</dt><dd class="value">%(username)s (#%(id)d)</dd>
+        <dt class="label">Full name:</dt><dd class="value">%(fullname)s <a href="mailto:%(email)s">&lt;%(email)s&gt;</a></dd>
+      </dl>
+      <p>You own %(npics)d pictures
+      <div class="edit-link footer"><a href="%(editlink)s">Edit</a></div>
+    </div>
+    """ % {
+            'username': u.username,
+            'fullname': u.fullname,
+            'email':    u.email,
+            'id':       u.id,
+            'npics':    Picture.select(Picture.q.ownerID == u.id).count(),
+            'editlink': '%s/user/%s/edit' % (prefix, u.username),
+            }
+
+
+def user_collections [html] (u, request):
+    mycols = Collection.select(Collection.q.ownerID == u.id, orderBy=Collection.q.id)
+    cols = CollectionPerms.select(CollectionPerms.q.userID == u.id)
+    
+    if mycols.count() != 0 or cols.count() != 0:
+        '<div class="title-box collection-summary">\n'
+        '<h2>Collections</h2>\n'
+        if mycols.count() != 0:
+            '<h3>Your collections</h3>\n'
+            '<ul class="collection-list">\n'
+            for c in mycols:
+                '<li><a href="%(p)s/%(c)s/admin">%(c)s</a> - %(d)s (%(v)s, %(np)d pics)\n' % {
+                    'p': prefix,
+                    'c': c.name,
+                    'd': c.description,
+                    'v': c.visibility,
+                    'np': Picture.select(Picture.q.collectionID == c.id).count(),
+                    }
+            '</ul>\n'
+    for c in Collection.select(Collection.q.ownerID == u.id, orderBy=Collection.q.id):
+        pass
+
+    if u.mayCreateCat:
+        form = form2.Form(name='new_collection')
+        
+        form.add(form2.StringWidget, 'newcolname', title='New collection name')
+        form.add(form2.StringWidget, 'newcoldesc', title='New collection description')
+        form.add(form2.SingleSelectWidget, 'newcolvis', title='Visibility',
+                 options=['public', 'private'])
+        form.add_submit('submit', 'Create collection')
+
+        if not form.is_submitted() or form.has_errors() or \
+               form['newcolname'] is None or form['newcoldesc'] is None: 
+            '<div class="new-collection-form">\n'
+            form.render()
+            '</div>\n'
+        else:
+            if Collection.select(Collection.q.name == form['newcolname']).count() != 0:
+                form.get_widget('newcolname').set_error('Collection already exists')
+            else:
+                nc = Collection(name=str(form['newcolname']),
+                                description=str(form['newcoldesc']),
+                                visibility=str(form['newcolvis']), ownerID = u.id)
+                #request.redirect('%s/%s' % (prefix, nc.name))
+                request.redirect(request.get_path())

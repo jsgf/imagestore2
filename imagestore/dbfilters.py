@@ -22,16 +22,6 @@ from sqlobject.sqlbuilder import *
 
 # Since collection and user are fixed, we can statically fetch the
 # collection permissions for the user before the main query
-def _collectionPerm(collection, user):
-    cp = CollectionPerms.select(AND(CollectionPerms.q.collectionID == collection.id,
-                                    CollectionPerms.q.userID == user.id))
-    if cp.count():
-        assert cp.count() == 1, "duplicate collection permissions?"
-        perms = cp[0]
-        if perms.mayView:               # mayView is the prerequisite for everything else
-            return perms
-
-    return None
 
 def _inCollection(collection, filt):
     return AND(Picture.q.collectionID == collection.id, filt)
@@ -47,7 +37,7 @@ def mayViewFilter(collection, user = None):
     if user is not None:
         ok.append(Picture.q.ownerID == user.id)
 
-        perms = _collectionPerm(collection, user)
+        perms = collection.permissions(user)
 
         if user.mayViewall or user.mayAdmin or (perms and perms.mayViewall):
             ok = [ True ]               # overrides all
@@ -66,7 +56,7 @@ def mayEditFilter(collection, user):
     ok = False
 
     if user is not None:
-        perms = _collectionPerm(collection, user)
+        perms = collection.permissions(user)
         if user.mayAdmin or (perms and perms.mayEdit):
             ok = True
         else:
@@ -78,7 +68,7 @@ def mayCurateFilter(collection, user):
     ok = False
 
     if user is not None:
-        perms = _collectionPerm(collection, user)
+        perms = collection.permissions(user)
         if perms and perms.mayCurate:
             ok = True
         else:

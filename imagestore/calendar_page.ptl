@@ -64,7 +64,6 @@ def _q_index_ptl [html] (self, request):
 
 
     results=[]
-    idx = 0
 
     for d,pl in days:
         '<div class="day">\n'
@@ -76,7 +75,6 @@ def _q_index_ptl [html] (self, request):
         for p in pl:
             results.append(p.id)
             ImageUI(self.collection).view_rotate_link(request, p) + '\n'
-            idx+=1
         '</div></div>\n'
 
     request.session.set_query_results(results)

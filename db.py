@@ -67,6 +67,14 @@ class Collection(SQLObject):
 
     # Pictures in this collection
     pictures = MultipleJoin('Picture')
+
+    def permissions(self, user):
+        cp = CollectionPerms.select((CollectionPerms.q.collectionID == self.id) & (CollectionPerms.q.userID == user.id))
+        assert cp.count() == 0 or cp.count() == 1, 'Unexpected number of collection permissions'
+
+        if cp.count() == 0 or not cp[0].mayView:
+            return None
+        return cp[0]
     
 class CollectionPerms(SQLObject):
     "Per-Collection user permissions"
@@ -269,6 +277,7 @@ class Picture(SQLObject):
         
         if user.mayViewall or user.mayAdmin:
             return True
+        
         if self.owner == user:
             return True
 

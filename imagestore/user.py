@@ -4,19 +4,15 @@ from sqlobject import SQLObjectNotFound
 from sqlobject.sqlbuilder import AND, NOT, IN
 
 from quixote.errors import AccessError, TraversalError, QueryError
-from quixote.html import htmltext, TemplateIO
+from quixote.html import htmltext as H, TemplateIO
 import quixote.form2 as form2
 
 from pages import pre, post, menupane, error, prefix
-from user_page import login_form, user_details as user_details_ptl
+from user_page import login_form, user_page as user_page_ptl, user_edit as user_edit_ptl
 from db import User, getColByName, setColByName, Picture
 from dbfilters import userFilter
 
-from form import extract_form_data    
-
-H=htmltext
-
-_q_exports = [ 'login', 'logout', 'editmode', 'edituser' ]
+_q_exports = [ 'login', 'logout', 'editmode', 'editusers' ]
 
 perms = [ ('mayAdmin', 'May administer'),
           ('mayViewall', 'May view everything'),
@@ -57,21 +53,23 @@ def login(request):
             ret.append(login_form(request, username=username))
         else:
             ret.append('<p>Hi, %s, you\'ve logged in' % user.fullname)
-            session.user = user.id
+            session.setuser(user.id)
             if referer is not None and referer != '':
                 request.redirect(referer)
+            else:
+                request.redirect('%s/user/%s/' % (prefix, user.username))
     else:
         ret.append(login_form(request, referer=request.get_environ('HTTP_REFERER')))
 
-    ret.append(post())
 
     # Put this here so it accurately reflects the logged-in state
     ret.append(menupane(request))
     
+    ret.append(post())
     return ''.join([ str(r) for r in ret ])
 
 def logout(request):
-    request.session.user = None
+    request.session.setuser(None)
 
     request.redirect(request.get_environ('HTTP_REFERER'))
 
@@ -156,7 +154,7 @@ class UserWidget(form2.CompositeWidget):
         if self['delete']:
             classnames += ' deleted'
         r += H('<tr title="%s" class="%s">') % (self.get_hint(), classnames)
-        r += H('<td>%d</td>') % self.user.id
+        r += H('<td><a href="%s/user/%s/">%d</a></td>') % (prefix, self.user.username, self.user.id)
         r += self.render_content()
         r += H('</tr>\n')
             
@@ -277,7 +275,7 @@ class UserListWidget(form2.CompositeWidget):
             if w.has_changed():
                 w.commit()
 
-def edituser(request):
+def editusers(request):
     """Generate a table-form for doing mass edits of users.
 
     This allows an administrator to edit users' usernames, real names,
@@ -289,6 +287,7 @@ def edituser(request):
         confirmation
      3. commit the changes to the database
     """
+
 
     user = request.session.getuser()
 
@@ -335,7 +334,10 @@ def edituser(request):
 
     def render():
         ret = []
-        ret.append(pre(request, 'Edit users', 'edituser'))
+
+        ret.append(pre(request, 'User administration', 'editusers'))
+        ret.append(menupane(request))
+        ret.append('<h1>User administration</h1>\n')
         ret.append(form.render())
         ret.append(post())
 
@@ -371,7 +373,7 @@ def editmode(request):
 
 
 class UserUI:
-    _q_exports = []
+    _q_exports = [ 'edit' ]
     
     def __init__(self, u):
         self.user = u
@@ -383,12 +385,11 @@ class UserUI:
             request.redirect('%s/user/' % prefix)
             return ''
 
-        print self.user
-        print sess_user
-        
         if sess_user != self.user and not sess_user.mayAdmin:
             raise AccessError("You may not view this user's details")
 
-        return self.user_details(request)
+        return self.user_page(request)
 
-    user_details = user_details_ptl
+    user_page = user_page_ptl
+
+    edit = user_edit_ptl

@@ -1,11 +1,14 @@
 import re
-from string import join
+
 from quixote.errors import TraversalError, AccessError
-from quixote.html import htmltext
+from quixote.html import htmltext as H, TemplateIO
+import quixote.form2 as form2
+
 from sqlobject import SQLObjectNotFound
 from ImageTransform import sizes, transform, transformed_size, thumb_size, extmap
-from db import Picture
-from pages import join_extra, prefix
+from db import Picture, Keyword
+from pages import join_extra, prefix, pre, post
+from form import userOptList
 
 def sizere():
     return '|'.join(sizes.keys())
@@ -23,32 +26,6 @@ def set_preferred_size(request, size):
     request.response.set_cookie('imagestore-preferred-size', size)
 
 
-def query_neighbours(self, id):
-    """If Picture.get(id) is in the results list of the last query,
-    then find its neighbours and return them"""
-
-    if not request.sessionMap.has_key('query-results'):
-        return (None, None)
-    qr = request.sessionMap['query-results']
-
-    if id not in qr:
-        return (None, None)
-
-    idx=0
-    # why don't lists have a find() method?
-    for r in qr:
-        if r == id:
-            break
-        idx += 1
-    prev = None
-    next = None
-    if idx > 0:
-        prev = qr[idx-1]
-    if idx < len(qr)-1:
-        next = qr[idx+1]
-    return (prev, next)
-
-
 # Split an image name into a (id, size, isPreferred, ext) tuple
 def split_image_name(name):
     regexp='^([0-9]+)(-(%s|orig)(!)?)?(.[a-z]+)$' % sizere()
@@ -61,6 +38,7 @@ def split_image_name(name):
     return (int(m.group(1)), m.group(3), m.group(4) is not None, m.group(5))
 
 class DetailsUI:
+    " class for /COLLECTION/image/details/NNNN "
     _q_exports = []
     
     def __init__(self, image, coll):
@@ -75,21 +53,90 @@ class DetailsUI:
         except SQLObjectNotFound, x:
             raise TraversalError(str(x))
 
-        return lambda request, self=self, p=p: \
-                                         self.details(request, p)
+        return self.details(request, p)
 
     from image_page import details as details_ptl
     details = details_ptl
 
-# class for /COLLECTION/image namespace (not an individual image)
+class EditUI:
+    " class for /COLLECTION/image/edit/NNNN "
+    _q_exports = []
+    
+    def __init__(self, image, coll):
+        self.coll = coll
+        self.image = image
+
+    def _q_lookup(self, request, component):
+        (id, size, pref, ext) = split_image_name(component)
+
+        try:
+            p = Picture.get(id)
+        except SQLObjectNotFound, x:
+            raise TraversalError(str(x))
+
+        return self.editdetails(request, p)
+
+    def editdetails(self, request, p):
+        form = form2.Form('editdetails')
+
+        form.add(form2.StringWidget, name='title', value=p.title or '', title='Title')
+        form.add(form2.StringWidget, name='keywords',
+                 value=', '.join([ k.word for k in p.keywords]),
+                 title='Keywords')
+        form.add(form2.StringWidget, name='description', value=p.description, title='Description')
+
+        form.add(form2.SingleSelectWidget, name='owner', value=p.ownerID, title='Picture owner',
+                 options=userOptList())
+        form.add(form2.SingleSelectWidget, name='visibility',
+                 value=p.visibility, title='Visibility',
+                 options=[ s for s in ['public', 'restricted', 'private']])
+
+        form.add_submit('submit', 'Update picture details')
+        form.add_reset('reset', 'Revert changes')
+
+        if not form.is_submitted() or form.has_errors():
+            ret = TemplateIO(html=True)
+            
+            ret += pre('Edit details', 'editdetails')
+            ret += self.image.view_rotate_link(request, p)
+            ret += form.render()
+            ret += post()
+
+            ret = ret.getvalue()
+        else:
+            keywords = form['keywords']
+            keywords = [ k.strip() for k in keywords.split(',') if k.strip() ]
+            keywords = [ Keyword.select(Keyword.q.word==k).count() and Keyword.byWord(k) or \
+                         Keyword(word=k, collectionID=p.collectionID)
+                         for k in keywords ]
+
+            for k in p.keywords:
+                if k not in keywords:
+                    print 'removing: %s' % k.word
+                    p.removeKeyword(k)
+
+            for k in keywords:
+                if k not in p.keywords:
+                    print 'adding: %s' % k.word
+                    p.addKeyword(k)
+
+            p.visibility = form['visibility']
+            request.redirect(request.get_path())
+            ret = ''
+
+        return ret
+
+
 class ImageUI:
-    _q_exports = [ 'details', 'rotate' ]
+    " class for /COLLECTION/image namespace (not an individual image) "
+    _q_exports = [ 'details', 'edit', 'rotate' ]
 
     def __init__(self, coll):
         self.coll = coll
         self.dbcoll = coll.dbobj
 
         self.details = DetailsUI(self, coll)
+        self.edit = EditUI(self, coll)
 
     # generate the original image
     def image_orig(self, request, p):
@@ -192,6 +239,9 @@ class ImageUI:
     def details_url(self, p):
         return '%s/%s/image/details/%d.html' % (prefix, self.dbcoll.name, p.id)
 
+    def edit_url(self, p):
+        return '%s/%s/image/edit/%d.html' % (prefix, self.dbcoll.name, p.id)
+
     def picture_url(self, p, size, preferred=False):
         if size is not None:
             size = '-'+size
@@ -211,32 +261,52 @@ class ImageUI:
 
         (pw,ph) = transformed_size(p.id, size)
 
-        return htmltext('<img class="picture" style="width:%(w)dpx; height:%(h)dpx;" alt="%(alt)s" %(extra)s src="%(ref)s">' % \
-                        { 'w': pw,
-                          'h': ph,
-                          'alt': 'Picture %d' % p.id,
-                          'extra': e,
-                          'ref': self.picture_url(p, size, preferred) })
+        r = TemplateIO(html=True)
 
-    def thumb_img(self, p, extra={}):
+        # Don't worry about the visibility marker on full-sized pictures for now
+        
+        r += H('<img class="picture" style="width:%(w)dpx; height:%(h)dpx;" alt="%(alt)s" %(extra)s src="%(ref)s">') % \
+             { 'w': pw,
+               'h': ph,
+               'alt': 'Picture %d' % p.id,
+               'extra': e,
+               'ref': self.picture_url(p, size, preferred) }
+
+        return r.getvalue()
+
+    def thumb_img(self, p, showvis, extra={}):
         e = join_extra(extra)
         (tw,th) = thumb_size(p.id)
 
-        return htmltext('<img id="thumb:%(id)d" class="thumb" style="width:%(w)dpx; height:%(h)dpx;" alt="%(alt)s" %(extra)s src="%(ref)s">' % {
+        r = TemplateIO(html=True)
+
+        r += H('<span class="thumb-img" style="width:%dpx; height=%dpx>">') % (tw, th)
+
+        r += H('<img id="thumb:%(id)d" class="thumb" style="width:%(w)dpx; height:%(h)dpx;" alt="%(alt)s" %(extra)s src="%(ref)s">') % {
             'w': tw,
             'h': th,
             'alt': 'Thumbnail of %d' % p.id,
             'id': p.id,
             'extra': e,
-            'ref': self.thumb_url(p) })
+            'ref': self.thumb_url(p) }
+
+        if showvis:
+            r += H('<img class="visibility" alt="%(v)s" src="%(p)s/static/%(v)s.png">') % {
+                'v': p.visibility, 'p': prefix
+                }
+
+        r += H('</span>')
+
+        return r.getvalue()
 
     def view_link(self, request, p, size=None, link=None, preferred=False, extra={}):
         if link is None:
-            link = self.thumb_img(p=p)
+            user = request.session.getuser()
+            link = self.thumb_img(p=p, showvis=(user and p.ownerID == user.id))
 
         e = join_extra(extra)
 
-        return htmltext('<a %(extra)s href="%(url)s">%(link)s</a>' % {
+        return H('<a %(extra)s href="%(url)s">%(link)s</a>' % {
             'url': self.view_url(p=p, size=size, preferred=preferred),
             'link': link,
             'extra': e })
@@ -261,4 +331,7 @@ class ImageUI:
         return self.view_link(request, p=p, size=size, link=link, preferred=preferred, extra=extra)
 
     def details_link(self, p, link):
-        return htmltext('<a href="%s">%s</a>' % (self.details_url(p), link))
+        return H('<a href="%s">%s</a>' % (self.details_url(p), link))
+
+    def edit_link(self, p, link):
+        return H('<a href="%s">%s</a>' % (self.edit_url(p), link))

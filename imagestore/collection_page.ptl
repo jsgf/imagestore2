@@ -2,11 +2,14 @@
 
 from sqlobject.sqlbuilder import *
 
-from pages import pre, post, join_extra, menupane
-from db import Picture
-from dbfilters import mayViewFilter
+from pages import pre, post, join_extra, menupane, prefix
+from db import Picture, User, CollectionPerms
+from dbfilters import mayViewFilter, userFilter
 from random import randrange
 from image import ImageUI
+from form import userOptList
+
+import quixote.form2 as form2
 
 # Actually a method of CollectionUI
 def _q_index [html] (self, request):
@@ -16,13 +19,19 @@ def _q_index [html] (self, request):
 
     filter = mayViewFilter(self.dbobj, request.session.getuser())
 
-    '<h1>%s: %d pictures</h1>\n' % (self.dbobj.description, npics)
+    extra = self.menupane_extra()
 
-    menupane(request, self.calendar.menupane_extra())
+    if self.mayAdminCol(request):
+        extra.append(('Administer %s' % self.dbobj.name, 'admin'))
+
+    menupane(request, extra)
+
+    '<h1>%s: %d pictures</h1>\n' % (self.dbobj.description, npics)
 
     pics = Picture.select(AND(filter, Picture.q.rating >= 0),
                           orderBy=Picture.q.record_time).reversed()[:100]
-    count = pics.count()
+    pics = [ p.id for p in pics ]
+    count = len(pics)
 
     if count > 0:
         '<div class="sampler">\n'
@@ -33,7 +42,7 @@ def _q_index [html] (self, request):
 
         for i in range(min(count, 16)):
             while True:
-                p = pics[randrange(0, count)]
+                p = Picture.get(pics[randrange(0, count)])
                 if p.id not in done:
                     break
             done.append(p.id)
@@ -47,3 +56,83 @@ def _q_index [html] (self, request):
     
     post()
 
+def admin_page [html] (self, request):
+    col = self.dbobj
+    
+    pre('collection-admin', '%s admin' % col.name)
+
+    menupane(request, self.menupane_extra())
+
+    '<h1>Edit details for %s</h1>\n' % col.name
+
+    props = form2.Form(name='collection-admin')
+
+    props.add(form2.StringWidget, 'name', value=col.name, title='Collection name')
+    props.add(form2.StringWidget, 'description', value=col.description, title='Collection name')
+    props.add(form2.SingleSelectWidget, 'visibility', value=col.visibility,
+             options=['public', 'private'])
+    props.add(form2.CheckboxWidget, 'showOriginal', value=col.showOriginal,
+             title='Allow anyone to download originals')
+
+    props.add(form2.SingleSelectWidget, name='owner', value=col.ownerID, title='Owner',
+              options=userOptList())
+
+    nopics = (Picture.select(Picture.q.collectionID == col.id).count() == 0)
+
+    props.add_submit('submit', 'Change collection settings')
+    props.add_reset('Reset form')
+
+    if nopics:
+        props.add_submit('delete', 'Delete collection')
+
+    if props.get_submit() == 'delete' and nopics:
+        col.destroySelf()
+        request.redirect(prefix)
+        return ''
+
+    if not props.is_submitted() or props.has_errors():
+        '<div class="title-box collection-admin">\n'
+        '<h2>Collection properties</h2>\n'
+        props.render()
+        '</div>'
+    else:
+        if props['name'] != col.name and \
+               Collection.select(Collection.q.name == props['name']).count() != 0:
+            props.get_widget('name').set_error('name already taken')
+        else:
+            col.name = str(props['name'])
+            col.description = str(props['description'])
+            col.visibility = str(props['visibility'])
+            col.showOriginal = str(props['showOriginal'])
+
+            request.redirect(request.get_path())
+
+
+    '<div class="title-box user-perms">\n'
+    '<h2>Per-user permissions</h2>\n'
+    users = CollectionPerms.select(CollectionPerms.q.collectionID == col.id,
+                                   orderBy=CollectionPerms.q.userID)
+    if users.count() != 0:
+        '<table>\n'
+        for up in users:
+            u = User.get(up.userID)
+            
+            '<tr>\n'
+            '<td>%d<td>' % u.id
+            '<td><a href="%s/user/%s/">%s</a><td>' % (prefix, u.username, u.username)
+            '<td>%s</td>' % (up.mayAdmin and 'admin' or '')
+            '<td>%s</td>' % (up.mayViewall and 'viewall' or '')
+            '<td>%s</td>' % (up.mayView and 'view' or '')
+            '<td>%s</td>' % (up.mayViewRestricted and 'restricted' or '')
+            '<td>%s</td>' % (up.mayUpload and 'upload' or '')
+            '<td>%s</td>' % (up.mayComment and 'comment' or '')
+            '<td>%s</td>' % (up.mayEdit and 'edit' or '')
+            '<td>%s</td>' % (up.mayCurate and 'curate' or '')
+            '</tr>\n'
+        '</table>\n'
+        
+    '</div>\n'
+
+    post()
+
+        

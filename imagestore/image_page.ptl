@@ -5,7 +5,7 @@ from ImageTransform import transformed_size, sizes, thumb_size
 from pages import pre, post, join_extra, arrow
 from go_scgi import ImagestoreHandler
 prefix = ImagestoreHandler.prefix
-from db import Picture
+from db import Picture, Keyword
 from style import view_margin, thiswayup_img_padding, table_twu, arrow_height
 
 sorted_sizes=sizes.items()
@@ -89,7 +89,7 @@ def view [html] (self, request, p, size, default):
     post()
 
 def view_rotate_link [html] (self, request, p, size=None, extra={}):
-    if not self.coll.mayEdit(request, p):
+    if not (self.coll.mayEdit(request, p) and request.session.wantedit):
         return self.view_newwin_link(request, p, size, extra=extra)
 
     url='%s#thumb:%d' % (request.get_url(), p.id)
@@ -145,13 +145,17 @@ def view_rotate_link [html] (self, request, p, size=None, extra={}):
 def details [html] (self, request, p):
     pre(request, 'Details for picture %d' % p.id, 'details')
 
-    title = p.title
-    if title is None:
-        title = ''
+    title = p.title or ''
+
+    camera = p.camera
 
     '<span class="detail-thumb">\n'
     self.image.view_rotate_link(request, p) + '\n'
     '</span>\n'
+
+    # TODO: cameras
+    # <tr><td class="name">Camera</td><td class="val">%(camera)s</td></tr>
+
 
     """
     <table class="detail_tab">
@@ -180,6 +184,10 @@ def details [html] (self, request, p):
         'height':           p.height,
         'program':          p.exposure_program,
 
+        'camera':           camera and ('%d: %s %s' % (camera.id,
+                                                       camera.manufacturer,
+                                                       camera.model)) or '?',
+
         'owner':            p.owner.fullname,
         'email':            str('<%s>' % p.owner.email),
         
@@ -188,4 +196,9 @@ def details [html] (self, request, p):
         'description':      p.description,
         }
 
+    user = request.session.getuser()
+    if user and p.mayEdit(user):
+        '<a href="%s/%s/image/edit/%d.html">Edit</a>' % (prefix, self.coll.dbobj.name, p.id)
+
     post()
+
