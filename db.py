@@ -124,8 +124,12 @@ class Media(SQLObject):
         return r
 
 def setmedia(data, hash=None):
-    """Add a new piece of data to the Media table, possibly
-    chunking and encoding it if necessary."""
+    """ Add a new piece of data to the Media table, possibly chunking
+    and encoding it if necessary.  If the data already exists (same
+    hash), then just that (after verifying for integrity, since it
+    could be a left over from a failed previous attempt.
+    """
+    debug = False
     
     if hash is None:
         sha1 = sha.new(data)
@@ -133,9 +137,37 @@ def setmedia(data, hash=None):
 
     order = 0
     media=None
-
+    m=None
+    
     # Make sure there's no old/partial/existing pieces of this data
-    # XXX What if this is legit, ie, genuine duplicate data?
+    try:
+        # get the ID for this hash
+        m = Media.select(Media.q.hash == hash, orderBy='sequence')[0]
+
+        # verify its integrity
+        verifymedia(m.id)
+
+        if debug:
+            print 'media already present for %s -> %d' % (hash, m.id)
+
+        return m                        # OK, already here
+    except:
+        if debug:
+            if m is None:
+                print 'media missing for %s (adding)' % hash
+            else:
+                print 'media corrupted for %d/%s (replacing)' % (m.id, hash)
+            
+        # It didn't exist, or was corrupt
+        pass
+
+    # Make sure we're not about to trash someone's image/thumbnail data
+    if m is not None:
+        pics = Picture.select((Picture.q.mediaid == m.id) | (Picture.q.thumbid == m.id))
+        if pics.count() != 0:
+            raise IOError('CONSISTENCY PROBLEM: Found pictures using corrupt media (hash=%s, images: %s)' % (hash, ', '.join([ str(p.id) for p in pics])))
+    
+    # Just make sure there were no left-overs
     for m in Media.select(Media.q.hash == hash, orderBy='sequence', lazyColumns=lazycol):
         #print 'deleting hash id (%d,%s,%d)' % (m.id, m.hash, m.sequence)
         m.destroySelf()
@@ -157,27 +189,40 @@ def getmediachunks(hash):
         #print "chunk id=%d, seq=%d, len=%d" % (c.id, c.sequence, len(c.data))
         yield c.data
 
+def verifymedia(id):
+    """Verify that all the media chunks are there; returns nothing on
+    success, exception on error"""    
+    m = Media.get(id)
+    sha1 = sha.new()
+
+    for d in getmediachunks(m.hash):
+        sha1.update(d)
+    hash = sha1.digest().encode('hex')
+    if hash != m.hash:
+        raise IOError, 'Media %d data is corrupt: expect SHA1 %s, got %s' % \
+              (id, m.hash, hash)
+
 def getmedia(id, verify=False):
     """Return media data for id"""
     
+    m = Media.get(id)
+
     if verify:
         sha1 = sha.new()
 
-    m = Media.get(id)
-        
-    data=''
+    data=[]
     for d in getmediachunks(m.hash):
         if verify:
             sha1.update(d)
-        data += d
+        data.append(d)
 
     if verify:
-        hash = sha1.digest().encode('hex')
-        if hash != m.hash:
-            raise IOError, 'Media data %d is corrupt: expect SHA1 %s, got %s' % \
-                  (id, m.hash, hash)
+        myhash = sha1.digest().encode('hex')
+        if myhash != m.hash:
+            raise IOError, 'Media %d data is corrupt: expect SHA1 %s, got %s' % \
+                  (id, m.hash, myhash)
     
-    return data
+    return ''.join(data)
 
 class Keyword(SQLObject):
     "Picture keywords"
