@@ -69,7 +69,7 @@ class MigKeyImage(SQLObject):
     word_id = IntCol()
     img_id = IntCol()
 
-catalogue = db.defaultCat()
+collection = db.defaultCollection()
 
 import db, insert
 
@@ -107,7 +107,7 @@ for migp in MigImages.select(lazyColumns=True, orderBy='img_id'):
                                   keywords = kw,
                                   id = migp.id,              # preserve ID
                                   md5hash = migp.hash2,
-                                  catalogue = catalogue,
+                                  collection = collection,
                                   record_time = migp.record_time,
                                   photographer = photog,
                                   description = migp.description,

@@ -28,29 +28,29 @@ __connection__ = conn
 _encode_media=dbinfo[db]['encode']      # use base64 for binary data (sqlite needs it)
 _chunksize=128*1024                     # chunk Media into lumps
 
-def defaultCat():
-    return Catalogue.byName('default')
+def defaultCollection():
+    return Collection.byName('default')
 
-class Catalogue(SQLObject):
+class Collection(SQLObject):
     """
-    A Catalogue of Pictures
+    A Collection of Pictures
 
-    Pictures are grouped into Catalogues, and each Catalogue has its
-    own keywords; a Picture can be in at most one Catalogue(?)
+    Pictures are grouped into Collections; each Collections has its
+    own keywords; a Picture can be in at most one Collection
 
-    Catalogues have their own set of user permissions.
+    Collections have their own set of user permissions.
     """
 
     # Short URL-friendly name
     name = StringCol(length=20, notNone=True, unique=True, alternateID=True)
 
     # Description
-    #description = StringCol(length=100, default='')
+    description = StringCol(length=100, default='')
 
     # Owner
-    #owner = ForeignKey('User')
+    owner = ForeignKey('User')
 
-    # Keywords used in this catalogue
+    # Keywords used in this collection
     keywords = RelatedJoin('Keyword')
 
     # Default visibility to anonymous/undefined users
@@ -59,10 +59,10 @@ class Catalogue(SQLObject):
     # Whether to allow anonymous/non-privileged users to see original image files
     showOriginal = BoolCol(notNone=True, default=False)
 
-class CataloguePerms(SQLObject):
-    "Per-catalogue user permissions"
+class CollectionPerms(SQLObject):
+    "Per-Collection user permissions"
     user = ForeignKey('User')
-    catalogue = ForeignKey('Catalogue')
+    collection = ForeignKey('collection')
 
     mayAdmin = BoolCol(notNone=False, default=False)    # update ACL
     mayViewAll = BoolCol(notNone=False, default=False)  # view all images
@@ -85,7 +85,7 @@ class User(SQLObject):
     mayViewall = BoolCol(notNone=True, default=False)   # view all images everywhere
     mayUpload = BoolCol(notNone=True, default=False)    # upload images everywhere
     mayComment = BoolCol(notNone=True, default=False)   # comment on images everywhere
-    mayCreateCat = BoolCol(notNone=True, default=False) # may create new catalogues
+    mayCreateCat = BoolCol(notNone=True, default=False) # may create new collections
     
 class Camera(SQLObject):
     owner = ForeignKey("User")
@@ -182,7 +182,7 @@ class Keyword(SQLObject):
     word = StringCol(length=20, unique=True, notNone=True, alternateID=True)
     pictures = RelatedJoin('Picture')
 
-    catalogue = ForeignKey('Catalogue')
+    collection = ForeignKey('Collection')
 
 class Picture(SQLObject):
     "Pictures - including movies and other media"
@@ -217,7 +217,7 @@ class Picture(SQLObject):
     mediaid = ForeignKey("Media", unique=True)
     link = ForeignKey("Picture", default=None)
 
-    catalogue = ForeignKey('Catalogue', notNone=True, default=lambda: defaultCat().id)
+    collection = ForeignKey('Collection', notNone=True, default=lambda: defaultCollection().id)
     keywords = RelatedJoin('Keyword')
     comments = MultipleJoin('Comment')
     
@@ -262,8 +262,8 @@ class Comment(SQLObject):
     comment = StringCol(notNone=True)
     
 
-Catalogue.createTable(ifNotExists=True)
-CataloguePerms.createTable(ifNotExists=True)
+Collection.createTable(ifNotExists=True)
+CollectionPerms.createTable(ifNotExists=True)
 Picture.createTable(ifNotExists=True)
 Comment.createTable(ifNotExists=True)
 Media.createTable(ifNotExists=True)
@@ -276,6 +276,6 @@ if User.select(User.q.username == 'admin').count() == 0:
          fullname='Administrator',
          mayAdmin=True, mayViewall=True, mayUpload=True, mayComment=False,
          mayCreateCat=True)
-if Catalogue.select(Catalogue.q.name == 'default').count() == 0:
-    Catalogue(name='default')
+if Collection.select(Collection.q.name == 'default').count() == 0:
+    Collection(name='default', owner=User.byUsername('admin'), description='The default collection')
 

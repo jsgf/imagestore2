@@ -24,7 +24,7 @@ Basic ideas:
 - access control
   - public/private
   - ACLs? groups?
-- arrange photos into "catalogues"
+- arrange photos into "collections"
   - multiple users/photo owners
 - repeated importing without consequence
   - accumulate metadata?
@@ -37,11 +37,11 @@ Basic ideas:
 URL layout:
 
 /imagestore/
-	catalogues/				# catalogue administration
+	collections/				# collection administration
 		new/
 		edit/NAME -> ../../NAME/edit
 
-	<catalogue-name>/			# catalogue root
+	<collection-name>/			# collection root
 		image/
 			NNNN(-SIZE!?)?.html	# generate a viewer page for the image
 			NNNN(-SIZE!?)?(.ext)?	# generate an image data stream (ext ignored)			
@@ -55,7 +55,7 @@ URL layout:
 
 		import/				# image importing
 
-		admin/				# catalogue administration
+		admin/				# collection administration
 
 		search/				# search interface
 

@@ -8,13 +8,13 @@ import db
 def sizere():
     return '|'.join(sizes.keys())
 
-# class for /CATALOGUE/image namespace (not an individual image)
+# class for /COLLECTION/image namespace (not an individual image)
 class ImageUI:
     _q_exports = [ ]
 
-    def __init__(self, cat):
-        print 'ImageUI(%s)' % cat
-        self.cat = cat
+    def __init__(self, coll):
+        print 'ImageUI(%s)' % coll
+        self.coll = coll
 
 
     # Save preferred size as a cookie rather than a user preference
@@ -76,8 +76,8 @@ class ImageUI:
 
         try:
             p = db.Picture.get(picid)
-            if p.catalogue != self.cat:
-                raise TraversalError('Image %d is not part of this catalogue' % picid)
+            if p.collection != self.coll:
+                raise TraversalError('Image %d is not part of this collection' % picid)
         except SQLObjectNotFound, x:
             raise TraversalError(str(x))
 

@@ -116,11 +116,11 @@ def thumbnail(image, size):
 
     return image.resize(size, resample=Image.ANTIALIAS)
 
-def import_file(filename, owner, public, catalogue, keywords=[], **imgattr):
+def import_file(filename, owner, public, collection, keywords=[], **imgattr):
     data = open(filename, 'r').read()
-    return import_image(data, owner, public, catalogue, **imgattr)
+    return import_image(data, owner, public, collection, **imgattr)
 
-def import_image(imgdata, owner, public, catalogue, keywords=[], **imgattr):
+def import_image(imgdata, owner, public, collection, keywords=[], **imgattr):
     imgfile = StringIO(imgdata)
 
     try:
@@ -184,7 +184,7 @@ def import_image(imgdata, owner, public, catalogue, keywords=[], **imgattr):
                       th_height=th_height,
                       **imgattr)
 
-        add_keywords(catalogue, pic, keywords)
+        add_keywords(collection, pic, keywords)
     except Exception, x:
         print 'exception '% x
         print "(rollback)"
@@ -192,12 +192,12 @@ def import_image(imgdata, owner, public, catalogue, keywords=[], **imgattr):
 
     return pic.id
 
-def handle_file(file, owner, catalogue, public):
+def handle_file(file, owner, collection, public):
     if not quiet:
 	print 'Processing %s... ' % file,
 
     try:
-        ret = import_file(file, owner, public, catalogue,
+        ret = import_file(file, owner, public, collection,
                           photographer=owner)
     except ImportException, x:
         ret = '(%s)' % x
@@ -205,9 +205,9 @@ def handle_file(file, owner, catalogue, public):
     if not quiet:
 	print ret
 
-def handle_dir(dir, owner, catalogue, public):
+def handle_dir(dir, owner, collection, public):
     if isfile(dir):
-        handle_file(dir, owner, public, catalogue)
+        handle_file(dir, owner, public, collection)
         return
 
     if not isdir(dir):
@@ -218,16 +218,16 @@ def handle_dir(dir, owner, catalogue, public):
             continue
         f = os.path.join(dir, f)
         if isdir(f):
-            handle_dir(f, owner, public, catalogue)
+            handle_dir(f, owner, public, collection)
         elif isfile(f):
-            handle_file(f, owner, public, catalogue)
+            handle_file(f, owner, public, collection)
 
-def add_keywords(cat, image, keywords=[]):
+def add_keywords(coll, image, keywords=[]):
     for k in keywords:
         try:
             kw = Keyword.byWord(k)
         except SQLObjectNotFound, x:
-            kw = Keyword(word=k, catalogue=cat)
+            kw = Keyword(word=k, collection=coll)
 
         image.addKeyword(kw)
         cat.addKeyword(kw)
@@ -241,7 +241,7 @@ def get_user(username, email, fullname):
 if __name__ == '__main__':
     optlist, args = getopt.getopt(sys.argv[1:], 'o:p:qh')
     owner = get_user(username='jeremy', email='jeremy@goop.org', fullname='Jeremy Fitzhardinge')
-    catalogue = defaultCat()
+    collection = defaultCollection()
     public='public'
 
     for opt in optlist:
@@ -255,10 +255,10 @@ if __name__ == '__main__':
 	if o == '-h':
 	    printhash=1
         if o == '-c':
-            catalogue = Catalogue.byName(v)
+            collection = Collection.byName(v)
             
     for arg in args:
-        handle_dir(arg, owner, public, catalogue)
+        handle_dir(arg, owner, public, collection)
 
 __all__ = [ 'import_file',
             'import_image',
