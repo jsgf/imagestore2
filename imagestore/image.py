@@ -25,12 +25,73 @@ def preferred_size(request, default='small'):
 def set_preferred_size(request, size):
     request.response.set_cookie('imagestore-preferred-size', size)
 
+
+def query_neighbours(self, id):
+    """If Picture.get(id) is in the results list of the last query,
+    then find its neighbours and return them"""
+
+    if not request.sessionMap.has_key('query-results'):
+        return (None, None)
+    qr = request.sessionMap['query-results']
+
+    if id not in qr:
+        return (None, None)
+
+    idx=0
+    # why don't lists have a find() method?
+    for r in qr:
+        if r == id:
+            break
+        idx += 1
+    prev = None
+    next = None
+    if idx > 0:
+        prev = qr[idx-1]
+    if idx < len(qr)-1:
+        next = qr[idx+1]
+    return (prev, next)
+
+
+# Split an image name into a (id, size, isPreferred, ext) tuple
+def split_image_name(name):
+    regexp='^([0-9]+)(-(%s|orig)(!)?)?(.[a-z]+)$' % sizere()
+    #print 'image looking up >%s< with %s' % (component, regexp)
+    m = re.search(regexp, name)
+
+    if m is None:
+        raise TraversalError('Bad image name format: %s' % name)
+
+    return (int(m.group(1)), m.group(3), m.group(4) is not None, m.group(5))
+
+class DetailsUI:
+    _q_exports = []
+    
+    def __init__(self, image, coll):
+        self.coll = coll
+        self.image = image
+
+    def _q_lookup(self, request, component):
+        (id, size, pref, ext) = split_image_name(component)
+
+        try:
+            p = Picture.get(id)
+        except SQLObjectNotFound, x:
+            raise TraversalError(str(x))
+
+        return lambda request, self=self, p=p: \
+                                         self.details(request, p)
+
+    from image_page import details as details_ptl
+    details = details_ptl
+
 # class for /COLLECTION/image namespace (not an individual image)
 class ImageUI:
-    _q_exports = [ ]
+    _q_exports = [ 'details' ]
 
     def __init__(self, coll):
         self.coll = coll
+
+        self.details = DetailsUI(self, coll)
 
     # generate the original image
     def image_orig(self, request, p):
@@ -66,10 +127,7 @@ class ImageUI:
         #print 'image looking up >%s< with %s' % (component, regexp)
         m = re.search(regexp, component)
 
-        if m is None:
-            raise TraversalError('Bad image name format: %s' % component)
-
-        picid = int(m.group(1))
+        (picid, size, default, ext) = split_image_name(component)
 
         try:
             p = Picture.get(picid)
@@ -77,10 +135,6 @@ class ImageUI:
                 raise TraversalError('Image %d is not part of this collection' % picid)
         except SQLObjectNotFound, x:
             raise TraversalError(str(x))
-
-        size = m.group(3)
-        default = m.group(4) is not None
-        ext = m.group(5)
 
         if ext == '.html':
             return lambda request, self=self, p=p, size=size, default=default: \
@@ -95,9 +149,9 @@ class ImageUI:
                                        self.image(request, p, size, default)
 
     # view is a PTL function
-    from image_page import view as view_ptl
+    from image_page import view as view_ptl, view_rotate_link as view_rotate_link_ptl
     view = view_ptl
-
+    view_rotate_link = view_rotate_link_ptl
 
     # Various URL generating functions
     def view_url(self, p, size, preferred=False):
@@ -114,7 +168,7 @@ class ImageUI:
         return '%s/%s/image/%d-thumb.jpg' % (prefix, self.coll.name, p.id)
 
     def details_url(self, p):
-        return '%s/%s/details/%d.html' % (prefix, self.coll.name, p.id)
+        return '%s/%s/image/details/%d.html' % (prefix, self.coll.name, p.id)
 
     def picture_url(self, p, size, preferred=False):
         if size is not None:
@@ -124,6 +178,8 @@ class ImageUI:
         else:
             size = ''
         return "%s/%s/image/%d%s.%s" % (prefix, self.coll.name, p.id, size, extmap[p.mimetype])
+
+
 
     def picture_img(self, p, size, preferred=False, extra={}):
         e = join_extra(extra)

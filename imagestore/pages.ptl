@@ -24,3 +24,24 @@ def html(title, page, bodyclass=''):
 
 def join_extra [html] (extra):
     return ' '.join([ '%s="%s"' % (k, extra[k]) for k in extra.keys() ])
+
+def arrow [html] (dir, alt=None, extra={}):
+    if alt is None:
+        alt = dir + " arrow"
+
+    # XXX put this into .css stylesheet?
+    if dir in ('up', 'down'):
+        (w,h) = (8, 4)
+    elif dir in ('left', 'right'):
+        (w,h) = (4, 8)
+    else:
+        raise Error('Bad direction')
+
+    '<img class="arrow %(dir)s-arrow" style="width:%(w)dpx; height:%(h)dpx;" alt="%(alt)s" %(extra)s src="%(prefix)s/static/arrow-small-%(dir)s.png">' % {
+        'extra': join_extra(extra),
+        'alt': alt,
+        'prefix': prefix,
+        'dir': dir,
+        'w': w,
+        'h': h,
+        }

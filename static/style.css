@@ -89,8 +89,9 @@ TABLE.thiswayup {
   border-spacing: 0;
 }
 .thiswayup .thumb {
-  padding: 0;
+  padding: 1px;
 }
+.thiswayup A:hover .thumb	{ border: 1px solid #ff8b3e; padding: 0px; }
 
 
 /* view windows */

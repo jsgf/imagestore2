@@ -2,7 +2,7 @@
 
 from imagestore.image import preferred_size, set_preferred_size
 from ImageTransform import transformed_size, sizes
-from pages import pre, post, join_extra
+from pages import pre, post, join_extra, arrow
 from go_scgi import ImagestoreHandler
 prefix = ImagestoreHandler.prefix
 
@@ -35,12 +35,20 @@ def view [html] (self, request, p, size, default):
 
     '<div class="nav">\n'
     # XXX put next and prev handing in
+    #(prev,next) = self.query_neighbours(id)
+    #if prev is not None:
+    #    ret += self.view_link(prev, size, root.arrow('left')+'&nbsp;Prev',
+    #                          extra={'title': 'Image %d' % prev,
+    #                                 'class': 'prev'}) + '\n'
 
     '<span class="size">\n'
 
     for s in sorted_sizes:
         if sizes[s][0]*sizes[s][1] < (640*480):
             continue
+        if s != 'full' and sizes[s][0] > p.width and sizes[s][1] > p.height:
+            continue
+        
         sel=''
         if s == size:
             sel='selected'
@@ -52,9 +60,89 @@ def view [html] (self, request, p, size, default):
     '</span>\n'
 
     # XXX next and prev
+    #if next is not None:
+    #    ret += self.view_link(next, size, 'Next&nbsp;'+root.arrow('right'),
+    #                          extra={'title': 'Image %d' % next,
+    #                                 'class': 'next'}) + '\n'
 
     '</div>\n'
 
     self.details_link(p, self.picture_img(p, size, default)) + '\n'
+
+    post()
+
+def rotate_url(p, angle, frompage):
+    return '???'
+
+def view_rotate_link [html] (self, request, p, size=None, extra={}):
+    # XXX check for mayedit
+
+    url='%s#thumb:%d' % (request.get_url(), p.id)
+
+    """
+    <table class="thiswayup">
+    <tr><td colspan="3" align="center">%(up)s</td></tr>
+    <tr>
+    <td><a title="This way up" href="%(rot270)s">%(left)s</a></td>
+    <td>%(thumb)s</td>
+    <td><a title="This way up" href="%(rot90)s">%(right)s</a></td>
+    <tr>
+    <tr><td colspan="3" align="center"><a title="This way up" href="%(rot180)s">%(down)s</a></td></tr>
+    </table>""" % {
+        'rot0':   rotate_url(p, (  0 + p.orientation) % 360, url),
+        'rot90':  rotate_url(p, ( 90 + p.orientation) % 360, url),
+        'rot180': rotate_url(p, (180 + p.orientation) % 360, url),
+        'rot270': rotate_url(p, (270 + p.orientation) % 360, url),
+        'thumb':  self.view_newwin_link(request, p, size, extra=extra),
+        'up':     arrow('up', extra={'title': 'Up is up'}),
+        'down':   arrow('down'),
+        'left':   arrow('left'),
+        'right':  arrow('right'),
+        }
+
+
+
+def details [html] (self, request, p):
+    pre('Details for picture %d' % p.id)
+
+    title = p.title
+    if title is None:
+        title = ''
+
+    '<div class="details">'
+
+    self.image.view_rotate_link(request, p)
+
+    """
+    <table class="detail_tab">
+    <tr><td class="name">Create date</td><td class="val">%(create_time)s</td></tr>
+    <tr><td class="name">Exposure time</td><td class="val">%(shutter)s</td></tr>
+    <tr><td class="name">F-Number</td><td class="val">%(fnumber)s</td></tr>
+    <tr><td class="name">Program-mode</td><td class="val">%(program)s</td></tr>
+    <tr><td class="name">Exposure bias</td><td class="val">%(exp_bias)s EV</td></tr>
+    <tr><td class="name">Focal length</td><td class="val">%(focal)d mm</td></tr>
+    <tr><td class="name">Dimensions</td><td class="val">%(width)dx%(height)d</td></tr>
+    </table>
+    
+    <dl>
+    <dt class="name">Title:</dt><dd class="val title">%(title)s</dd>
+    <dt class="name">Description:</dt><dd class="val description">%(description)s</dd>
+    <dt class="name">Keywords:</dt><dd class="val keywords">%(keywords)s</dd>
+    </dl>
+    </div>
+    """ % {
+        'create_time':      p.record_time.strftime(str('%Y-%m-%d %H:%M')),
+        'shutter':          p.exposure_time,
+        'fnumber':          p.f_number,
+        'exp_bias':         p.exposure_bias,
+        'focal':            p.focal_length,
+        'width':            p.width,
+        'height':           p.height,
+        'program':          p.exposure_program,
+        
+        'keywords':         ', '.join([ k.word for k in p.keywords]),
+        'title':            title,
+        'description':      p.description,
+        }
 
     post()
