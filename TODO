@@ -1,0 +1,45 @@
+-*- text -*-
+
+Short term:
+
+* Session DB in main DB
+ - session timeouts
+
+* Break large search results up
+
+* Browser compatiblity
+ - IE doesn't handle fixed positioning
+ - visibility marker placement
+
+* Better handling of file types
+ - play/display mpegs
+ - easier handling of non-jpg images
+
+* transformed image caching?
+
+* RSS feeds
+ - everywhere?
+ - email too?
+
+* Times+places
+
+* multi-edit
+ - generalize upload editing?
+
+* more complex search
+
+* keywords
+ - keyword curating (merge/change)
+ - keyword ontologies (place/person/etc)
+
+* implement per-user collection permission editing
+
+* fix form formatting
+
+* gallery?
+
+Longer term:
+
+* XMLRPC interface
+
+* non-web client
