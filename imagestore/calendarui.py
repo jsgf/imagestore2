@@ -1,14 +1,15 @@
 
-from mx.DateTime import RelativeDateTime, DateTime, strptime, Error as DTError
+from mx.DateTime import RelativeDateTime, DateTime, strptime, Error as DTError, oneDay
 from quixote.errors import TraversalError, QueryError
 from quixote.html import htmltext
 from db import Picture
+from sqlobject.sqlbuilder import AND, OR
 from pages import pre, post, menupane, error, prefix
-from calendar_page import _q_index_ptl
-
+from calendar_page import _q_index_ptl, most_recent
+from calendar import monthrange, monthcalendar
     
 class CalendarUI:
-    _q_exports = []
+    _q_exports = [ 'year' ]
     
     intervals = { 'day':         RelativeDateTime(days=+1),
                   'week':        RelativeDateTime(weeks=+1),
@@ -29,6 +30,8 @@ class CalendarUI:
 
         self.interval = interval
         self.date = date
+
+        self.year = Year(self)
         
     # calendar will accept any combination of interval/date path
     # elements, though only the last of each is used
@@ -50,16 +53,10 @@ class CalendarUI:
     def menupane_extra(self):
         return ['Calendar',
                 [('summary', self.calendar_url()),
-                 'last...',
-                 [('Week', self.calendar_url('week')),
-                  ('Month', self.calendar_url('month')),
-                  ('Year', self.calendar_url('year'))]]]
-    
-        return [('Calendar summary', self.calendar_url()),
-                'Recent photos',
-                [('Week', self.calendar_url('week')),
-                 ('Month', self.calendar_url('month')),
-                 ('Year', self.calendar_url('year'))]]
+                 'Recent...',
+                 [('week', self.calendar_url('week')),
+                  ('month', self.calendar_url('month')),
+                  ('year', self.calendar_url('year'))]]]
     
     def calendar_url(self, interval=None, date=None):
         ret = '%s/%s/calendar/' % (prefix, self.collection.dbobj.name)
@@ -113,3 +110,88 @@ class CalendarUI:
         if len(piclist) != 0 and today is not None:
             days.append((today, piclist))
         return days
+
+    def yearview(self, year):
+        """ Returns a list of months; each month is a list of weeks; each week is a list of days;
+        each day is a tuple of (day, imagecount) """
+
+        debug = False
+
+        ret = []
+
+        for m in range(1,12+1):
+            days = monthrange(year, m)[1]
+            start = DateTime(year, m, 1)
+            end = start + RelativeDateTime(months=1)
+            
+            count = Picture.select((Picture.q.record_time >= start) & (Picture.q.record_time < end)).count()
+            if debug:
+                print '%d/%d count %d' % (year, m, count)
+            
+            if count == 0:
+                if debug:
+                    print "skipping %d/%d" % (year, m)
+                continue
+
+            month = Month(year, m)
+
+            ret.append(month)
+
+            for d in range(1, days+1):
+                start = DateTime(year, m, d)
+                end = start + oneDay
+
+                count = Picture.select((Picture.q.record_time >= start) & (Picture.q.record_time <= end)).count()
+                if count != 0:
+                    month.markday(d, count)
+
+        return ret
+                                       
+                
+class Year:
+    _q_exports = []
+
+    import calendar_page
+    formatyear = calendar_page.formatyear
+
+    def __init__(self, cal):
+        self.year = None
+        self.calui = cal
+        
+    def _q_lookup(self, request, component):
+        try:
+            self.year = strptime(component, '%Y').year
+        except DTError:
+            try:
+                self.year = strptime(component, '%Y-%m-%d').year
+            except DTError:
+                raise QueryError('Bad year format')
+        return self
+
+    def _q_index(self, request):
+        if self.year is None:
+            self.year = most_recent().record_time.year
+
+        y = self.calui.yearview(self.year)
+
+        return self.formatyear(request, y)
+        
+class Month:
+    def __init__(self, year, month):
+        self.year = year
+        self.month = month
+        self.days = monthrange(year, month)
+
+        self.marked = {}
+
+    def getname(self):
+        return DateTime(self.year, self.month).strftime('%B')
+
+    def markday(self, day, number):
+        self.marked[day] = number
+
+    def ismarked(self, day):
+        return self.marked.get(day, 0)
+
+    def getcalendar(self):
+        return monthcalendar(self.year, self.month)
