@@ -1,7 +1,7 @@
 from imagestore.image import ImageUI
 from pages import html
 import collection_page
-from calendar import CalendarUI
+from calendarui import CalendarUI
 
 from sqlobject.sqlbuilder import AND
 from db import User, CollectionPerms
