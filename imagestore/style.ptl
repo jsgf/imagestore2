@@ -45,6 +45,8 @@ BODY {
   color: %(foreground-color)s;
 
   margin-left: 10em;
+
+  font-family: bitstream vera sans, verdana, arial, helvetica, sans-serif;
 }
 A		{ text-decoration: none; }
 A:link		{ color: %(link-color)s; }
@@ -419,6 +421,9 @@ BODY.calendar DIV.day .day-link {
   margin-left: -2em;
   font-weight: bold;
 }
+BODY.calendar .calendar-year .years A {
+  margin: 1em;
+}
 BODY.calendar .calendar-year TABLE.month {
   float: left;
   display: inline;
@@ -431,10 +436,17 @@ BODY.calendar .calendar-year .month THEAD {
 }
 BODY.calendar .calendar-year .month TBODY {
   text-align: right;
+  padding: 2px;
 }
 BODY.calendar .calendar-year .month .mark {
+  border: 1px solid #aaaaaa;
   background-color: %(highlight-color)s;
+  padding: 1px;
+  font-weight: bold;
 }
+BODY.calendar .calendar-year .month .mark A             { color: white; }
+BODY.calendar .calendar-year .month .mark A:hover       { color: %(strong-active)s; }
+BODY.calendar .calendar-year .month .mark A:active      { color: %(strong-active)s; }
 
 /* Collection */
 BODY.collection .sampler { 
@@ -452,4 +464,6 @@ BODY.collection .sampler .image {
   height: 160px;
 }""" % {
         'highlight-color':      '#777777',      # for highlighting things
+        'active-color':         '#ffa66b',      # orange
+        'strong-active':        '#ff8b3e',      # brighter orange
         }

@@ -1,5 +1,5 @@
 
-from mx.DateTime import RelativeDateTime, DateTime, strptime, Error as DTError, oneDay
+from mx.DateTime import RelativeDateTime, DateTime, strptime, Error as DTError, oneDay, oneSecond
 from quixote.errors import TraversalError, QueryError
 from quixote.html import htmltext
 from db import Picture
@@ -7,7 +7,57 @@ from sqlobject.sqlbuilder import AND, OR
 from pages import pre, post, menupane, error, prefix
 from calendar_page import _q_index_ptl, most_recent
 from calendar import monthrange, monthcalendar
+
+def yrange(start, stop, inc):
+    ' A generic range supporting any type with comparison and += '
+    v = start
+
+    while v < stop:
+        yield v
+        v += inc
+
+def pics_in_range(start, end=None, delta=None, filter=None):
+    ' return a select result for pics from start - start+delta '
+    if end is None:
+        end = start + delta
+        
+    q = [ Picture.q.record_time >= start, Picture.q.record_time < end ]
+    if filter is not None:
+        q.append(filter)
+    return Picture.select(AND(*q), orderBy=Picture.q.record_time)
+
+def pics_grouped(interval, first=None, last=None, round=None):
+    ''' return a list of (DateTime, count) tuples counting the number
+    of images in a particular time interval'''
+
+    debug = False
+
+    if first is None:
+        first = Picture.select(orderBy=Picture.q.record_time)[0].record_time
+    if last is None:
+        last = Picture.select(orderBy=Picture.q.record_time).reversed()[0].record_time
+
+    if round is not None:
+        first = first + round
+        last = (last + interval - oneSecond) + round
+        
+    ret = []
+
+    if debug:
+        print 'first=%s last=%s interval=%s round=%s' % (first, last, interval, round)
     
+    for t in yrange(first, last, interval):
+        p = pics_in_range(t, delta=interval)
+        if debug:
+            print '  t=%s -> %d' % (t, p.count())
+        if p.count() == 0:
+            continue
+        if round is not None:
+            t += round
+        ret.append((t, p.count()))
+
+    return ret
+
 class CalendarUI:
     _q_exports = [ 'year' ]
     
@@ -23,7 +73,7 @@ class CalendarUI:
     zeroDate = DateTime(0,1,1,0,0,0)
 
     # Just less than one day
-    subDay = RelativeDateTime(hours=+23, minutes=+59, seconds=+59)
+    subDay = oneDay - oneSecond
 
     def __init__(self, collection, date=None, interval=None):
         self.collection = collection
@@ -87,10 +137,7 @@ class CalendarUI:
         date_start += self.zeroTime     # round down to start of day
         date_end = (date_end + self.subDay) + self.zeroTime # round up to next day
 
-        q=(Picture.q.record_time >= date_start) & (Picture.q.record_time < date_end)
-        if filter is not None:
-            q = q & filter
-        pics = Picture.select(q, orderBy='record_time')
+        pics = pics_in_range(date_start, end=date_end, filter=filter)
         today=date_start
         days = []
         piclist = []
@@ -124,7 +171,7 @@ class CalendarUI:
             start = DateTime(year, m, 1)
             end = start + RelativeDateTime(months=1)
             
-            count = Picture.select((Picture.q.record_time >= start) & (Picture.q.record_time < end)).count()
+            count = pics_in_range(start, delta=RelativeDateTime(months=1)).count()
             if debug:
                 print '%d/%d count %d' % (year, m, count)
             
@@ -141,7 +188,7 @@ class CalendarUI:
                 start = DateTime(year, m, d)
                 end = start + oneDay
 
-                count = Picture.select((Picture.q.record_time >= start) & (Picture.q.record_time <= end)).count()
+                count = pics_in_range(start, delta=oneDay).count()
                 if count != 0:
                     month.markday(d, count)
 
@@ -164,6 +211,7 @@ class Year:
         except DTError:
             try:
                 self.year = strptime(component, '%Y-%m-%d').year
+                request.redirect('../%d/' % self.year)
             except DTError:
                 raise QueryError('Bad year format')
         return self
