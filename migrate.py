@@ -3,6 +3,7 @@
 # Migrate from imagestore1 to imagestore2
 
 import db
+import gc
 import MySQLdb
 import sha, md5
 import mx.DateTime
@@ -11,8 +12,8 @@ from sqlobject import *
 
 #conn = MySQLConnection(host='127.0.0.1', db='imagestore', user='root', passwd='zwarp', debug=0)
 #conn = MySQLConnection(host='lurch', db='imagestore', user='imagestore', passwd='im_zwarp', debug=0)
-#conn = connectionForURI('mysql://imagestore@127.0.0.1/imagestore')
-conn = connectionForURI('mysql://imagestore:im_zwarp@lurch/imagestore')
+conn = connectionForURI('mysql://imagestore@127.0.0.1/imagestore?cache=0')
+#conn = connectionForURI('mysql://imagestore:im_zwarp@lurch/imagestore')
 conn.debug=0
 
 __connection__ = conn
@@ -139,11 +140,13 @@ def migrate(sel):
         print '     %d keywords: %s' % (migp.id, kw)
 
         try :
-            pid = insert.import_image(migp.image, u, migp.visible,
-                                      keywords = kw,
+            pid = insert.import_image(data=migp.image, orig_filename=None,
+				      owner=u, public=migp.visible,
+                                      collection=collection,
+                                      keywords=kw,
+                                      mimetype=migp.mime_type,
                                       id = migp.id,              # preserve ID
                                       md5hash = migp.hash2,
-                                      collection = collection,
                                       record_time = migp.record_time,
                                       photographer = photog,
                                       description = migp.description,
@@ -164,10 +167,10 @@ def migrate(sel):
 
             # Add any comments
             if migp.comment is not None and migp.comment.strip() != '':
-                c = db.Comment.new(user=0, picture=p, comment=migp.comment, timestamp=migp.modified_time)
+                c = db.Comment(user=u, picture=p, comment=migp.comment, timestamp=migp.modified_time)
             p.sync()
 
-        migp.expire()
+        gc.collect()
 
 if __name__ == '__main__':
     import sys

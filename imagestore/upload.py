@@ -137,7 +137,7 @@ class UploadUI:
         else:
             try:
                 id = import_image(data,
-                                  orig_file,
+                                  orig_file=orig_file,
                                   owner=user,
                                   photographer=user,
                                   public=visibility,

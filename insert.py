@@ -36,14 +36,16 @@ def find_importer_ext(file):
         ext = ext[1:]
 
     try:
-        return _type_map[_ext_map[ext]]
+        return find_importer_type(_ext_map[ext])
     except KeyError:
         return None
 
 def find_importer_data(data):
     img = Image_from_data(data)
     mime = Image.MIME[img.format]
+    return find_importer_type(mime)
 
+def find_importer_type(mime):
     try:
         return _type_map[mime]
     except KeyError:
@@ -56,7 +58,7 @@ def update_maps(map, importer):
         _type_map[k] = importer
 
 class Importer:
-    def import_file(self, filename, owner, public, collection, keywords=[], **imgattr):
+    def import_file(self, filename, owner, public, collection, mimetype=None, keywords=[], **imgattr):
         # If we have no better information, assume the record time is the
         # earliest timestamp on the file itself
         st = stat(filename)
@@ -64,7 +66,7 @@ class Importer:
         imgattr['record_time'] = record_time
         
         data = open(filename).read()
-        return self.import_image(data, owner, public, collection, keywords=[], **imgattr)
+        return self.import_image(data, owner, public, collection, mimetype=mimetype, keywords=[], **imgattr)
 
 class StillImageImporter(Importer):
 
@@ -74,9 +76,10 @@ class StillImageImporter(Importer):
         'MPEG': 1,
         }
 
-    def import_image(self, imgdata, owner, public, collection, keywords=[], **imgattr):
+    def import_image(self, imgdata, owner, public, collection, mimetype=None, keywords=None, **imgattr):
         imgfile = StringIO(imgdata)
 
+        keywords = keywords or None
         try:
             img = Image.open(imgfile)
         except IOError:
@@ -132,7 +135,7 @@ class StillImageImporter(Importer):
                           hash=m.hash,
                           media=m,
                           datasize=len(imgdata),
-                          mimetype=Image.MIME[img.format],
+                          mimetype=mimetype or Image.MIME[img.format],
                           width=width,
                           height=height,
                           thumb=thumb,
@@ -159,7 +162,7 @@ update_maps({
 
 
 class MPEGImporter(Importer):
-    def import_image(self, imgdata, owner, public, collection, keywords=[], **imgattr):
+    def import_image(self, imgdata, owner, public, collection, mimetype=None, keywords=[], **imgattr):
         sha1 = sha.new(imgdata)
         hash = sha1.digest().encode('hex')
 
@@ -182,7 +185,7 @@ class MPEGImporter(Importer):
                           hash=m.hash,
                           media=m,
                           datasize=len(imgdata),
-                          mimetype='video/mpeg',
+                          mimetype=mimetype or 'video/mpeg',
                           width=width,
                           height=height,
                           thumb=thumb,
@@ -338,12 +341,15 @@ def get_user(username, email, fullname):
         return u[0]
     return User(username=username, fullname=fullname, email=email)
 
-def import_image(data, orig_filename, owner, public, collection, keywords, **attr):
-    importer = find_importer_ext(orig_filename)
+def import_image(data, owner, orig_filename, public, collection, keywords, mimetype=None, **attr):
+    if mimetype is not None:
+        importer = find_importer_type(mimetype)
+    else:
+        importer = find_importer_ext(orig_filename)
     if importer is None:
         raise ImportException('Unknown file type')
     
-    return importer().import_image(data, owner, public, collection, keywords, **attr)
+    return importer().import_image(data, owner, public, collection, mimetype=mimetype, keywords=keywords, **attr)
     
 if __name__ == '__main__':
     optlist, args = getopt.getopt(argv[1:], 'o:p:qh')

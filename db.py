@@ -10,6 +10,9 @@ dbinfo = {
     'lurch':    { 'conn': 'mysql://imagestore:im_zwarp@lurch/imagestore2',
                   'encode': False,
                   },
+    'lurch-local':    { 'conn': 'mysql://imagestore@localhost/imagestore2',
+                  'encode': False,
+                  },
     'local':    { 'conn': 'sqlite:' + os.path.abspath('imagestore.db'),
                   'encode': True,
                   },
@@ -18,7 +21,8 @@ dbinfo = {
                   },
     }
 
-db='localmysql'
+#db='localmysql'
+db='lurch-local'
 
 conn = None
 
