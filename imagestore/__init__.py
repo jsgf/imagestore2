@@ -1,22 +1,23 @@
 
+from quixote import enable_ptl
+enable_ptl()
+
 import os.path
 
+from sqlobject import SQLObjectNotFound
+from quixote.errors import TraversalError
 from quixote.util import StaticDirectory
-from quixote import enable_ptl
-
-enable_ptl()
 
 import db, sqlobject
 
 from collection import CollectionUI
-from pages import pre, post, html
+from pages import pre, post, html, menupane
 
 _q_exports = [ 'collections', 'user', 'admin', 'rss', 'static' ]
 
 def _q_index(request):
-    ret='Collections:<br />'
-    for c in db.Collection.select(orderBy=db.Collection.q.id):
-        ret += '<a href="%(c)s/">%(c)s</a><br />' % { 'c': c.name }
+    ret = menupane(request)
+        
     return html('Imagestore', ret)
         
 def _q_lookup(request, component):
@@ -27,9 +28,6 @@ def _q_lookup(request, component):
     
 def collections(request):
     return html('Collections', 'collections')
-
-def user(request):
-    return pre('User') + 'user' + post()
 
 def admin(request):
     return 'admin'

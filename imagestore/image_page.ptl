@@ -5,6 +5,7 @@ from ImageTransform import transformed_size, sizes
 from pages import pre, post, join_extra, arrow
 from go_scgi import ImagestoreHandler
 prefix = ImagestoreHandler.prefix
+from db import Picture
 
 view_margin=15
 
@@ -34,13 +35,15 @@ def view [html] (self, request, p, size, default):
 --></script>\n""" % { 'w': pw+(2*view_margin), 'h': ph+(2*view_margin) }
 
     '<div class="nav">\n'
-    # XXX put next and prev handing in
-    #(prev,next) = self.query_neighbours(id)
-    #if prev is not None:
-    #    ret += self.view_link(prev, size, root.arrow('left')+'&nbsp;Prev',
-    #                          extra={'title': 'Image %d' % prev,
-    #                                 'class': 'prev'}) + '\n'
 
+    (prev,next) = request.session.get_results_neighbours(id)
+
+    if prev is not None:
+        prev = Picture.get(prev)
+        self.view_link(request, prev, size, arrow('left')+'&nbsp;Prev',
+                       extra={'title': 'Image %d' % prev.id,
+                              'class': 'prev'}) + '\n'
+        
     '<span class="size">\n'
 
     for s in sorted_sizes:
@@ -55,15 +58,17 @@ def view [html] (self, request, p, size, default):
         self.view_link(request, p=p, size=s, link=s.capitalize(), preferred=True,
                        extra={'title': '%dx%d' % transformed_size(id, s),
                               'class': sel}) + '\n'
-    self.view_link(request, p, 'orig', 'Original', extra={'title': 'For printing'}) + '\n'
+    if self.coll.mayViewOrig(request, p):
+        self.view_link(request, p, 'orig', 'Original',
+                       extra={'title': 'For printing'}) + '\n'
 
     '</span>\n'
 
-    # XXX next and prev
-    #if next is not None:
-    #    ret += self.view_link(next, size, 'Next&nbsp;'+root.arrow('right'),
-    #                          extra={'title': 'Image %d' % next,
-    #                                 'class': 'next'}) + '\n'
+    if next is not None:
+        next = Picture.get(next)
+        self.view_link(request, next, size, 'Next&nbsp;'+arrow('right'),
+                       extra={'title': 'Image %d' % next.id,
+                              'class': 'next'}) + '\n'
 
     '</div>\n'
 
@@ -71,11 +76,9 @@ def view [html] (self, request, p, size, default):
 
     post()
 
-def rotate_url(p, angle, frompage):
-    return '???'
-
 def view_rotate_link [html] (self, request, p, size=None, extra={}):
-    # XXX check for mayedit
+    if not self.coll.mayEdit(request, p):
+        return self.view_link(request, p, size, extra=extra)
 
     url='%s#thumb:%d' % (request.get_url(), p.id)
 
@@ -89,10 +92,10 @@ def view_rotate_link [html] (self, request, p, size=None, extra={}):
     <tr>
     <tr><td colspan="3" align="center"><a title="This way up" href="%(rot180)s">%(down)s</a></td></tr>
     </table>""" % {
-        'rot0':   rotate_url(p, (  0 + p.orientation) % 360, url),
-        'rot90':  rotate_url(p, ( 90 + p.orientation) % 360, url),
-        'rot180': rotate_url(p, (180 + p.orientation) % 360, url),
-        'rot270': rotate_url(p, (270 + p.orientation) % 360, url),
+        'rot0':   self.rotate_url(p, (  0 + p.orientation) % 360, url),
+        'rot90':  self.rotate_url(p, ( 90 + p.orientation) % 360, url),
+        'rot180': self.rotate_url(p, (180 + p.orientation) % 360, url),
+        'rot270': self.rotate_url(p, (270 + p.orientation) % 360, url),
         'thumb':  self.view_newwin_link(request, p, size, extra=extra),
         'up':     arrow('up', extra={'title': 'Up is up'}),
         'down':   arrow('down'),
@@ -103,15 +106,15 @@ def view_rotate_link [html] (self, request, p, size=None, extra={}):
 
 
 def details [html] (self, request, p):
-    pre('Details for picture %d' % p.id)
+    pre('Details for picture %d' % p.id, 'details')
 
     title = p.title
     if title is None:
         title = ''
 
-    '<div class="details">'
-
-    self.image.view_rotate_link(request, p)
+    '<span class="detail-thumb">\n'
+    self.image.view_rotate_link(request, p) + '\n'
+    '</span>\n'
 
     """
     <table class="detail_tab">
@@ -127,9 +130,9 @@ def details [html] (self, request, p):
     <dl>
     <dt class="name">Title:</dt><dd class="val title">%(title)s</dd>
     <dt class="name">Description:</dt><dd class="val description">%(description)s</dd>
+    <dt class="name">Owner:</dt><dd class="val owner">%(owner)s %(email)s</dd>
     <dt class="name">Keywords:</dt><dd class="val keywords">%(keywords)s</dd>
     </dl>
-    </div>
     """ % {
         'create_time':      p.record_time.strftime(str('%Y-%m-%d %H:%M')),
         'shutter':          p.exposure_time,
@@ -139,6 +142,9 @@ def details [html] (self, request, p):
         'width':            p.width,
         'height':           p.height,
         'program':          p.exposure_program,
+
+        'owner':            p.owner.fullname,
+        'email':            str('<%s>' % p.owner.email),
         
         'keywords':         ', '.join([ k.word for k in p.keywords]),
         'title':            title,

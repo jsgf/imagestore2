@@ -200,18 +200,28 @@ class Picture(SQLObject):
         #print 'id=%d thumbid=%d' % (self.id, self.thumbid)
         return getmedia(self.thumbid, verify)
 
-##    def converttime(self, timestr):
-##        print 'class=%s timestr=%s' % (timestr.class, timestr)
-##        try:
-##            return mx.DateTime.strptime(str(timestr), '%Y-%m-%d %H:%M:%S')
-##        except:
-##            return mx.DateTime.strptime(str(timestr), '%Y-%m-%d %H:%M:%S.00')
 
-##    def _get_record_time(self):
-##        return self.converttime(self._SO_get_record_time())
+    def mayView(self, user):
+        if self.visibility == 'public':
+            return True
+        if self.owner == user:
+            return True
+        if user is not None and (user.mayViewAll or user.mayAdmin):
+            return True
 
-##    def _get_modified_time(self):
-##        return self.converttime(self._SO_get_modified_time())
+        return False
+
+    def mayEdit(self, user):
+        if user is None:
+            return False
+        
+        if self.owner == user:
+            return True
+        if user.mayAdmin:
+            return True
+
+        return False
+
 
     hash = StringCol(length=40, varchar=False, notNone=True, unique=True, alternateID=True)
     mimetype = StringCol(notNone=True, length=40)

@@ -2,7 +2,7 @@
 
 from sqlobject.sqlbuilder import *
 
-from pages import pre, post, join_extra
+from pages import pre, post, join_extra, menupane
 from db import Picture
 from random import randrange
 from image import ImageUI
@@ -15,6 +15,8 @@ def _q_index [html] (self, request):
 
     '<h1>%s: %d pictures</h1>\n' % (self.dbobj.description, npics)
 
+    menupane(request)
+
     pics = Picture.select(AND(Picture.q.collectionID == self.dbobj.id,
                               Picture.q.visibility == str('public'),
                               Picture.q.rating >= 0),
@@ -25,17 +27,19 @@ def _q_index [html] (self, request):
 
     done=[]
 
-    imageui = ImageUI(self.dbobj)
+    imageui = ImageUI(self)
     
     for i in range(16):
         while True:
             p = pics[randrange(0, count)]
-            if p not in done:
+            if p.id not in done:
                 break
-        done.append(p)
+        done.append(p.id)
         '<span class="image">'
         imageui.view_newwin_link(request, p)
         '</span>\n'
+
+    request.session.set_query_results(done)
 
     '</div>'
     

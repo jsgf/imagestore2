@@ -1,5 +1,8 @@
 # -*- python -*-
 
+from db import Collection
+from sqlobject.sqlbuilder import OR
+
 from go_scgi import ImagestoreHandler
 prefix = ImagestoreHandler.prefix
 
@@ -20,7 +23,7 @@ def post [html] ():
     "\n</body>\n</html>\n"
 
 def html(title, page, bodyclass=''):
-    return str(pre(title, bodyclass)) + page + str(post())
+    return pre(title, bodyclass) + page + post()
 
 def join_extra [html] (extra):
     return ' '.join([ '%s="%s"' % (k, extra[k]) for k in extra.keys() ])
@@ -45,3 +48,37 @@ def arrow [html] (dir, alt=None, extra={}):
         'w': w,
         'h': h,
         }
+
+def menupane [html] (request):
+    '<div class="menu">\n'
+
+    '<ul>\n'
+
+    session = request.session
+    user = session.getuser()
+    
+    if user is None:
+        '<li class="login"><a href="%s/user/login">Log in</a>\n' % prefix
+    else:
+        '<li class="login">Logged in as <a href="%(prefix)s/user/%(user)s/">%(fullname)s</a>\n' % {
+            'prefix': prefix,
+            'user': user.username,
+            'fullname': user.fullname }
+        '<ul>\n'
+        '<li><a href="%s/user/logout">log out</a>\n' % prefix
+        '</ul>\n'
+         
+    '<li class="collections">Collections:\n'
+    '  <ul>\n'
+
+    q = [ Collection.q.visibility == str('public') ]
+    if user is not None:
+        q.append(Collection.q.ownerID == user.id)
+        
+    for c in Collection.select(OR(*q), orderBy=Collection.q.id):
+        '    <li><a href="%(pre)s/%(c)s/">%(c)s</a>\n' % { 'pre': prefix, 'c': c.name }
+
+    '  </ul>\n'
+    
+    '</ul>\n'
+    '</div>\n'

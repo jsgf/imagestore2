@@ -1,6 +1,6 @@
 import re
 from string import join
-from quixote.errors import TraversalError
+from quixote.errors import TraversalError, AccessError
 from quixote.html import htmltext
 from sqlobject import SQLObjectNotFound
 from ImageTransform import sizes, transform, transformed_size, thumb_size, extmap
@@ -55,7 +55,7 @@ def query_neighbours(self, id):
 # Split an image name into a (id, size, isPreferred, ext) tuple
 def split_image_name(name):
     regexp='^([0-9]+)(-(%s|orig)(!)?)?(.[a-z]+)$' % sizere()
-    #print 'image looking up >%s< with %s' % (component, regexp)
+    #print 'image looking up >%s< with %s' % (name, regexp)
     m = re.search(regexp, name)
 
     if m is None:
@@ -86,33 +86,64 @@ class DetailsUI:
 
 # class for /COLLECTION/image namespace (not an individual image)
 class ImageUI:
-    _q_exports = [ 'details' ]
+    _q_exports = [ 'details', 'rotate' ]
 
     def __init__(self, coll):
         self.coll = coll
+        self.dbcoll = coll.dbobj
 
         self.details = DetailsUI(self, coll)
 
     # generate the original image
     def image_orig(self, request, p):
+        if not self.coll.mayViewOrig(request, p):
+            raise AccessError('You may not view this original image')
         request.response.set_content_type(p.mimetype)
         return p.getimage()             # XXX stream
 
     # generate a transformed image
     def image(self, request, p, size, preferred):
+        if not self.coll.mayView(request, p):
+            raise AccessError('You may not view this image')
+        if p.collection != self.coll.dbobj:
+            raise TraversalError('Image %d is not part of this collection' % p.id)
+        
         if size is None:
             size = preferred_size(request)
         elif preferred:
             set_preferred_size(request, size)
         
         file = transform(p.id, size)
-        ret = ''
-        for d in file:
-            ret += d
+        ret = ''.join([ d for d in file])
 
         request.response.set_content_type('image/jpeg')
 
         return ret
+
+    def rotate(self, request):
+        try:
+            id = int(request.get_form_var('id'))
+            angle = int(request.get_form_var('angle'))
+            returnurl = request.get_form_var('fromurl')
+
+            p = Picture.get(id)
+
+            if not self.coll.mayEdit(request, p):
+                raise AccessError('may not edit image')
+
+            if angle not in (0, 90, 180, 270):
+                raise QueryError('Bad angle')
+        except SQLObjectNotFound, x:
+            raise QueryError('Bad id')
+        except ValueError, x:
+            raise QueryError('Bad value' + str(x))
+
+        p.orientation = angle
+
+        if returnurl is not None:
+            request.redirect(returnurl)
+        
+        return 'rotate done, I guess'
 
     def _q_lookup(self, request, component):
         """ Look up an image by name.  The first part is the image
@@ -122,17 +153,11 @@ class ImageUI:
         set as default.  The extension must be present, but is only
         checked for two states: .html (generate an HTML page to
         contain the image) and not .html (the image itself) """
-        
-        regexp='^([0-9]+)(-(%s|orig)(!)?)?(.[a-z]+)$' % sizere()
-        #print 'image looking up >%s< with %s' % (component, regexp)
-        m = re.search(regexp, component)
 
         (picid, size, default, ext) = split_image_name(component)
 
         try:
             p = Picture.get(picid)
-            if p.collection != self.coll:
-                raise TraversalError('Image %d is not part of this collection' % picid)
         except SQLObjectNotFound, x:
             raise TraversalError(str(x))
 
@@ -162,13 +187,13 @@ class ImageUI:
         else:
             size = ''
 
-        return '%s/%s/image/%d%s.html' % (prefix, self.coll.name, p.id, size)
+        return '%s/%s/image/%d%s.html' % (prefix, self.dbcoll.name, p.id, size)
 
     def thumb_url(self, p):
-        return '%s/%s/image/%d-thumb.jpg' % (prefix, self.coll.name, p.id)
+        return '%s/%s/image/%d-thumb.jpg' % (prefix, self.dbcoll.name, p.id)
 
     def details_url(self, p):
-        return '%s/%s/image/details/%d.html' % (prefix, self.coll.name, p.id)
+        return '%s/%s/image/details/%d.html' % (prefix, self.dbcoll.name, p.id)
 
     def picture_url(self, p, size, preferred=False):
         if size is not None:
@@ -177,9 +202,12 @@ class ImageUI:
                 size += '!'
         else:
             size = ''
-        return "%s/%s/image/%d%s.%s" % (prefix, self.coll.name, p.id, size, extmap[p.mimetype])
+        return "%s/%s/image/%d%s.%s" % (prefix, self.dbcoll.name, p.id, size, extmap[p.mimetype])
 
-
+    def rotate_url(self, p, angle, frompage):
+        angle = int(angle)
+        return '%s/%s/image/rotate?id=%d&angle=%d&fromurl=%s' % \
+               (prefix, self.dbcoll.name, p.id, angle, frompage)
 
     def picture_img(self, p, size, preferred=False, extra={}):
         e = join_extra(extra)

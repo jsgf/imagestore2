@@ -22,7 +22,8 @@ cachedir="cache"
 
 # Font
 font = "/usr/share/fonts/bitstream-vera/Vera.ttf"
-        
+fontsize = 12
+
 sizes = { 'thumb':      (160, 160),
           'tiny':       (320, 240),
           'small':      (640, 480),
@@ -77,8 +78,9 @@ def transform(id, size = 'medium'):
         copyright='Copyright \xa9 %s %s' % (p.record_time.strftime('%Y'), p.photographer.email)
 
     # Watermark
-    cvtargs += '-box "#00000070" -fill white -font %(font)s -encoding Unicode -draw "gravity SouthWest text 10,20 \\"Imagestore #%(id)d %(copy)s\\"" -quality %(qual)d' % {
+    cvtargs += '-box "#00000070" -fill white -pointsize %(size)d -font %(font)s -encoding Unicode -draw "gravity SouthWest text 10,20 \\"Imagestore #%(id)d %(copy)s\\"" -quality %(qual)d' % {
         'font': font,
+        'size': fontsize,
         'id': id,
         'qual': 70,
         'copy': copyright }
@@ -167,7 +169,7 @@ def rotate_thumb(p):
         return p.getthumb()
     else:
         img = Image_from_data(p.getthumb())
-        print 'orientation=%d' % p.orientation
+        #print 'orientation=%d' % p.orientation
         if p.orientation == 90:
             img = img.transpose(Image.ROTATE_90)
         elif p.orientation == 180:
