@@ -31,20 +31,20 @@ Basic ideas:
 
 Data design:
 
-Table "media"
+Table "Media"
 
 Stores all the bulk data, away from any metadata to keep cache footprint small.
 
-      INT	mediaid				// unique media id (primary key)
-      CHAR(40)	sha1hash			// index
-      INT	chain		= "media"	// chain if too big for BLOB?
-      LARGEBLOB	data
+      INT	id				// unique media id (primary key)
+      CHAR(40)	hash				// index
+      INT	sequence			// which chunk in the data
+      BLOB	data
 
 Table "images"
 
 Per-image info.  XXX Split this into base info and per-media metadata?
 
-      INT	imageid				// unique image id (primary key)
+      INT	id				// unique image id (primary key)
       CHAR	mimetype
 
       INT	mediaid		= "media"	// media

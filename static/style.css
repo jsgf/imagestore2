@@ -1,0 +1,89 @@
+/* default stylesheet */
+
+/* 
+   classes used:
+
+   Page classes:
+   .view:	image viewing pages
+   .calendar:	calendar pages
+
+   Overall classes:
+   .picture:	<img>s referring to full-sized pictures
+   .thumb:	<img>s referring to thumbnails
+
+   .selected:	any selected option
+ */
+
+/* Overall default definitions */
+BODY { 
+  background-color: #444444;
+  color: #eeeeee;
+}
+A		{ text-decoration: none; }
+A:link		{ color: #dddddd; }
+A:visited	{ color: #dddddd; }
+A:hover		{ color: #ffa66b; } /* orange */
+A:active	{ color: #ffa66b; }
+
+.picture	{ border: 0; padding: 0; }
+.thumb		{ border: 0; padding: 5px; }
+.selected	{ background-color: #888888; font-weight: bold; }
+A.selected:hover { color: #ff8b3e; }
+
+/* view windows */
+BODY.view {
+  margin: 10px;
+  background-color: black;
+
+}
+BODY.view .nav { 
+  position: fixed;
+  top: 0px;
+  left: 0px;
+
+  text-align: center;
+  width: 100%;
+  height: 10px;
+
+  font-size: 9px;
+  white-space: nowrap;
+
+  vertical-align: middle;
+}
+BODY.view .nav a:hover { 
+  font-size: 150%;
+  font-weight: bold;
+  padding: 0px 5px 5px;
+}
+BODY.view .nav .size A {
+  text-align: center;
+  padding-left: .5em;
+  padding-right: .5em;
+  background-color: black;
+}
+BODY.view .nav .size A.selected	{
+  background-color: #888888;
+}
+BODY.view .nav .prev {
+  position: absolute;
+  left: 20px;
+  background-color: black;
+}
+BODY.view .nav .next { 
+  position: absolute;
+  right: 20px;
+  background-color: black;
+}
+
+
+/* calendar windows */
+BODY.calendar DIV.day { 
+  margin-top: 4em;
+  margin-left: 5%;
+  margin-right: 5%;
+}
+BODY.calendar DIV.day .day-link { 
+  display: block;
+  margin-bottom: 1em;
+  font-weight: bold;
+}

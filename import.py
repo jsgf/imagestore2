@@ -1,13 +1,18 @@
 import getopt
 from dircache import listdir
 from os.path import isfile, isdir
-import os.path
-import sys
+from string import split
+import os.path, sys
 import Image
-from ArrayStream import ArrayStream
-from db import *
+from mx.DateTime import DateTime
+from StringIO import StringIO
+
 import SQLObject
 import EXIF
+
+from db import *
+
+from ImageTransform import data_from_Image, Image_from_data
 
 debug=True
 quiet=False
@@ -15,6 +20,10 @@ quiet=False
 ignore = {
     'XVThumb': 1
 }
+
+def mkDateTime(s):
+    s=str(s)
+    return mx.DateTime.strptime(s, '%Y:%m:%d %H:%M:%S')
 
 def get_EXIF_metadata(file, imgattr):
     exif = EXIF.process_file(file, 0)
@@ -49,11 +58,18 @@ def get_EXIF_metadata(file, imgattr):
         'orientation':		[ 'Image Orientation' ],
     }
 
+    typemap = {
+        'record_time':          mkDateTime,
+        'orientation':          lambda o: return { 1:0, 3: 180, 6: 270, 8: 90, 9: 0 }[o]
+    }
     for a in attrmap.keys():
         for e in attrmap[a]:
             if exif.has_key(e) and exif[e] is not None:
                 #print "a=%s e=%s" % (a, e)
-                imgattr[a] = exif[e]
+                v = exif[e]
+                if typemap.has_key(a):
+                    v = typemap[a](v)
+                imgattr[a] = v
                 break
 
     if debug:
@@ -76,26 +92,20 @@ def thumbnail(image, size):
 
     return image.resize(size, resample=Image.ANTIALIAS)
 
-def data_from_Image(image, format, **kw):
-    data=ArrayStream()
-    image.save(data, format, **kw)
-    return data.data()
+def import_file(filename, owner, public, **imgattr):
+    data = open(filename, 'r').read()
+    return import_image(data, owner, public, **imgattr)
 
-def Image_from_data(data, *kw):
-    data=ArrayStream(data)
-    return Image.open(data, *kw)
-
-def getimage(filename, owner, public, **imgattr):
+def import_image(imgdata, owner, public, **imgattr):
+    imgfile = StringIO(imgdata)
+    
     try:
-	img = Image.open(filename)
+	img = Image_from_data(imgdata)
     except IOError:
 	return 'I/O error'
 
     if ignore.has_key(img.format):
 	return 'unwanted type'
-
-    imgfile = open(filename, 'r')
-    imgdata = imgfile.read()
 
     sha1 = sha.new(imgdata)
     hash=sha1.digest().encode('hex')
@@ -141,6 +151,7 @@ def getimage(filename, owner, public, **imgattr):
                           visibility=public,
                           hash=m.hash,
                           media=m,
+                          datasize=len(imgdata),
                           mimetype='image/jpeg',
                           width=width,
                           height=height,
@@ -157,8 +168,8 @@ def getimage(filename, owner, public, **imgattr):
 def handlefile(file, owner, public):
     if not quiet:
 	print 'Processing %s... ' % file,
-    ret = getimage(file, owner, public,
-                   photographer=owner)
+    ret = import_file(file, owner, public,
+                      photographer=owner)
     if not quiet:
 	print ret
 
@@ -179,15 +190,15 @@ def handledir(dir, owner, public):
         elif isfile(f):
             handlefile(f, owner, public)
 
-def getuser(username):
+def getuser(username, fullname):
     u=User.select(User.q.username==username)
     if u.count() != 0:
         return u[0]
-    return User.new(username=username)
+    return User.new(username=username, fullname=fullname)
 
 if __name__ == '__main__':
     optlist, args = getopt.getopt(sys.argv[1:], 'o:p:qh')
-    owner = getuser('jeremy@goop.org')
+    owner = getuser('jeremy@goop.org', 'Jeremy Fitzhardinge')
     public='public'
 
     for opt in optlist:
