@@ -189,7 +189,8 @@ class Picture(SQLObject):
     owner = ForeignKey("User", default=None)
     visibility = EnumCol(enumValues=["public","private"], default="public", notNone=True)
     photographer = ForeignKey('User', default=None)
-    
+
+    #title = StringCol(length=127,default=None)
     description = StringCol(default=None)
     copyright = StringCol(default=None)
     rating = IntCol(default=0, notNone=True)
@@ -203,7 +204,7 @@ class Picture(SQLObject):
     th_height = IntCol(default=None)
     
     record_time = DateTimeCol()
-    modified_time = DateTimeCol(default=mx.DateTime.gmt)
+    modified_time = DateTimeCol(default=mx.DateTime.gmt, notNone=True)
 
     exposure_program = StringCol(default=None)
     flash = BoolCol()
@@ -216,8 +217,10 @@ class Picture(SQLObject):
 class Comment(SQLObject):
     user = ForeignKey('User')
     picture = ForeignKey('Picture')
-    comment = StringCol()
+    timestamp = DateTimeCol(default=mx.DateTime.gmt, notNone=True)
 
+    comment = StringCol()
+    
 
 Catalogue.createTable(ifNotExists=True)
 CataloguePerms.createTable(ifNotExists=True)

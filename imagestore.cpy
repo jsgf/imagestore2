@@ -631,7 +631,7 @@ view:
         idx=0
         for d,pl in days:
             ret += '<div class="day">\n'
-            ret += '<a id="day:%(date)s" class="day-link" href="%(url)s">%(date)s</a>\n' % {
+            ret += '<div class="day-link" id="day:%(date)s"><a href="%(url)s">%(date)s</a></div>\n' % {
                 'url': self.calendar_url('day', d),
                 'date': d.strftime('%Y-%m-%d')
                 }

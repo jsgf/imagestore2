@@ -17,9 +17,13 @@ from ImageTransform import data_from_Image, Image_from_data
 debug=True
 quiet=False
 
-ignore = {
+_ignore = {
     'XVThumb': 1
 }
+
+_mimetypes = {
+    'JPEG': 'image/jpeg',
+    }
 
 def mkDateTime(s):
     s=str(s)
@@ -92,11 +96,11 @@ def thumbnail(image, size):
 
     return image.resize(size, resample=Image.ANTIALIAS)
 
-def import_file(filename, owner, public, **imgattr):
+def import_file(filename, owner, public, catalogue, keywords=[], **imgattr):
     data = open(filename, 'r').read()
-    return import_image(data, owner, public, **imgattr)
+    return import_image(data, owner, public, catalogue, **imgattr)
 
-def import_image(imgdata, owner, public, **imgattr):
+def import_image(imgdata, owner, public, catalogue, keywords=[], **imgattr):
     imgfile = StringIO(imgdata)
     
     try:
@@ -104,7 +108,7 @@ def import_image(imgdata, owner, public, **imgattr):
     except IOError:
 	return 'I/O error'
 
-    if ignore.has_key(img.format):
+    if _ignore.has_key(img.format):
 	return 'unwanted type'
 
     sha1 = sha.new(imgdata)
@@ -152,30 +156,32 @@ def import_image(imgdata, owner, public, **imgattr):
                           hash=m.hash,
                           media=m,
                           datasize=len(imgdata),
-                          mimetype='image/jpeg',
+                          mimetype=_mimetypes[img.format],
                           width=width,
                           height=height,
                           thumb=thumb,
                           th_width=th_width,
                           th_height=th_height,
                           **imgattr)
+
+        add_keywords(catalogue, pic, keywords)
     except:
         print "(rollback)"
         raise
 
     return pic.id
 
-def handlefile(file, owner, public):
+def handle_file(file, owner, catalogue, public):
     if not quiet:
 	print 'Processing %s... ' % file,
-    ret = import_file(file, owner, public,
+    ret = import_file(file, owner, public, catalogue,
                       photographer=owner)
     if not quiet:
 	print ret
 
-def handledir(dir, owner, public):
+def handle_dir(dir, owner, catalogue, public):
     if isfile(dir):
-        handlefile(dir, owner, public)
+        handle_file(dir, owner, public, catalogue)
         return
 
     if not isdir(dir):
@@ -186,11 +192,21 @@ def handledir(dir, owner, public):
             continue
         f = os.path.join(dir, f)
         if isdir(f):
-            handledir(f, owner, public)
+            handle_dir(f, owner, public)
         elif isfile(f):
-            handlefile(f, owner, public)
+            handle_file(f, owner, public)
 
-def getuser(username, email, fullname):
+def add_keywords(cat, image, keywords=[]):
+    for k in keywords:
+        try:
+            kw = Keyword.byWord(k)
+        except SQLObjectNotFound, x:
+            kw = Keyword.new(word=k, catalogue=cat)
+
+        image.addKeyword(kw)
+        cat.addKeyword(kw)
+        
+def get_user(username, email, fullname):
     u=User.select(User.q.username==username)
     if u.count() != 0:
         return u[0]
@@ -198,7 +214,8 @@ def getuser(username, email, fullname):
 
 if __name__ == '__main__':
     optlist, args = getopt.getopt(sys.argv[1:], 'o:p:qh')
-    owner = getuser(username='jeremy', email='jeremy@goop.org', fullname='Jeremy Fitzhardinge')
+    owner = get_user(username='jeremy', email='jeremy@goop.org', fullname='Jeremy Fitzhardinge')
+    catalogue = defaultCat()
     public='public'
 
     for opt in optlist:
@@ -211,6 +228,15 @@ if __name__ == '__main__':
 	    quiet=1
 	if o == '-h':
 	    printhash=1
-        
+        if o == '-c':
+            catalogue = Catalogue.byName(v)
+            
     for arg in args:
-        handledir(arg, owner, public)
+        handle_dir(arg, owner, public, catalogue)
+
+__all__ = [ 'import_file',
+            'import_image',
+            'handle_file',
+            'handle_dir',
+            'add_keywords',
+            'get_user' ]
