@@ -135,26 +135,8 @@ class KWSearchUI:
 
         resultsize = len(pics)
 
-        # Limit the size of the result set
-        start = request.form.get('start') or 0
-        limit = request.form.get('limit') or self.RESULTLIMIT
-
-        start = int(start)
-        limit = int(limit)
-        end = start+limit
-
-        if start > 0:
-            p=start-limit
-            request.navigation.set_prev(self.url(max(p, 0), limit))
-            request.navigation.set_first(self.url(limit=limit))
-            
-        if end < len(pics):
-            request.navigation.set_next(self.url(end, limit))
-            request.navigation.set_last(self.url(resultsize-limit, limit))
-
-        pics = pics[start:start+limit]
-
-        r = TemplateIO(html=True)
+        # Present keyword operations on the full set of pictures, not
+        # just the displayed set.
 
         # Useless keywords are the ones common to all images in this search
         useless = Set([ k.word for k in commonKeywords(pics) ])
@@ -167,6 +149,34 @@ class KWSearchUI:
         refining = kwset-useless
         
         #print 'useless=%s, kwset=' % useless
+
+
+        # Limit the size of the displayed result set
+        start = request.form.get('start') or 0
+        limit = request.form.get('limit') or self.RESULTLIMIT
+        
+        start = int(start)
+        limit = int(limit)
+
+        if start < 0 or start > len(pics):
+            start = 0
+        if limit <= 0:
+            limit = self.RESULTLIMIT
+            
+        end = start+limit
+
+        if start > 0:
+            p=start-limit
+            request.navigation.set_prev(self.url(max(p, 0), limit))
+            request.navigation.set_first(self.url(limit=limit))
+
+        if end < len(pics):
+            request.navigation.set_next(self.url(end, limit))
+            request.navigation.set_last(self.url(resultsize-limit, limit))
+
+        pics = pics[start:start+limit]
+
+        r = TemplateIO(html=True)
         
         groups = group_by_time(pics, int_day)
 
