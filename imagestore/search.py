@@ -48,7 +48,7 @@ def listkeywords(base, kwlist, bigletter=False):
                 r += H('</%s>\n' % divide) 
             r += H('<%s class="emphasize %s">\n' % (divide, bigletter and 'bigletter' or ''))
             char = k[0]
-        r += H('  <a class="kw" href="%s/%s/">%s</a>\n') % (base, k, k)
+        r += H('  <a class="kw" href="%s%s/">%s</a>\n') % (base, k, k)
     if char:
         r += H('</%s>\n' % divide) 
 
@@ -76,6 +76,9 @@ def group_by_time(pics, unit):
 
 class KWSearchUI:
     _q_exports = []
+
+    #RESULTLIMIT=200
+    RESULTLIMIT=20
     
     def __init__(self, search, collection):
         self.col = collection
@@ -87,6 +90,22 @@ class KWSearchUI:
         element = element.strip()
         self.kw.append(element)
         return self
+
+    def url(self, start=0, limit=None, keywords=None):
+        if keywords is None:
+            keywords = self.kw
+        
+        base=H('%s/%s/search/kw/') % (prefix, self.col.dbobj.name)
+        base += ''.join([ k+'/' for k in keywords])
+
+        limit = limit or self.RESULTLIMIT
+        if start != 0 or limit != self.RESULTLIMIT:
+            base += H('?start=%d') % start
+            if limit != self.RESULTLIMIT:
+                base += H('&limit=%d') % limit
+                
+
+        return base
     
     def _q_index(self, request):
         # Map keyword strings into Keywords; if any keyword is
@@ -113,6 +132,27 @@ class KWSearchUI:
         pics.sort(lambda a,b: cmp(a.record_time, b.record_time))
 
         request.session.set_query_results(pics)
+
+        resultsize = len(pics)
+
+        # Limit the size of the result set
+        start = request.form.get('start') or 0
+        limit = request.form.get('limit') or self.RESULTLIMIT
+
+        start = int(start)
+        limit = int(limit)
+        end = start+limit
+
+        if start > 0:
+            p=start-limit
+            request.navigation.set_prev(self.url(max(p, 0), limit))
+            request.navigation.set_first(self.url(limit=limit))
+            
+        if end < len(pics):
+            request.navigation.set_next(self.url(end, limit))
+            request.navigation.set_last(self.url(resultsize-limit, limit))
+
+        pics = pics[start:start+limit]
 
         r = TemplateIO(html=True)
 
@@ -152,13 +192,20 @@ class KWSearchUI:
             searchstr = self.kw[0]
         else:
             searchstr = '(nothing)'
+
+        heading=H('Search for %s: ') % searchstr
+        if start == 0 and end >= resultsize:
+            heading += H('%s') % plural(resultsize, 'picture')
+        elif start+1 == resultsize:
+            heading += H('last of %d pictures') % (resultsize)
+        else:
+            heading += H('%d&ndash;%d of %d pictures') % (start+1, min(resultsize,end), resultsize)
             
-        r += pre(request, 'Search for %s: %s' % (searchstr, plural(len(pics), 'picture')),
-                 'kwsearch', brieftitle=searchstr)
+        r += pre(request, heading, 'kwsearch', brieftitle=searchstr, trail=start==0)
 
         r += menupane(request, extra)
 
-        r += H('<h1>Search for %s: %s</h1>\n') % (searchstr, plural(len(pics), 'picture'))
+        r += H('<h1>%s</h1>\n') % heading
 
         r += picsbyday(request, groups, self.col)
 
@@ -167,10 +214,7 @@ class KWSearchUI:
             r += H('<div class="title-box kwlist" id="refine">\n')
             r += H('<h2>Refine search</h2>\n')
 
-            r += listkeywords('%s/%s/search/kw/%s' % (prefix,
-                                                      self.col.dbobj.name,
-                                                      '/'.join(self.kw)),
-                              list(refining))
+            r += listkeywords(self.url(), list(refining))
             r += H('</div>\n')
 
         if len(self.kw) > 1:
@@ -182,16 +226,14 @@ class KWSearchUI:
                 cur.remove(k)
                 cur = list(cur)
                 cur.sort()
-                r += H('<a class="kw" href="%s/%s/search/kw/%s/">%s</a>\n') % \
-                     (prefix, self.col.dbobj.name, '/'.join(cur), k)
+                r += H('<a class="kw" href="%s">%s</a>\n') % (self.url(keywords=cur), k)
             r += H('</div>\n')
 
         if kwset:
             r += H('<div id="replace" class="title-box kwlist">\n')
             r += H('<h2>New search</h2>\n')
 
-            r += listkeywords('%s/%s/search/kw' % (prefix, self.col.dbobj.name),
-                              list(kwset))
+            r += listkeywords(self.url(keywords=[]), list(kwset))
             r += H('</div>\n')
 
         r += post()
@@ -220,7 +262,7 @@ class SearchUI:
 
         # XXX filter only keywords with (visible) pictures associated with them
         # (and perhaps weight by use)
-        r += listkeywords('kw', [ k.word for k in kw ], True)
+        r += listkeywords('kw/', [ k.word for k in kw ], True)
         r += H('</div>\n')
 
         r += post();
@@ -233,8 +275,7 @@ class SearchUI:
                          items=[Link('by keyword', '%s/%s/search/' % (prefix, self.col.dbobj.name))]) ]
 
     def search_kw_url(self, kw, d=None):
-        return H('%s/%s/search/kw/%s/%s') % (prefix, self.col.dbobj.name, kw,
-                                             d and '#' + int_day.num_fmt(d) or '')
+        return self.kw.url(keywords=[ kw ]) + (d and '#' + int_day.num_fmt(d) or '')
 
     def search_kw_link(self, kw, d=None, extra=None):
         if extra:

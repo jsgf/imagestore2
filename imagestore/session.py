@@ -96,6 +96,7 @@ class ImagestoreSession(Session):
         return (self.results[0], self.results[-1])
     
     def add_breadcrumb(self, title, url, desc):
+        # These all need to be strings because htmltext can't be pickled
         t = (str(title), str(url), desc and str(desc))
         try:
             idx = self.breadcrumbs.index(t)

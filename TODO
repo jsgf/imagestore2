@@ -6,6 +6,7 @@ Short term:
  - session timeouts
 
 * Break large search results up
+ - kw search done; should also do uploads and calendars
 
 * Browser compatiblity
  - IE doesn't handle fixed positioning
