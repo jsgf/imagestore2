@@ -12,20 +12,22 @@ def prevlink [html] (url):
     '<div class="nav nav-prev"><a href="%s">%s&nbsp;Prev</a></div>' % (url, arrow('left'))
 
 def nextlink [html] (url):
-    '<div class="nav nav-next"><a href="%s">%s&nbsp;Next</a></div>' % (url, arrow('right'))
+    '<div class="nav nav-next"><a href="%s">Next&nbsp;%s</a></div>' % (url, arrow('right'))
 
 def _q_index_ptl [html] (self, request):
     pre(request, 'Calendar view', 'calendar')
+
+    from calendarui import intervals, sorted_intervals
 
     if self.interval is None:
         self.interval = 'week'
     
     if self.date is None:
-        self.date = most_recent().record_time - self.intervals[self.interval]+1
+        self.date = intervals[self.interval].rounddown(most_recent().record_time)
 
-    reltime = self.intervals[self.interval]
+    interval = intervals[self.interval]
     
-    days = self.build_calendar(self.date, date_inc=reltime)
+    days = self.build_calendar(self.date, interval)
 
     if days is None or len(days) == 0:
             error(request, 'No images in specified range', 'Please select another date range')
@@ -34,23 +36,24 @@ def _q_index_ptl [html] (self, request):
     prev = Picture.select(Picture.q.record_time < self.date,
                           orderBy=Picture.q.record_time).reversed()
     if prev.count() > 0:
-        prev = prev[0].record_time + self.zeroTime
-        nav += prevlink(self.calendar_url(self.interval, prev-reltime+1))
+        prev = interval.rounddown(prev[0].record_time - interval.step)
+        nav += prevlink(self.calendar_url(self.interval, prev))
 
-    next = Picture.select(Picture.q.record_time >= (self.date+reltime),
+    next = Picture.select(Picture.q.record_time >= (self.date+interval.step),
                           orderBy=Picture.q.record_time)
     if next.count() > 0:
-        next = next[0].record_time + self.zeroTime
+        next = interval.rounddown(next[0].record_time)
         nav += nextlink(self.calendar_url(self.interval, next))
 
     menupane(request, extra=self.menupane_extra(), nav=nav)
     
 
-    for i, v in self.intervalList():
+    for i in sorted_intervals:
         sel=''
-        if i == self.interval:
+        if i.name == self.interval:
             sel='selected'
-        '<a class="%s" href="%s">%s</a>\n' % (sel, self.calendar_url(i, self.date), i.capitalize())
+        '<a class="%s" href="%s">%s</a>\n' % (sel, self.calendar_url(i.name, self.date),
+                                              i.name.capitalize())
 
 
     results=[]
@@ -76,7 +79,7 @@ def _q_index_ptl [html] (self, request):
 
 # Class of calendarui.Year
 def formatyear [html] (self, request, year):
-    from calendarui import pics_grouped
+    from calendarui import pics_grouped, int_year
 
     pre(request, "Year %d" % self.year, 'calendar')
 
@@ -87,7 +90,7 @@ def formatyear [html] (self, request, year):
     next = None
 
     '<div class="years">\n'
-    for d,c in pics_grouped(RelativeDateTime(years=1), round=round):
+    for d,c in pics_grouped(int_year, round=True):
         if d.year < self.year:
             prev = d
         if next is None and d.year > self.year:
@@ -96,7 +99,9 @@ def formatyear [html] (self, request, year):
         selected=''
         if d.year == self.year:
             selected='selected'
-        '  <a class="%s" title="%d images" href="%s">%d</a>\n' % (selected, c, self.calui.calendar_url('year', d), d.year)
+        '  <a class="%s" title="%d images" href="%s">%d</a>\n' % \
+          (selected, c.count(), self.calui.calendar_url('year', d), d.year)
+        
     '</div>\n'
     
     nav = ''
@@ -117,15 +122,15 @@ def formatyear [html] (self, request, year):
         '  <tbody>\n'
         mc = m.getcalendar()
 
-#         if len(mc) == 6:
-#             mm=[]
-#             for m1,m2 in zip(mc[0], mc[5]):
-#                 if m1 != 0:
-#                     mm.append(m1)
-#                 else:
-#                     mm.append(m2)
-#             mc[0] = mm
-#             del mc[5]
+        if False:
+            # If we're making a 6-row month, fold the last row into the first
+            # User testing (ie, Rachel) says no
+            if len(mc) == 6:
+                mm=[]
+                for m1,m2 in zip(mc[0], mc[5]):
+                    mm.append(m1 or m2)
+                mc[0] = mm
+                del mc[5]
 
         for week in mc:
             '    <tr>'

@@ -55,7 +55,7 @@ def generate_extra [html] (extra):
 # Generate a menu pane.  extra is a list of items to add to the list;
 # it's in the form of nested lists of tuples
 def menupane [html] (request, extra=None, nav=None):
-    '<div class="menu">\n'
+    '<div id="menu">\n'
 
     '<ul>\n'
 

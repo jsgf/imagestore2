@@ -1,5 +1,5 @@
 
-from mx.DateTime import RelativeDateTime, DateTime, strptime, Error as DTError, oneDay, oneSecond
+from mx.DateTime import RelativeDateTime, DateTime, strptime, Error as DTError, oneDay, oneSecond, Monday
 from quixote.errors import TraversalError, QueryError
 from quixote.html import htmltext
 from db import Picture
@@ -7,6 +7,40 @@ from sqlobject.sqlbuilder import AND, OR
 from pages import pre, post, menupane, error, prefix
 from calendar_page import _q_index_ptl, most_recent
 from calendar import monthrange, monthcalendar
+
+class Interval:
+    def __init__(self, name, step, round):
+        self.name = name
+        intervals[name] = self
+        
+        self.step = step
+        self.round = round
+
+    def roundup(self, time):
+        return time + self.step - oneSecond + self.round
+
+    def rounddown(self, time):
+        return time + self.round
+
+    def __str__(self):
+        return 'Interval(%s)' % self.name
+
+intervals = {}
+
+int_day  =Interval('day', RelativeDateTime(days=+1),
+               RelativeDateTime(hour=0, minute=0, second=0))
+int_week =Interval('week', RelativeDateTime(days=+7),
+               RelativeDateTime(weekday=(Monday,0)))
+int_month=Interval('month', RelativeDateTime(months=+1),
+               RelativeDateTime(day=1, hour=0, minute=0, second=0))
+int_year =Interval('year', RelativeDateTime(years=+1),
+               RelativeDateTime(month=1, day=1, hour=0, minute=0, second=0))
+
+# A base for RelativeDateTime comparisons
+zeroDate = DateTime(0,1,1,0,0,0)
+
+sorted_intervals = intervals.values()
+sorted_intervals.sort(lambda a,b: cmp(zeroDate + a.step, zeroDate + b.step))
 
 def yrange(start, stop, inc):
     ' A generic range supporting any type with comparison and += '
@@ -26,9 +60,9 @@ def pics_in_range(start, end=None, delta=None, filter=None):
         q.append(filter)
     return Picture.select(AND(*q), orderBy=Picture.q.record_time)
 
-def pics_grouped(interval, first=None, last=None, round=None):
-    ''' return a list of (DateTime, count) tuples counting the number
-    of images in a particular time interval'''
+def pics_grouped(group, first=None, last=None, round=False, filter=None):
+    ''' return a list of (DateTime, select-result) tuples counting the number
+    of images in a particular time interval '''
 
     debug = False
 
@@ -37,44 +71,30 @@ def pics_grouped(interval, first=None, last=None, round=None):
     if last is None:
         last = Picture.select(orderBy=Picture.q.record_time).reversed()[0].record_time
 
-    if round is not None:
-        first = first + round
-        last = (last + interval - oneSecond) + round
+    if round:
+        first = group.rounddown(first)
+        last = group.roundup(last)
         
     ret = []
 
     if debug:
-        print 'first=%s last=%s interval=%s round=%s' % (first, last, interval, round)
+        print 'first=%s last=%s group=%s round=%s' % (first, last, group, round)
     
-    for t in yrange(first, last, interval):
-        p = pics_in_range(t, delta=interval)
+    for t in yrange(first, last, group.step):
+        p = pics_in_range(t, delta=group.step, filter=filter)
         if debug:
             print '  t=%s -> %d' % (t, p.count())
         if p.count() == 0:
             continue
-        if round is not None:
-            t += round
-        ret.append((t, p.count()))
+        if round:
+            t = group.rounddown(t)
+        ret.append((t, p))
 
     return ret
 
 class CalendarUI:
     _q_exports = [ 'year' ]
     
-    intervals = { 'day':         RelativeDateTime(days=+1),
-                  'week':        RelativeDateTime(weeks=+1),
-                  'month':       RelativeDateTime(months=+1),
-                  'year':        RelativeDateTime(years=+1),
-                  }
-    
-    # Midnight on the Date
-    zeroTime = RelativeDateTime(hour=0,minute=0,second=0)
-    # A base for RelativeDateTime comparisons
-    zeroDate = DateTime(0,1,1,0,0,0)
-
-    # Just less than one day
-    subDay = oneDay - oneSecond
-
     def __init__(self, collection, date=None, interval=None):
         self.collection = collection
 
@@ -88,7 +108,7 @@ class CalendarUI:
     def _q_lookup(self, request, component):
         #print 'Calendar: dealing with component: %s' % component
         
-        if component in self.intervals.keys():
+        if component in intervals.keys():
             self.interval = component
         else:
             try:
@@ -117,82 +137,43 @@ class CalendarUI:
 
         return htmltext(ret)
         
-    def intervalList(self):
-        i = self.intervals.items()
-        i.sort(lambda a,b: cmp(self.zeroDate+a[1],self.zeroDate+b[1]))
-        return i
-
-    def build_calendar(self, date_start, date_end=None, date_inc=None, filter=None):
+    def build_calendar(self, date_start, interval, filter=None):
         """ Returns a list of lists of images within a certain date
         range.  The outer list is a list of tuples (date, piclist)
         tuples, where piclist is a list of Pictures in record_time
         order.
         """
 
-        if date_end is None:
-            if date_inc is None:
-                raise QueryError('need date_end or date_inc')
-            date_end = date_start+date_inc
+        date_end = interval.roundup(date_start+interval.step)
+        date_start = interval.rounddown(date_start)
 
-        date_start += self.zeroTime     # round down to start of day
-        date_end = (date_end + self.subDay) + self.zeroTime # round up to next day
+        pics = pics_grouped(int_day, date_start, date_end, round=True, filter=filter)
 
-        pics = pics_in_range(date_start, end=date_end, filter=filter)
-        today=date_start
-        days = []
-        piclist = []
+        days = [ (date, list(sel)) for date,sel in pics if sel.count() != 0 ]
 
-        for p in pics:
-            pdate = p.record_time + self.zeroTime
+        #print 'bulld_calendar(%s - %s) -> %s' % (date_start, date_end, days)
 
-            if today is None or pdate != today:
-                #print "new day %s" % pdate
-                if len(piclist) != 0 and today is not None:
-                    days.append((today, piclist))
-                piclist = []
-                today = pdate
-
-            piclist.append(p)
-
-        if len(piclist) != 0 and today is not None:
-            days.append((today, piclist))
         return days
 
     def yearview(self, year):
-        """ Returns a list of months; each month is a list of weeks; each week is a list of days;
-        each day is a tuple of (day, imagecount) """
+        """ Returns a list of Months in a year, populated with info
+        about pics in that month (only months with any pics are added
+        to the list). """
 
-        debug = False
+        # Get pics grouped into months
+        months = [ (Month(year, m.month), res) for (m, res) in pics_grouped(int_month,
+                                                                            DateTime(year  ,1,1),
+                                                                            DateTime(year+1,1,1),
+                                                                            round=True)
+                   if res.count() > 0 ]
 
-        ret = []
+        # Mark each day in the month
+        for (m, sel) in months:
+            for p in sel:
+                m.markday(p.record_time.day, 1)
 
-        for m in range(1,12+1):
-            days = monthrange(year, m)[1]
-            start = DateTime(year, m, 1)
-            end = start + RelativeDateTime(months=1)
-            
-            count = pics_in_range(start, delta=RelativeDateTime(months=1)).count()
-            if debug:
-                print '%d/%d count %d' % (year, m, count)
-            
-            if count == 0:
-                if debug:
-                    print "skipping %d/%d" % (year, m)
-                continue
-
-            month = Month(year, m)
-
-            ret.append(month)
-
-            for d in range(1, days+1):
-                start = DateTime(year, m, d)
-                end = start + oneDay
-
-                count = pics_in_range(start, delta=oneDay).count()
-                if count != 0:
-                    month.markday(d, count)
-
-        return ret
+        # Just return a list of Months
+        return [ m for (m,s) in months ]
                                        
                 
 class Year:
@@ -236,7 +217,7 @@ class Month:
         return DateTime(self.year, self.month).strftime('%B')
 
     def markday(self, day, number):
-        self.marked[day] = number
+        self.marked[day] = self.marked.get(day, 0) + number
 
     def ismarked(self, day):
         return self.marked.get(day, 0)

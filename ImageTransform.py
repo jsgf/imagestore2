@@ -1,7 +1,7 @@
 import db
 import sha
 import tempfile
-from StringIO import StringIO
+from cStringIO import StringIO
 import Image
 
 from os import popen,stat

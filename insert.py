@@ -1,11 +1,13 @@
 import getopt
 from dircache import listdir
-from os.path import isfile, isdir
+from os.path import isfile, isdir, splitext
+from os import stat
+import os.path
+from sys import argv
 from string import split
-import os.path, sys
 import Image
-from mx.DateTime import DateTime
-from StringIO import StringIO
+from mx.DateTime import DateTime, localtime
+from cStringIO import StringIO
 
 import sqlobject as SQLObject
 import EXIF
@@ -21,9 +23,174 @@ _ignore = {
     'XVThumb': 1
 }
 
-_mimetypes = {
-    'JPEG': 'image/jpeg',
-    }
+# Map from filename extensions to mimetypes
+_ext_map = {}
+
+# Map from mimetypes to Importers
+_type_map = {}
+
+def find_importer(file):
+    ext = splitext(file)[1]
+
+    if ext[0] == '.':
+        ext = ext[1:]
+
+    try:
+        return _type_map[_ext_map[ext]]
+    except KeyError:
+        return None
+
+def update_maps(map, importer):
+    for k in map.keys():
+        for e in map[k]:
+            _ext_map[e] = k
+        _type_map[k] = importer
+
+class Importer:
+    def import_file(self, filename, owner, public, collection, keywords=[], **imgattr):
+        # If we have no better information, assume the record time is the
+        # earliest timestamp on the file itself
+        st = stat(filename)
+        record_time = localtime(min(st.st_mtime, st.st_ctime))
+        imgattr['record_time'] = record_time
+        
+        data = open(filename).read()
+        return self.import_image(data, owner, public, collection, keywords=[], **imgattr)
+
+class StillImageImporter(Importer):
+
+    # Types which Image could possibly find but we don't want it to deal with
+    image_ignore = {
+        'XVThumb': 1,
+        'MPEG': 1,
+        }
+
+    def import_image(self, imgdata, owner, public, collection, keywords=[], **imgattr):
+        imgfile = StringIO(imgdata)
+
+        try:
+            img = Image.open(imgfile)
+        except IOError:
+            raise ImportException('Unsupported file type')
+
+        if self.image_ignore.has_key(img.format):
+            return -1
+
+        sha1 = sha.new(imgdata)
+        hash=sha1.digest().encode('hex')
+
+        s = Picture.select(Picture.q.hash==hash)
+        if s.count() != 0:
+            raise ImportException('already present: %d' % s[0].id)
+
+        try:
+            m = setmedia(imgdata)
+
+            if False:
+                data = getmedia(m.id, True)
+                file("t.jpg", 'wb').write(data)
+
+            thumbdata=None
+
+            if img.format == 'JPEG' or img.format == 'TIFF':
+                imgfile.seek(0)
+                imgattr = get_EXIF_metadata(imgfile, imgattr)
+                if imgattr.has_key('thumbnail'):
+                    thumbdata = imgattr['thumbnail']
+                    del imgattr['thumbnail']
+                #print 'imgattr=%s' % imgattr
+
+            if thumbdata is None:
+                print "(generating thumbnail)",
+                thimg = img.copy()
+                thimg.thumbnail((160,160), Image.ANTIALIAS)
+                thumbdata = data_from_Image(thimg, 'JPEG', quality=70, optimize=1)
+                #open('thumb.jpg', 'wb').write(thumbdata)
+
+            thumb=setmedia(thumbdata)
+            th_img=Image_from_data(thumbdata)
+
+            if False:
+                print "thumb size=(%d,%d)" % th_img.size        
+                open('thumb.jpg', 'wb').write(thumbdata)
+
+            width,height = img.size
+            th_width,th_height = th_img.size
+
+            pic = Picture(owner=owner,
+                          visibility=public,
+                          hash=m.hash,
+                          media=m,
+                          datasize=len(imgdata),
+                          mimetype=Image.MIME[img.format],
+                          width=width,
+                          height=height,
+                          thumb=thumb,
+                          th_width=th_width,
+                          th_height=th_height,
+                          **imgattr)
+
+            add_keywords(collection, pic, keywords)
+        except Exception, x:
+            print 'exception '% x
+            print "(rollback)"
+            raise
+
+        pic.expire();
+        return pic.id
+
+update_maps({
+    'image/jpeg':   [ 'jpg', 'jpeg', 'pjpeg' ],
+    'image/pjpeg':  [ 'jpg', 'jpeg', 'pjpeg' ],
+    'image/tiff':   [ 'tif', 'tiff' ],
+    'image/png':    [ 'png' ],
+    'image/gif':    [ 'gif' ],      # ?!
+    }, StillImageImporter)
+
+
+class MPEGImporter(Importer):
+    def import_image(self, imgdata, owner, public, collection, keywords=[], **imgattr):
+        sha1 = sha.new(imgdata)
+        hash = sha1.digest().encode('hex')
+
+        s = Picture.select(Picture.q.hash == hash)
+        if s.count() != 0:
+            raise ImportException('already present: %d' % s[0].id)
+
+        try:
+            m = setmedia(imgdata)
+
+            thumbdata = open('static/thumb-mpeg.jpg').read()
+            th_img = Image_from_data(thumbdata)
+            thumb = setmedia(thumbdata)
+
+            width, height = (320, 240)  # XXX FIXME
+            th_width, th_height = th_img.size
+
+            pic = Picture(owner=owner,
+                          visibility=public,
+                          hash=m.hash,
+                          media=m,
+                          datasize=len(imgdata),
+                          mimetype='video/mpeg',
+                          width=width,
+                          height=height,
+                          thumb=thumb,
+                          th_width=th_width,
+                          th_height=th_height,
+                          **imgattr)
+            add_keywords(collection, pic, keywords)
+        except Exception, x:
+            print 'exception '% x
+            print "(rollback)"
+            raise
+
+        return pic.id
+    
+update_maps({
+    'video/mpeg':   [ 'mpg', 'mpeg' ],
+    }, MPEGImporter)
+
 
 class ImportException(Exception):
     def __init__(self, value):
@@ -102,103 +269,21 @@ def get_EXIF_metadata(file, imgattr):
 
     return imgattr
 
-def thumbnail(image, size):
-    (x, y) = image.size
-
-    if x > size[0]: y = y * size[0] / x; x = size[0]
-    if y > size[1]: x = x * size[1] / y; y = size[1]
-    size = (x, y)
-
-    #print 'size=(%d, %d)' % size
-
-    if size == image.size:
-        return image
-
-    return image.resize(size, resample=Image.ANTIALIAS)
-
-def import_file(filename, owner, public, collection, keywords=[], **imgattr):
-    data = open(filename, 'r').read()
-    return import_image(data, owner, public, collection, **imgattr)
-
-def import_image(imgdata, owner, public, collection, keywords=[], **imgattr):
-    imgfile = StringIO(imgdata)
-
-    try:
-        img = Image_from_data(imgdata)
-    except IOError:
-        raise ImportException('Unsupported file type')
-    
-    if _ignore.has_key(img.format):
-	return -1
-
-    sha1 = sha.new(imgdata)
-    hash=sha1.digest().encode('hex')
-
-    s = Picture.select(Picture.q.hash==hash)
-    if s.count() != 0:
-        raise ImportException('already present: %d' % s[0].id)
-        
-    try:
-        m = setmedia(imgdata)
-
-        if False:
-            data = getmedia(m.id, True)
-            file("t.jpg", 'wb').write(data)
-
-        thumbdata=None
-        
-        if img.format == 'JPEG':
-            imgfile.seek(0)
-            imgattr = get_EXIF_metadata(imgfile, imgattr)
-            if imgattr.has_key('thumbnail'):
-                thumbdata = imgattr['thumbnail']
-                del imgattr['thumbnail']
-            #print 'imgattr=%s' % imgattr
-            
-        if thumbdata is None:
-            print "(generating thumbnail)",
-            thimg=thumbnail(img, (160,160))
-            thumbdata=data_from_Image(thimg, 'JPEG', quality=70, optimize=1)
-            open('thumb.jpg', 'wb').write(thumbdata)
-
-        thumb=setmedia(thumbdata)
-        thimg=Image_from_data(thumbdata)
-
-        if False:
-            print "thumb size=(%d,%d)" % thimg.size        
-            open('thumb.jpg', 'wb').write(thumbdata)
-
-        width,height = img.size
-        th_width,th_height = thimg.size
-
-        pic = Picture(owner=owner,
-                      visibility=public,
-                      hash=m.hash,
-                      media=m,
-                      datasize=len(imgdata),
-                      mimetype=_mimetypes[img.format],
-                      width=width,
-                      height=height,
-                      thumb=thumb,
-                      th_width=th_width,
-                      th_height=th_height,
-                      **imgattr)
-
-        add_keywords(collection, pic, keywords)
-    except Exception, x:
-        print 'exception '% x
-        print "(rollback)"
-        raise
-
-    return pic.id
-
 def handle_file(file, owner, collection, public):
     if not quiet:
 	print 'Processing %s... ' % file,
 
     try:
-        ret = import_file(file, owner, public, collection,
-                          photographer=owner)
+        importer = find_importer(file)
+
+        if importer is not None:
+            importer = importer()
+            
+            ret = importer.import_file(file, owner, public, collection,
+                                       photographer=owner)
+        else:
+            ret = '(unknown extension)'
+            
     except ImportException, x:
         ret = '(%s)' % x
         
@@ -230,7 +315,7 @@ def add_keywords(coll, image, keywords=[]):
             kw = Keyword(word=k, collection=coll)
 
         image.addKeyword(kw)
-        cat.addKeyword(kw)
+        coll.addKeyword(kw)
         
 def get_user(username, email, fullname):
     u=User.select(User.q.username==username)
@@ -238,8 +323,11 @@ def get_user(username, email, fullname):
         return u[0]
     return User(username=username, fullname=fullname, email=email)
 
+def import_image(data, owner, public, collection, keywords, **attr):
+    StillImageImporter().import_image(data, owner, public, collection, keywords, **attr)
+    
 if __name__ == '__main__':
-    optlist, args = getopt.getopt(sys.argv[1:], 'o:p:qh')
+    optlist, args = getopt.getopt(argv[1:], 'o:p:qh')
     owner = get_user(username='jeremy', email='jeremy@goop.org', fullname='Jeremy Fitzhardinge')
     collection = defaultCollection()
     public='public'
@@ -260,8 +348,7 @@ if __name__ == '__main__':
     for arg in args:
         handle_dir(arg, owner, public, collection)
 
-__all__ = [ 'import_file',
-            'import_image',
+__all__ = ['import_image',
             'handle_file',
             'handle_dir',
             'add_keywords',

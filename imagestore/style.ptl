@@ -65,7 +65,11 @@ A:hover .thumb	{ border: %(thumb-hover-border)dpx solid %(strong-active)s; paddi
 A .arrow-left, A .arrow-right { 
   vertical-align: center;
 }
-.selected	{ background-color: %(highlight-color)s; font-weight: bold; }
+.selected	{
+  background-color: %(highlight-color)s;
+  font-weight: bold;
+  border: 1px solid #aaaaaa;
+}
 A.selected:hover { color: %(strong-active)s; }
 
 .error {
@@ -83,7 +87,7 @@ A.selected:hover { color: %(strong-active)s; }
 
 
 /* Menu pane */
-DIV.menu { 
+#menu { 
   position: fixed;
   width: 9em;
   height: auto;
@@ -101,30 +105,30 @@ DIV.menu {
 
   background-color: %(background-color)s;
 }
-DIV.menu > UL { 
+#menu > UL { 
   margin-left: 0;
   padding-left: 0;
 }
-DIV.menu > UL > LI { 
+#menu > UL > LI { 
   margin-top: 1em
 }
-DIV.menu LI.subhead { 
+#menu LI.subhead { 
   margin-top: .5em;
 }
-DIV.menu UL UL { 
+#menu UL UL { 
   margin-left: 1em;
   padding-left: 0;
 }
-DIV.menu LI { 
+#menu LI { 
   list-style: none;
   margin-left: 0;
 }
-DIV.menu .nav-prev { 
+#menu .nav-prev { 
   position: absolute;
   bottom: 0px;
   left: 4px;
 }
-DIV.menu .nav-next { 
+#menu .nav-next { 
   position: absolute;
   bottom: 0px;
   right: 4px;

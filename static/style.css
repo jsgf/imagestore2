@@ -57,7 +57,7 @@ A.selected:hover { color: #ff8b3e; } /* use a more saturated orange */
 }
 
 
-/* Menu */
+/* Menu pane */
 DIV.menu { 
   position: fixed;
   width: 9em;
@@ -92,6 +92,16 @@ DIV.menu LI {
   list-style: none;
   margin-left: 0;
 }
+DIV.menu .nav-prev { 
+  position: absolute;
+  bottom: 0px;
+  left: 4px;
+}
+DIV.menu .nav-next { 
+  position: absolute;
+  bottom: 0px;
+  right: 4px;
+}
 
 /* Login */
 .loginform { 
@@ -121,18 +131,93 @@ DIV.menu LI {
 }
 
 
-/* This-way-up widget */
-/* XXX how to do thiswayup without a TABLE? */
-TABLE.thiswayup { 
-  display: inline;
-  border: 0px;
-  padding: 5px;
-  border-spacing: 0;
+/* 
+   This-way-up widget
+
+   This is all a bit subtle.  The idea is to glue little arrows onto
+   each side of the thumbnail image, and wrap all the images in A
+   elements to make them do things.  It also tries to minimize the
+   number of hard-coded values inserted into the style.
+
+   The hover effect for the thumbnail link adds an orange border.
+ */
+
+DIV.thiswayup {
+  position: relative;
+  display: block;
+  float: left;
+
+  padding: 0px;
+  margin: 4px;
+
+  line-height: 0;		/* no line gaps */
 }
-.thiswayup .thumb {
-  padding: 1px;
+
+.thiswayup A {
+  position: absolute;
+  border: 0;
+  padding: 0;
 }
-.thiswayup A:hover .thumb	{ border: 1px solid #ff8b3e; padding: 0px; }
+
+.thiswayup IMG.thumb {
+  position: relative;
+  top: -1px;
+  left: -1px;
+  padding: 5px;			/* 5 pixels total padding */
+  border: 0;
+  margin: 0px;
+}
+.thiswayup A:hover .thumb {
+  /* retain 5 pixels of padding */
+  border: 1px solid #ff8b3e;	/* 1 pixel border */
+  padding: 4px;			/* 4 pixels of padding */
+}
+
+/* position the arrows */
+.thiswayup > .left-arrow {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  margin: auto auto auto 0px;
+}
+.thiswayup > .right-arrow {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  margin: auto 0px auto auto;
+}
+.thiswayup > .up-arrow {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  margin: 0px auto auto auto;
+}
+.thiswayup > .down-arrow {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  margin: auto auto 0px auto;
+}
+
+IMG.arrow { border: 0; }
+
+/* sizes of arrows and things containing arrows */
+.left-arrow, .right-arrow {
+  width: 4px;
+  height: 8px;
+}
+.up-arrow, .down-arrow {
+  width: 8px;
+  height: 4px;
+}
 
 
 /* view windows */

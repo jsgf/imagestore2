@@ -105,6 +105,8 @@ class Media(SQLObject):
     will have the SHA1 hash of the combined data, and a sequence
     number starting from 0."""
 
+    _cacheValues = False
+
     hash = StringCol(length=40, varchar=False, notNone=True)
     sequence = IntCol(notNone=True)
 
@@ -251,7 +253,7 @@ class Picture(SQLObject):
             return True
         if self.owner == user:
             return True
-        if user is not None and (user.mayViewAll or user.mayAdmin):
+        if user is not None and (user.mayViewall or user.mayAdmin):
             return True
 
         return False

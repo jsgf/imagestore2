@@ -1,0 +1,9 @@
+Prerequisites:
+
+SQLObject 0.6 SVN + patch
+sqlite or MySQL
+MySQL-python/sqlite-python
+PIL
+mx.DateTime
+ImageMagick
+Quixote
