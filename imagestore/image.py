@@ -5,10 +5,7 @@ from quixote.html import htmltext
 from sqlobject import SQLObjectNotFound
 from ImageTransform import sizes, transform, transformed_size, thumb_size, extmap
 from db import Picture
-from pages import join_extra
-
-from go_scgi import ImagestoreHandler
-prefix = ImagestoreHandler.prefix
+from pages import join_extra, prefix
 
 def sizere():
     return '|'.join(sizes.keys())

@@ -78,7 +78,7 @@ def view [html] (self, request, p, size, default):
 
 def view_rotate_link [html] (self, request, p, size=None, extra={}):
     if not self.coll.mayEdit(request, p):
-        return self.view_link(request, p, size, extra=extra)
+        return self.view_newwin_link(request, p, size, extra=extra)
 
     url='%s#thumb:%d' % (request.get_url(), p.id)
 

@@ -21,6 +21,8 @@ class ImagestorePublisher(SessionPublisher):
 class ImagestoreSession(Session):
     def __init__(self, request, id):
         Session.__init__(self, request, id)
+        self.dirty = False
+        
         self.user = None
         self.results = []
         
@@ -32,7 +34,14 @@ class ImagestoreSession(Session):
                (self.results is not None and len(self.results) != 0) or \
                Session.has_info(self)
 
-    is_dirty = has_info
+    def is_dirty(self):
+        r = self.has_info() and self.dirty
+        self.dirty = False
+        return r
+
+    def setuser(self, user):
+        self.user = user
+        self.dirty = True
 
     def getuser(self):
         if self.user is None:
@@ -42,6 +51,7 @@ class ImagestoreSession(Session):
 
     def set_query_results(self, q):
         self.results = q
+        self.dirty = True
 
     def get_results_neighbours(self, cur):
         if self.results is None:

@@ -1,7 +1,7 @@
 from imagestore.image import ImageUI
 from pages import html
 import collection_page
-import calendar
+from calendar import CalendarUI
 
 from sqlobject.sqlbuilder import AND
 from db import User, CollectionPerms
@@ -13,7 +13,8 @@ class CollectionUI:
         self.dbobj = dbobj  
 
         self.image = ImageUI(self)
-
+        self.calendar = CalendarUI(self)
+        
     _q_index = collection_page._q_index
 
     def getperms(self, user):
@@ -40,7 +41,7 @@ class CollectionUI:
         if user is None:
             return False
 
-        if self.dbobj.owner == user:
+        if self.dbobj.owner == user or p.owner == user:
             return p.mayView(user)
 
         perms = self.getperms(user)

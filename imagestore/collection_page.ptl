@@ -15,7 +15,7 @@ def _q_index [html] (self, request):
 
     '<h1>%s: %d pictures</h1>\n' % (self.dbobj.description, npics)
 
-    menupane(request)
+    menupane(request, self.calendar.menupane_extra())
 
     pics = Picture.select(AND(Picture.q.collectionID == self.dbobj.id,
                               Picture.q.visibility == str('public'),

@@ -2,6 +2,7 @@
 
 from db import Collection
 from sqlobject.sqlbuilder import OR
+from types import *
 
 from go_scgi import ImagestoreHandler
 prefix = ImagestoreHandler.prefix
@@ -49,7 +50,21 @@ def arrow [html] (dir, alt=None, extra={}):
         'h': h,
         }
 
-def menupane [html] (request):
+def generate_extra [html] (extra):
+    for e in extra:
+        if type(e) == ListType:
+            '<ul>\n'
+            generate_extra(e)
+            '</ul>\n'
+        elif type(e) == TupleType:
+            (text,url) = e
+            '<li><a href="%s">%s</a>\n' % (url, text)
+        elif type(e) == StringType or type(e) == type(htmltext('')):
+            '<li class="subhead">' + e + '\n'
+
+# Generate a menu pane.  extra is a list of items to add to the list;
+# it's in the form of nested lists of tuples
+def menupane [html] (request, extra=None):
     '<div class="menu">\n'
 
     '<ul>\n'
@@ -79,6 +94,17 @@ def menupane [html] (request):
         '    <li><a href="%(pre)s/%(c)s/">%(c)s</a>\n' % { 'pre': prefix, 'c': c.name }
 
     '  </ul>\n'
+
+    if extra is not None:
+        generate_extra(extra)
     
     '</ul>\n'
+    '</div>\n'
+
+def error [html] (request, heading, body):
+    '<div class="error">\n'
+    '<span class="header">\n'
+    heading
+    '</span>\n'
+    body
     '</div>\n'

@@ -1,0 +1,64 @@
+# -*- python -*-
+
+from pages import pre, post, menupane, error, arrow
+from db import Picture
+from image import ImageUI
+
+def _q_index_ptl [html] (self, request):
+    pre('Calendar view', 'calendar')
+
+    menupane(request, self.menupane_extra())
+
+    if self.interval is None:
+        self.interval = 'week'
+    
+    if self.date is None:
+        last=Picture.select(orderBy=Picture.q.record_time).reversed()[0]
+        self.date = last.record_time - self.intervals[self.interval]+1
+
+    reltime = self.intervals[self.interval]
+    
+    days = self.build_calendar(self.date, date_inc=reltime)
+
+    if days is None or len(days) == 0:
+            error(request, 'No images in specified range', 'Please select another date range')
+
+    prev = Picture.select(Picture.q.record_time < self.date,
+                          orderBy=Picture.q.record_time).reversed()
+    if prev.count() > 0:
+        prev = prev[0].record_time + self.zeroTime
+        '<a href="%s">%s&nbsp;Prev</a>\n' % (self.calendar_url(self.interval, prev-reltime+1),
+                                             arrow('left'))
+
+    for i, v in self.intervalList():
+        sel=''
+        if i == self.interval:
+            sel='selected'
+        '<a class="%s" href="%s">%s</a>\n' % (sel, self.calendar_url(i, self.date), i.capitalize())
+
+    next = Picture.select(Picture.q.record_time >= (self.date+reltime),
+                          orderBy=Picture.q.record_time)
+    if next.count() > 0:
+        next = next[0].record_time + self.zeroTime
+        '<a href="%s">Next&nbsp;%s</a>\n' % (self.calendar_url(self.interval, next),
+                                             arrow('right'))
+
+    results=[]
+    idx = 0
+
+    for d,pl in days:
+        '<div class="day">\n'
+        '<div class="day-link" id="day:%(date)s"><a href="%(url)s">%(date)s</a></div>\n' % {
+            'url': self.calendar_url('day', d),
+            'date': d.strftime(str('%Y-%m-%d'))
+            }
+        '<div class="day-pics">\n'
+        for p in pl:
+            results.append(p.id)
+            ImageUI(self.collection).view_rotate_link(request, p) + '\n'
+            idx+=1
+        '</div></div>\n'
+
+    request.session.set_query_results(results)
+
+    post()
