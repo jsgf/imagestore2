@@ -50,7 +50,7 @@ def mayViewFilter(collection, user = None):
             if perms and perms.mayViewRestricted:
                 ok.append(Picture.q.visibility == 'restricted')
 
-    return _inCollection(collection, AND(Picture.q.uploadID is None, OR(*ok)))
+    return _inCollection(collection, AND(Picture.q.uploadID == None, OR(*ok)))
 
 def mayEditFilter(collection, user):
     ok = False
@@ -88,8 +88,8 @@ def mayViewCollectionFilter(user):
             ok = [ True ]
         else:
             ok += [ Collection.q.ownerID == user.id ]
-            ok += [ AND(CollectionPerms.collectionID == Collection.q.id,
-                        CollectionPerms.userID == user.id,
-                        CollectionPerms.mayView) ]
+#             ok += [ AND(CollectionPerms.q.collectionID == Collection.q.id,
+#                         CollectionPerms.q.userID == user.id,
+#                         CollectionPerms.q.mayView) ]
 
     return OR(*ok)

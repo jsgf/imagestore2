@@ -7,26 +7,53 @@ import os.path
 lazycol=True
 
 dbinfo = {
-    'lurch':    { 'conn': 'mysql://imagestore:im_zwarp@lurch/imagestore',
+    'lurch':    { 'conn': 'mysql://imagestore:im_zwarp@lurch/imagestore2',
                   'encode': False,
                   },
     'local':    { 'conn': 'sqlite:' + os.path.abspath('imagestore.db'),
                   'encode': True,
                   },
+    'localmysql':{ 'conn': 'mysql://imagestore@localhost/imagestore2',
+                  'encode': False,
+                  },
     }
 
-db='local'
+db='localmysql'
 
-print 'path='+dbinfo[db]['conn']
-conn = connectionForURI(dbinfo[db]['conn'])
-conn.debug = 0
+conn = None
 
-__connection__ = conn
+def db_connect():
+    global conn, __connection__
+    print 'path='+dbinfo[db]['conn']
+    uri=dbinfo[db]['conn']
 
-#print 'connection: %s' % conn
+    # disable caching
+    uri += '?cache=0'
+    
+    conn = connectionForURI(uri)
+    conn.debug = 0
+    __connection__ = conn
+
+    # Create tables if necessary
+    for c in [ Collection, CollectionPerms, Picture, Comment,
+               Media, Keyword, User, Camera, Upload ]:
+        c.setConnection(conn)
+        c.createTable(ifNotExists=True)
+
+    # Create a default user and collection
+    if User.select(User.q.username == 'admin').count() == 0:
+        User(username='admin', password='admin', email='jeremy@goop.org',
+             fullname='Administrator',
+             mayAdmin=True, mayViewall=True, mayUpload=True, mayComment=False,
+             mayCreateCat=True)
+    if Collection.select(Collection.q.name == 'default').count() == 0:
+        Collection(name='default', owner=User.byUsername('admin'),
+                   description='The default collection')
+
+    #print 'connection: %s' % conn
 
 _encode_media=dbinfo[db]['encode']      # use base64 for binary data (sqlite needs it)
-_chunksize=128*1024                     # chunk Media into lumps
+_chunksize=63*1024                      # chunk Media into lumps
 
 def defaultCollection():
     return Collection.byName('default')
@@ -54,7 +81,8 @@ class Collection(SQLObject):
     keywords = RelatedJoin('Keyword')
 
     # Default visibility to anonymous/undefined users
-    visibility = EnumCol(enumValues=["public","private"], default="public", notNone=True)
+    visibility = EnumCol(enumValues=["public","restricted","private"],
+                         default="public", notNone=True)
 
     # Whether to allow anonymous/non-privileged users to see original image files
     showOriginal = BoolCol(notNone=True, default=False)
@@ -66,7 +94,7 @@ class Collection(SQLObject):
         if user is None:
             return None
         
-        cp = CollectionPerms.select((CollectionPerms.q.collectionID == self.id) & (CollectionPerms.q.userID == user.id))
+        cp = CollectionPerms.select((CollectionPerms.q.collectionID == self.id) & (CollectionPerms.q.userID == user.id)).distinct()
         assert cp.count() == 0 or cp.count() == 1, 'Unexpected number of collection permissions'
 
         if cp.count() == 0 or not cp[0].mayView:
@@ -129,7 +157,7 @@ class Media(SQLObject):
 
     # XXX we need MEDIUMBLOB for MySQL, but not for SQLite and
     # possibly something else for other DBs
-    data = StringCol() #sqlType="MEDIUMBLOB"
+    data = StringCol(sqlType="MEDIUMBLOB")
     
     def _set_data(self, v):
         if _encode_media:
@@ -404,21 +432,4 @@ class Upload(SQLObject):
     #time_idx = Index(import_time)
     #user_idx = Index(user)
 
-Collection.createTable(ifNotExists=True)
-CollectionPerms.createTable(ifNotExists=True)
-Picture.createTable(ifNotExists=True)
-Comment.createTable(ifNotExists=True)
-Media.createTable(ifNotExists=True)
-Keyword.createTable(ifNotExists=True)
-User.createTable(ifNotExists=True)
-Camera.createTable(ifNotExists=True)
-Upload.createTable(ifNotExists=True)
-
-if User.select(User.q.username == 'admin').count() == 0:
-    User(username='admin', password='admin', email='jeremy@goop.org',
-         fullname='Administrator',
-         mayAdmin=True, mayViewall=True, mayUpload=True, mayComment=False,
-         mayCreateCat=True)
-if Collection.select(Collection.q.name == 'default').count() == 0:
-    Collection(name='default', owner=User.byUsername('admin'), description='The default collection')
 

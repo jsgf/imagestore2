@@ -1,12 +1,16 @@
+import gc
+
 from quixote.session import Session
 from quixote.publish import SessionPublisher
+
+from sqlobject import SQLObjectNotFound
 
 from cPickle import load, dump
 import os
 from stat import ST_MTIME
 from time import time
 
-from db import User
+from db import User, conn
 
 class ImagestorePublisher(SessionPublisher):
     def __init__(self, *args, **kwargs):
@@ -32,6 +36,11 @@ class ImagestoreSession(Session):
     def start_request(self, request):
         Session.start_request(self, request)
 
+    def finish_request(self, request):
+        # clean up after request, to make sure
+        # nothing is cached too long
+        gc.collect()
+        
     def has_info(self):
         return self.user is not None or \
                (self.results is not None and len(self.results) != 0) or \
@@ -39,7 +48,7 @@ class ImagestoreSession(Session):
                Session.has_info(self)
 
     def is_dirty(self):
-        r = self.has_info() and self.dirty
+        r = (self.has_info() and self.dirty) or self._form_tokens
         self.dirty = False
         return r
 
@@ -53,7 +62,12 @@ class ImagestoreSession(Session):
         if self.user is None:
             return None
 
-        return User.get(self.user)
+        try:
+            #print 'self.user=%s' % self.user
+            return User.get(self.user)
+        except SQLObjectNotFound:
+            self.user=None
+            return None
 
     def set_query_results(self, pics):
         self.results = [ p.id for p in pics ]

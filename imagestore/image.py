@@ -1,4 +1,5 @@
 import re
+from rfc822 import formatdate
 
 from quixote.errors import TraversalError, AccessError
 from quixote.html import htmltext as H, TemplateIO
@@ -162,10 +163,19 @@ class ImageUI:
         elif preferred:
             set_preferred_size(request, size)
         
-        file = transform(p.id, size)
-
+        etag = '%s.%s.%s' % (p.hash, p.orientation, size)
         request.response.set_content_type('image/jpeg')
+        request.response.set_header('ETag', etag)
+        #request.response.set_header('Last-Modified', formatdate(p.modified_time))
+        request.response.cache=2
 
+        # See if they've already got it
+        if etag == request.get_header('If-None-Match'):
+            request.response.set_status(304)
+            return ''
+        
+        file = transform(p.id, size)
+        
         if True or size == 'thumb':     # XXX streaming seems to cause a deadlock
             return ''.join(file)        # so we have a size
         else:

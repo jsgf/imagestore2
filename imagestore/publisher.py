@@ -2,8 +2,13 @@ from quixote.publish import SessionPublisher
 from quixote.session import SessionManager
 from session import ImagestoreSession, ImagestoreSessionMapping
 
+from db import db_connect
+
 class ImagestorePublisher(SessionPublisher):
     def __init__(self, *args, **kwargs):
+        print 'starting up publisher'
+        db_connect()
+        
         sessionmap = ImagestoreSessionMapping()
         
         session = SessionManager(session_class=ImagestoreSession,

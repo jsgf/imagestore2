@@ -22,7 +22,8 @@ from pages import prefix
 
 def style_css [plain] (request):
     request.response.set_content_type('text/css')
-
+    request.response.cache=60
+    
     params = {
         'background-color':     '#444444',
         'foreground-color':     '#eeeeee',
