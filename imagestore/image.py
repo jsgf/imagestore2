@@ -101,6 +101,8 @@ class EditUI:
         form.add_reset('reset', 'Revert changes')
 
         if not form.is_submitted() or form.has_errors():
+            from image_page import detail_table
+            
             self.image.set_prevnext(request, p.id,
                                     urlfn=lambda pic, size, s=self.image: s.edit_url(pic))
             
@@ -108,7 +110,8 @@ class EditUI:
             
             ret += pre(request, 'Edit details', 'editdetails', trail=False)
             ret += menupane(request)
-            ret += self.image.view_rotate_link(request, p)
+            ret += self.image.view_rotate_link(request, p, wantedit=True)
+            ret += detail_table(p)
             ret += form.render()
             ret += post()
 
@@ -116,19 +119,8 @@ class EditUI:
         else:
             keywords = form['keywords']
             keywords = splitKeywords(keywords)
-            keywords = [ Keyword.select(Keyword.q.word==k).count() and Keyword.byWord(k) or \
-                         Keyword(word=k, collectionID=p.collectionID)
-                         for k in keywords ]
 
-            for k in p.keywords:
-                if k not in keywords:
-                    #print 'removing: %s' % k.word
-                    p.removeKeyword(k)
-
-            for k in keywords:
-                if k not in p.keywords:
-                    #print 'adding: %s' % k.word
-                    p.addKeyword(k)
+            p.setKeywords(keywords)
 
             p.visibility = form['visibility']
 
@@ -306,7 +298,7 @@ class ImageUI:
             'ref': self.thumb_url(p) }
 
         if showvis:
-            r += H('<img class="visibility" alt="%(v)s" src="%(p)s/static/%(v)s.png">') % {
+            r += H('<img class="visibility" title="%(v)s" alt="%(v)s" src="%(p)s/static/%(v)s.png">') % {
                 'v': p.visibility, 'p': prefix
                 }
 

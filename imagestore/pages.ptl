@@ -6,8 +6,12 @@ from sqlobject.sqlbuilder import OR
 from go_scgi import ImagestoreHandler
 prefix = ImagestoreHandler.prefix
 
-def plural(n, s):
-    return '%d %s%s' % (n, s, ['', 's'][n!=1])
+def plural(n, word):
+    n=int(n)
+    s=''
+    if n != 1:
+        s='s'
+    return '%d %s%s' % (n, word, s)
 
 def pre [html] (request, title, bodyid, trail=True, brieftitle=None):        
     if trail:

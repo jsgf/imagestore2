@@ -13,6 +13,18 @@ from dbfilters import mayViewFilter
 from calendar_page import picsbyday
 from menu import SubMenu, Heading, Link, Separator
 
+def commonKeywords(pics):
+    " Returns a set of keywords which are common to all pics "
+    if len(pics) == 0:
+        return Set()
+
+    ret = Set(pics[0].keywords)
+
+    for p in pics[1:]:
+        ret &= Set(p.keywords)
+
+    return ret
+
 def listkeywords(base, kwlist, bigletter=False):
     kwlist.sort()
 
@@ -22,11 +34,13 @@ def listkeywords(base, kwlist, bigletter=False):
         return r
 
     if len(kwlist) > 10:
-        divide = 'P'
+        divide = 'p'
     else:
-        divide = 'SPAN'
+        divide = 'span'
 
     char = None
+
+    kwlist.sort()
 
     for k in kwlist:
         if k[0] != char:
@@ -83,16 +97,17 @@ class KWSearchUI:
         except SQLObjectNotFound:
             kw = []
 
-        sets = [ Set(k.pictures) for k in kw ]
+        # List of Sets of pictures for each keyword
+        picsets = [ Set(k.pictures) for k in kw ]
 
         # Find intersection of all sets
-        if sets:
-            pics = reduce(lambda a, b: a & b, sets)
+        if picsets:
+            pics = reduce(lambda a, b: a & b, picsets)
         else:
             pics = []
 
         # Filter for visibility
-        pics = [ p for p in pics if self.col.mayView(request, p) ]
+        pics = [ p for p in pics if (not p.isPending() and self.col.mayView(request, p)) ]
 
         # Sort by time
         pics.sort(lambda a,b: cmp(a.record_time, b.record_time))
@@ -101,21 +116,23 @@ class KWSearchUI:
 
         r = TemplateIO(html=True)
 
-        # Useless keywords are common to all images in this search
-        if len(pics) > 0:
-            useless = Set([ k.word for k in pics[0].keywords ])
-            for p in pics[1:]:
-                useless &= Set([ k.word for k in p.keywords ])
-        else:
-            useless = Set()
-            
+        # Useless keywords are the ones common to all images in this search
+        useless = Set([ k.word for k in commonKeywords(pics) ])
+
+        # Union of all keywords used
         kwset = Set([ k.word for p in pics for k in p.keywords ])
 
+        # The refining set of keywords are the ones which will further
+        # restrict the search results
+        refining = kwset-useless
+        
+        #print 'useless=%s, kwset=' % useless
+        
         groups = group_by_time(pics, int_day)
 
         extra = []
 
-        if kwset-useless:
+        if refining:
             extra += [ Link('refine search', '#refine') ]
         if kwset:
             extra += [ Link('new search', '#replace') ]
@@ -131,9 +148,11 @@ class KWSearchUI:
 
         if len(self.kw) > 1:
             searchstr = ' and '.join([ ', '.join(self.kw[:-1]), self.kw[-1] ])
-        else:
+        elif len(self.kw) == 1:
             searchstr = self.kw[0]
-
+        else:
+            searchstr = '(nothing)'
+            
         r += pre(request, 'Search for %s: %s' % (searchstr, plural(len(pics), 'picture')),
                  'kwsearch', brieftitle=searchstr)
 
@@ -143,14 +162,15 @@ class KWSearchUI:
 
         r += picsbyday(request, groups, self.col)
 
-        if kwset - useless:
+        if refining:
+            # Refine by ANDing more keywords in
             r += H('<div class="title-box kwlist" id="refine">\n')
             r += H('<h2>Refine search</h2>\n')
 
             r += listkeywords('%s/%s/search/kw/%s' % (prefix,
                                                       self.col.dbobj.name,
                                                       '/'.join(self.kw)),
-                              list(kwset-useless))
+                              list(refining))
             r += H('</div>\n')
 
         if len(self.kw) > 1:
@@ -189,15 +209,17 @@ class SearchUI:
     def _q_index(self, request):
         r = TemplateIO(html=True)
 
-        r += pre(request, 'Keyword search', 'search', brieftitle='keywords')
-        r += menupane(request)
-
         kw = Keyword.select(Keyword.q.collectionID == self.col.dbobj.id,
                             orderBy=Keyword.q.word)
 
-        r += H('<div class="title-box kwlist">\n')
-        r += H('<h2>%s keywords</h2>\n' % kw.count())
+        r += pre(request, 'Keyword search', 'search', brieftitle='keywords')
+        r += menupane(request)
 
+        r += H('<div class="title-box kwlist">\n')
+        r += H('<h2>%s</h2>\n') % plural(kw.count(), 'keyword')
+
+        # XXX filter only keywords with (visible) pictures associated with them
+        # (and perhaps weight by use)
         r += listkeywords('kw', [ k.word for k in kw ], True)
         r += H('</div>\n')
 

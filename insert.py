@@ -29,7 +29,7 @@ _ext_map = {}
 # Map from mimetypes to Importers
 _type_map = {}
 
-def find_importer(file):
+def find_importer_ext(file):
     ext = splitext(file)[1]
 
     if ext[0] == '.':
@@ -37,6 +37,15 @@ def find_importer(file):
 
     try:
         return _type_map[_ext_map[ext]]
+    except KeyError:
+        return None
+
+def find_importer_data(data):
+    img = Image_from_data(data)
+    mime = Image.MIME[img.format]
+
+    try:
+        return _type_map[mime]
     except KeyError:
         return None
 
@@ -81,7 +90,7 @@ class StillImageImporter(Importer):
 
         s = Picture.select(Picture.q.hash==hash)
         if s.count() != 0:
-            raise ImportException('already present: %d' % s[0].id)
+            raise AlreadyPresentException('%d' % s[0].id)
 
         try:
             m = setmedia(imgdata)
@@ -156,7 +165,7 @@ class MPEGImporter(Importer):
 
         s = Picture.select(Picture.q.hash == hash)
         if s.count() != 0:
-            raise ImportException('already present: %d' % s[0].id)
+            raise AlreadyPresentException('%d' % s[0].id)
 
         try:
             m = setmedia(imgdata)
@@ -200,6 +209,10 @@ class ImportException(Exception):
     def __str__(self):
         return self.value
 
+class AlreadyPresentException(ImportException):
+    def __init__(self, value):
+        ImportException.__init__(self, value)
+        
 def mkDateTime(s):
     s=str(s)
     return mx.DateTime.strptime(s, '%Y:%m:%d %H:%M:%S')
@@ -325,8 +338,12 @@ def get_user(username, email, fullname):
         return u[0]
     return User(username=username, fullname=fullname, email=email)
 
-def import_image(data, owner, public, collection, keywords, **attr):
-    StillImageImporter().import_image(data, owner, public, collection, keywords, **attr)
+def import_image(data, orig_filename, owner, public, collection, keywords, **attr):
+    importer = find_importer_ext(orig_filename)
+    if importer is None:
+        raise ImportException('Unknown file type')
+    
+    return importer().import_image(data, owner, public, collection, keywords, **attr)
     
 if __name__ == '__main__':
     optlist, args = getopt.getopt(argv[1:], 'o:p:qh')

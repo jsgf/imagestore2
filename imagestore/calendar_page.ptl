@@ -199,10 +199,10 @@ def formatyear [html] (self, request, year):
               self.calui.calendar_url(int_year, d), d.year)
 
     if prev is not None:
-        request.navigation.set_prev(self.calendar_url(self.interval, prev))
+        request.navigation.set_prev(self.calui.calendar_url(int_year, prev))
 
     if next is not None:
-        request.navigation.set_next(self.calendar_url(self.interval, next))
+        request.navigation.set_next(self.calui.calendar_url(int_year, next))
 
     menupane(request)
 

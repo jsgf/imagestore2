@@ -125,40 +125,19 @@ def view_rotate_link [html] (self, request, p, size=None, extra=None, wantedit=F
         'tableheight': thsz[1] + (2*arrow_height),
         }
 
-
-def details [html] (self, request, p):
-    pre(request, 'Details for picture %d' % p.id, 'details', trail=False)
-
-    title = p.title or ''
-
+def detail_table [html] (p):
     camera = p.camera
-
-    '<span class="detail-thumb">\n'
-    self.image.view_rotate_link(request, p) + '\n'
-    '</span>\n'
-
-    # TODO: cameras
-    # <tr><td class="name">Camera</td><td class="val">%(camera)s</td></tr>
-
-
     """
     <table class="detail_tab">
-    <tr><td class="name">Create date</td><td class="val">%(create_time)s</td></tr>
-    <tr><td class="name">Exposure time</td><td class="val">%(shutter)s</td></tr>
-    <tr><td class="name">F-Number</td><td class="val">%(fnumber)s</td></tr>
-    <tr><td class="name">Program-mode</td><td class="val">%(program)s</td></tr>
-    <tr><td class="name">Exposure bias</td><td class="val">%(exp_bias)s EV</td></tr>
-    <tr><td class="name">Focal length</td><td class="val">%(focal)d mm</td></tr>
-    <tr><td class="name">Dimensions</td><td class="val">%(width)dx%(height)d</td></tr>
-    </table>
-    
-    <dl>
-    <dt class="name">Title:</dt><dd class="val title">%(title)s</dd>
-    <dt class="name">Description:</dt><dd class="val description">%(description)s</dd>
-    <dt class="name">Owner:</dt><dd class="val owner">%(owner)s %(email)s</dd>
-    <dt class="name">Keywords:</dt><dd class="val keywords">%(keywords)s</dd>
-    </dl>
-    """ % {
+      <tr><td class="name">Create date</td><td class="val">%(create_time)s</td></tr>
+      <tr><td class="name">Exposure time</td><td class="val">%(shutter)s</td></tr>
+      <tr><td class="name">F-Number</td><td class="val">%(fnumber)s</td></tr>
+      <tr><td class="name">Program-mode</td><td class="val">%(program)s</td></tr>
+      <tr><td class="name">Exposure bias</td><td class="val">%(exp_bias)s EV</td></tr>
+      <tr><td class="name">Focal length</td><td class="val">%(focal)d mm</td></tr>
+      <tr><td class="name">Dimensions</td><td class="val">%(width)dx%(height)d</td></tr>
+      <tr><td class="name">Camera</td><td class="val">%(camera)s</td></tr>
+    </table>\n""" % {
         'create_time':      p.record_time.strftime(str('%Y-%m-%d %H:%M')),
         'shutter':          p.exposure_time,
         'fnumber':          p.f_number,
@@ -171,6 +150,29 @@ def details [html] (self, request, p):
         'camera':           camera and ('%d: %s %s' % (camera.id,
                                                        camera.manufacturer,
                                                        camera.model)) or '?',
+        }
+    
+def details [html] (self, request, p):
+    pre(request, 'Details for picture %d' % p.id, 'details', trail=False)
+
+    title = p.title or ''
+
+    camera = p.camera
+
+    '<span class="detail-thumb">\n'
+    self.image.view_rotate_link(request, p) + '\n'
+    '</span>\n'
+
+    detail_table(p)
+
+    """
+    <dl>
+    <dt class="name">Title:</dt><dd class="val title">%(title)s</dd>
+    <dt class="name">Description:</dt><dd class="val description">%(description)s</dd>
+    <dt class="name">Owner:</dt><dd class="val owner">%(owner)s %(email)s</dd>
+    <dt class="name">Keywords:</dt><dd class="val keywords">%(keywords)s</dd>
+    </dl>
+    """ % {
 
         'owner':            p.owner.fullname,
         'email':            str('<%s>' % p.owner.email),

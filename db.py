@@ -28,12 +28,6 @@ __connection__ = conn
 _encode_media=dbinfo[db]['encode']      # use base64 for binary data (sqlite needs it)
 _chunksize=128*1024                     # chunk Media into lumps
 
-def getColByName(so, name):
-    return so.__class__.__dict__['_get_' + name](so)
-
-def setColByName(so, name, val):
-    so.__class__.__dict__['_set_' + name](so, val)
-
 def defaultCollection():
     return Collection.byName('default')
 
@@ -107,7 +101,7 @@ class User(SQLObject):
     mayUpload = BoolCol(notNone=True, default=False)    # upload images everywhere
     mayComment = BoolCol(notNone=True, default=False)   # comment on images everywhere
     mayCreateCat = BoolCol(notNone=True, default=False) # may create new collections
-
+    mayRate = BoolCol(notNone=True, default=False)      # may rate pictures
     enabled = BoolCol(notNone=True, default=True)
     
     
@@ -257,6 +251,17 @@ class Keyword(SQLObject):
 
     collection = ForeignKey('Collection')
 
+def strToKeyword(word, collection, create):
+    try:
+        word = Keyword.byWord(word)
+    except SQLObjectNotFound:
+        if create:
+            word = Keyword(word=word, collection=collection)
+        else:
+            word = None
+    return word
+
+
 class Picture(SQLObject):
     "Pictures - including movies and other media"
 
@@ -296,6 +301,36 @@ class Picture(SQLObject):
             return True
 
         return False
+
+    def isPending(self):
+        return self.uploadID is not None
+
+    def addKeywords(self, kwlist):
+        " Add a list of keywords to this Picture "
+        kwlist = [ strToKeyword(k, self.collection, True) for k in kwlist ]
+        for k in kwlist:
+            if k not in self.keywords:
+                self.addKeyword(k)
+                
+    def delKeywords(self, kwlist):
+        " Remove a list of keywords from this Picture "
+        kwlist = [ strToKeyword(k, self.collection, False) for k in kwlist ]
+        kwlist = [ k for k in kwlist if k is not None ]
+        for k in self.keywords:
+            if k in kwlist:
+                self.removeKeyword(k)
+                
+    def setKeywords(self, kwlist):
+        " Set the Picture's keywords to list "
+        kwlist = [ strToKeyword(k, self.collection, True) for k in kwlist ]
+        
+        for k in self.keywords:
+            if k not in kwlist:
+                self.removeKeyword(k)
+
+        for k in kwlist:
+            if k not in self.keywords:
+                self.addKeyword(k)
 
     hash = StringCol(length=40, varchar=False, notNone=True, unique=True, alternateID=True)
     mimetype = StringCol(notNone=True, length=40)

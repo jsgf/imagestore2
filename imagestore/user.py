@@ -13,7 +13,9 @@ from db import User, Picture
 from dbfilters import userFilter
 from menu import Link, Separator, MenuItem
 
-_q_exports = [ 'login', 'logout', 'editmode', 'editusers' ]
+from config import users as userprefs
+
+_q_exports = [ 'login', 'logout', 'editmode', 'editusers', 'newuser' ]
 
 def _q_access(request):
     sess_user = request.session.getuser()
@@ -51,10 +53,6 @@ def login(request):
         try:
             user = User.byUsername(username)
 
-            if False:
-                print 'username=%s user.username=%s' % (username, user.username)
-                print 'password="%s" user.password="%s"' % (password, user.password)
-
             if password == '':
                 password = None
 
@@ -86,6 +84,64 @@ def login(request):
 
     return page.getvalue()
 
+def newuser(request):
+    user = request.session.getuser()
+
+    if not ((user and user.mayAdmin) or userprefs.unpriv_newuser):
+        raise AccessError('You may not create a new user')
+
+    form = form2.Form()
+    
+    form.add(form2.StringWidget, 'username', title='User name')
+    form.add(form2.StringWidget, 'fullname', title='Full name')
+    form.add(form2.StringWidget, 'email', title='email address')
+    form.add(form2.PasswordWidget, 'pass1', title='Password')
+    form.add(form2.PasswordWidget, 'pass2', title='Password verify')
+    form.add_submit('create', 'Create user')
+    
+    render=False
+    
+    if form.is_submitted():
+        username = form['username'].strip()
+        if User.select(User.q.username == username).count() != 0:
+            form.get_widget('username').set_error(H("Username '%s' already in use") % username)
+        if form['pass1'] != form['pass2']:
+            form.get_widget('pass1').set_error('Passwords do not match')
+        fullname = form['fullname'].strip()
+        if fullname == '':
+            form.get_widget('fullname').set_error('Full name not set')
+        email = form['email'].strip()
+        if email == '':
+            form.get_widget('email').set_error('Missing or bad email address')
+            
+        if not form.has_errors():
+            u = User(username=username, fullname=fullname,
+                     password=form['pass1'],
+                     email=email,
+                     mayAdmin=False,
+                     mayViewall=False,
+                     mayUpload=False,
+                     mayComment=userprefs.mayComment,
+                     mayRate=userprefs.mayRate)
+            request.redirect(user_url(u))
+        else:
+            render=True
+    else:
+        render=True
+
+    if render:
+        r = TemplateIO(html=True)
+        
+        r += pre(request, 'New User', 'newuser')
+        r += menupane(request)
+        r += form.render()
+        r += post()
+
+        return r.getvalue()
+    else:
+        return ''
+
+    
 def logout(request):
     request.session.setuser(None)
 

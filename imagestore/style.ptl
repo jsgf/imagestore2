@@ -75,7 +75,7 @@ BODY {
   background-color: %(background-color)s;
   color: %(foreground-color)s;
 
-  margin-left: 10em;
+  margin-left: 11em;
 
   font-family: bitstream vera sans, verdana, arial, helvetica, sans-serif;
 }
@@ -181,10 +181,10 @@ INPUT[type="text"]:focus, INPUT[type="password"]:focus {
   position: fixed;
   width: 9em;
   height: auto;
-  top: 10%%;
+  top: 5%%;
   left: 10px;
   right: auto;
-  bottom: 100px;
+  bottom: 5%%;
 
   font-size: 70%%;
 
@@ -242,6 +242,9 @@ INPUT[type="text"]:focus, INPUT[type="password"]:focus {
 }
 #breadcrumbs .crumb {
   white-space: nowrap;
+}
+#breadcrumbs .here {
+  font-weight: bold;
 }
 
 /* Forms */
@@ -688,5 +691,12 @@ BODY#collection .sampler .image {
 .upload {
   padding-left: 2em;
   width: 90%%;
+}
+
+#uploading DT {
+  margin-top: 2em;  
+}
+#uploading DT .filename {
+  font-weight: bold;
 }
 """ % params
