@@ -32,8 +32,13 @@ _type_map = {}
 def find_importer_ext(file):
     ext = splitext(file)[1]
 
+    if not ext:
+        return None
+
     if ext[0] == '.':
         ext = ext[1:]
+
+    ext = ext.lower()
 
     try:
         return find_importer_type(_ext_map[ext])
@@ -182,6 +187,7 @@ class MPEGImporter(Importer):
 
             pic = Picture(owner=owner,
                           visibility=public,
+                          collection=collection,
                           hash=m.hash,
                           media=m,
                           datasize=len(imgdata),
@@ -342,6 +348,7 @@ def get_user(username, email, fullname):
     return User(username=username, fullname=fullname, email=email)
 
 def import_image(data, owner, orig_filename, public, collection, keywords, mimetype=None, **attr):
+    #print 'import_image(orig_filename=%s, mimetype=%s)' % (orig_filename,mimetype)
     if mimetype is not None:
         importer = find_importer_type(mimetype)
     else:

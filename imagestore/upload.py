@@ -136,8 +136,8 @@ class UploadUI:
             yield '</dd>\n'
         else:
             try:
-                id = import_image(data,
-                                  orig_file=orig_file,
+                id = import_image(data=data,
+                                  orig_filename=orig_file,
                                   owner=user,
                                   photographer=user,
                                   public=visibility,
