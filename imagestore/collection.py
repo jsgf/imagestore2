@@ -1,5 +1,6 @@
 from imagestore.image import ImageUI
 from pages import html
+import collection_page
 
 class CollectionUI:
     _q_exports = [ 'details', 'image' ]
@@ -15,7 +16,4 @@ class CollectionUI:
     def create(self, request):
         return "new collection here..."
 
-    def _q_index(self, request):
-        return html('Collection '+self.dbobj.name,
-                    'whoot, collection #%d "%s"' % (self.dbobj.id, self.dbobj.name),
-                    top='..')
+    _q_index = collection_page._q_index

@@ -1,0 +1,60 @@
+# -*- python -*-
+
+from imagestore.image import preferred_size, set_preferred_size
+from ImageTransform import transformed_size, sizes
+from pages import pre, post, join_extra
+from go_scgi import ImagestoreHandler
+prefix = ImagestoreHandler.prefix
+
+view_margin=15
+
+sorted_sizes=sizes.items()
+sorted_sizes.sort(lambda a,b: cmp(a[1][0]*a[1][1], b[1][0]*b[1][1]))
+sorted_sizes=[ a for (a,b) in sorted_sizes ]
+
+
+
+def view [html] (self, request, p, size, default):
+    id = p.id
+    pre('View image %d' % id,
+        bodyclass='view')
+    
+    if size is None:
+        size = preferred_size(request)
+    elif size == 'orig':
+        return self.image_orig(request, p)
+    elif default:
+        set_preferred_size(request, size)
+
+    (pw,ph) = transformed_size(id, size)
+
+    """\
+<script language="JavaScript"><!--
+        window.resizeTo(%(w)d, %(h)d)
+--></script>\n""" % { 'w': pw+(2*view_margin), 'h': ph+(2*view_margin) }
+
+    '<div class="nav">\n'
+    # XXX put next and prev handing in
+
+    '<span class="size">\n'
+
+    for s in sorted_sizes:
+        if sizes[s][0]*sizes[s][1] < (640*480):
+            continue
+        sel=''
+        if s == size:
+            sel='selected'
+        self.view_link(request, p=p, size=s, link=s.capitalize(), preferred=True,
+                       extra={'title': '%dx%d' % transformed_size(id, s),
+                              'class': sel}) + '\n'
+    self.view_link(request, p, 'orig', 'Original', extra={'title': 'For printing'}) + '\n'
+
+    '</span>\n'
+
+    # XXX next and prev
+
+    '</div>\n'
+
+    self.details_link(p, self.picture_img(p, size, default)) + '\n'
+
+    post()

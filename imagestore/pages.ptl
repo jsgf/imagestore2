@@ -1,19 +1,26 @@
 # -*- python -*-
 
-def pre [html] (title, top='.', bodyclass=''):
+from go_scgi import ImagestoreHandler
+prefix = ImagestoreHandler.prefix
+
+def pre [html] (title, bodyclass=''):
     """\
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 EN">
 <head>
-<title>%(title)s</title>
-<link type="text/css" rel="stylesheet" href="%(base)s/static/style.css">
+  <title>%(title)s</title>
+  <link type="text/css" rel="stylesheet" href="%(base)s/static/style.css">
 </head>
 <body class="%(class)s">\n""" % {
-    'title': title,
-    'base': top,
-    'class': bodyclass }
+      'title': title,
+      'base': prefix,
+      'class': bodyclass
+      }
 
 def post [html] ():
-    "\n</body>\n"
+    "\n</body>\n</html>\n"
 
-def html(title, page, top='.', bodyclass=''):
-    return str(pre(title, top, bodyclass)) + page + str(post())
+def html(title, page, bodyclass=''):
+    return str(pre(title, bodyclass)) + page + str(post())
+
+def join_extra [html] (extra):
+    return ' '.join([ '%s="%s"' % (k, extra[k]) for k in extra.keys() ])

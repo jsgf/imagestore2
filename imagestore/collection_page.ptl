@@ -1,0 +1,43 @@
+# -*- python -*-
+
+from sqlobject.sqlbuilder import *
+
+from pages import pre, post, join_extra
+from db import Picture
+from random import randrange
+from image import ImageUI
+
+# Actually a method of CollectionUI
+def _q_index [html] (self, request):
+    npics = len(self.dbobj.pictures)
+    pre('Collection %s: %d pictures' % (self.dbobj.name, npics),
+        bodyclass='collection')
+
+    '<h1>%s: %d pictures</h1>\n' % (self.dbobj.description, npics)
+
+    pics = Picture.select(AND(Picture.q.collectionID == self.dbobj.id,
+                              Picture.q.visibility == str('public'),
+                              Picture.q.rating >= 0),
+                          orderBy=Picture.q.record_time).reversed()[:100]
+    count = pics.count()
+
+    '<div class="sampler">\n'
+
+    done=[]
+
+    imageui = ImageUI(self.dbobj)
+    
+    for i in range(16):
+        while True:
+            p = pics[randrange(0, count)]
+            if p not in done:
+                break
+        done.append(p)
+        '<span class="image">'
+        imageui.view_newwin_link(request, p)
+        '</span>\n'
+
+    '</div>'
+    
+    post()
+

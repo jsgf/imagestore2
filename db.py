@@ -59,6 +59,9 @@ class Collection(SQLObject):
     # Whether to allow anonymous/non-privileged users to see original image files
     showOriginal = BoolCol(notNone=True, default=False)
 
+    # Pictures in this collection
+    pictures = MultipleJoin('Picture')
+    
 class CollectionPerms(SQLObject):
     "Per-Collection user permissions"
     user = ForeignKey('User')

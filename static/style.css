@@ -28,7 +28,12 @@ A:hover		{ color: #ffa66b; } /* orange */
 A:active	{ color: #ffa66b; }
 
 .picture	{ border: 0; padding: 0; }
+
 .thumb		{ border: 0; padding: 5px; }
+A:hover .thumb	{ border: 1px solid #ff8b3e; padding: 4px; }
+/* If the URL targets this image, then emphasize it */
+.thumb:target	{ background-color: #666666; }
+
 .arrow		{ border: 0; padding: 0; }
 A .arrow-left, A .arrow-right { 
   vertical-align: center;
@@ -177,4 +182,20 @@ BODY.calendar DIV.day .day-link {
   margin-bottom: 1em;
   margin-left: -2em;
   font-weight: bold;
+}
+
+/* Collection */
+BODY.collection .sampler { 
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 80%;
+  height: 80%;
+  position: absolute;
+  margin: auto;
+}
+BODY.collection .sampler .image { 
+  width: 160px;
+  height: 160px;
 }
