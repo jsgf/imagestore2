@@ -50,7 +50,7 @@ def mayViewFilter(collection, user = None):
             if perms and perms.mayViewRestricted:
                 ok.append(Picture.q.visibility == 'restricted')
 
-    return _inCollection(collection, OR(*ok))
+    return _inCollection(collection, AND(Picture.q.uploadID is None, OR(*ok)))
 
 def mayEditFilter(collection, user):
     ok = False
@@ -78,8 +78,18 @@ def mayCurateFilter(collection, user):
 
 
 def userFilter(sql=True):
-    return sql
+    return AND(sql, User.q.enabled)
 
-    if sql is not True:
-        return AND(sql, User.q.enabled)
-    return User.q.enabled
+def mayViewCollectionFilter(user):
+    ok = [ Collection.q.visibility == 'public' ]
+
+    if user is not None:
+        if user.mayAdmin:
+            ok = [ True ]
+        else:
+            ok += [ Collection.q.ownerID == user.id ]
+            ok += [ AND(CollectionPerms.collectionID == Collection.q.id,
+                        CollectionPerms.userID == user.id,
+                        CollectionPerms.mayView) ]
+
+    return OR(*ok)

@@ -1,7 +1,7 @@
 # -*- python -*-
 
 from sets import Set
-from mx.DateTime import DateTime, RelativeDateTime
+from mx.DateTime import DateTime, RelativeDateTime, gmt
 
 from sqlobject.sqlbuilder import AND
 
@@ -11,7 +11,11 @@ from dbfilters import mayViewFilter
 from image import ImageUI
 
 def most_recent():
-    return Picture.select(orderBy=Picture.q.record_time).reversed()[0]
+    " Return DateTime of most recent picture, or today "
+    try:
+        return Picture.select(orderBy=Picture.q.record_time).reversed()[0].record_time
+    except IndexError:
+        return gmt()
 
 def prevlink [html] (url):
     '<div class="nav nav-prev"><a href="%s">%s&nbsp;Prev</a></div>' % (url, arrow('left'))
@@ -69,13 +73,13 @@ def picsbyday [html] (request, days, collection):
         '<div class="day-pics">\n'
         for p in pl:
             ImageUI(collection).view_rotate_link(request, p) + '\n'
-        '</div></div>\n'
+        '</div>\n</div>\n'
 
 def _q_index_ptl [html] (self, request):
     from calendarui import sorted_intervals, int_week
 
     if self.date is None:
-        self.date = self.interval.rounddown(most_recent().record_time)
+        self.date = self.interval.rounddown(most_recent())
 
     filter = mayViewFilter(self.collection.dbobj, request.session.getuser())
     
@@ -100,8 +104,7 @@ def _q_index_ptl [html] (self, request):
         next = self.interval.rounddown(next[0].record_time)
         nav += nextlink(self.calendar_url(self.interval, next))
 
-    menupane(request, extra=self.menupane_extra() + self.collection.search.menupane_extra(),
-             nav=nav)
+    menupane(request, nav=nav)
 
     '<h1>%s - %s</h1>' % (self.interval.long_fmt(self.date), plural(total, 'picture'))
 
@@ -179,12 +182,11 @@ def formatyear [html] (self, request, year):
 
     pre(request, "Year %d: %s" % (self.year, total), 'calendar')
 
-    '<h1>Year: %d - %s</h1>\n' % (self.year, total)
-
+    r = TemplateIO(html=True)
+    
     prev = None
     next = None
 
-    '<div class="years">\n'
     for d,c in pics:
         if d.year < self.year:
             prev = d
@@ -197,20 +199,25 @@ def formatyear [html] (self, request, year):
 
         title = plural(c.count(), 'picture')
         
-        '  <a class="%s" title="%s" href="%s">%d</a>\n' % \
-          (selected, title,
-           self.calui.calendar_url(int_year, d), d.year)
-        
-    '</div>\n'
-    
+        r += '  <a class="%s" title="%s" href="%s">%d</a>\n' % \
+             (selected, title,
+              self.calui.calendar_url(int_year, d), d.year)
     nav = ''
     if prev is not None:
         nav += prevlink(self.calui.calendar_url(int_year, prev))
     if next is not None:
         nav += nextlink(self.calui.calendar_url(int_year, next))
 
-    menupane(request, extra=self.calui.menupane_extra(), nav=nav)
+    menupane(request, nav=nav)
+
+    '<h1>Year: %d - %s</h1>\n' % (self.year, total)
+
+    '<div class="years">\n'
+
+    r.getvalue()
     
+    '</div>\n'
+        
     '<table class="calendar-year">\n'
 
     ya = [ [ None ] * 3,

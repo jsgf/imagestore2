@@ -119,6 +119,7 @@ class StillImageImporter(Importer):
 
             pic = Picture(owner=owner,
                           visibility=public,
+                          collection=collection,
                           hash=m.hash,
                           media=m,
                           datasize=len(imgdata),
@@ -307,7 +308,8 @@ def handle_dir(dir, owner, collection, public):
         elif isfile(f):
             handle_file(f, owner, public, collection)
 
-def add_keywords(coll, image, keywords=[]):
+def add_keywords(coll, image, keywords=None):
+    keywords = keywords or []
     for k in keywords:
         try:
             kw = Keyword.byWord(k)

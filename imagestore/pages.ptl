@@ -50,77 +50,66 @@ def arrow [html] (dir, alt=None, extra={}):
         'dir': dir,
         }
 
-def generate_extra [html] (extra):
+def generate_extra [html] (extra, depth=0):
+    pfx='  ' * depth
     for e in extra:
         if isinstance(e, list):
-            '<ul>\n'
-            generate_extra(e)
-            '</ul>\n'
+            pfx+'<ul>\n'
+            generate_extra(e, depth+1)
+            pfx+'</ul>\n'
         elif isinstance(e, tuple):
             (text,url) = e
-            '<li><a href="%s">%s</a>\n' % (url, text)
+            pfx+'<li><a href="%s">%s</a>\n' % (url, text)
         elif isinstance(e, str) or isinstance(e, htmltext):
-            '<li class="subhead">' + e + '\n'
+            pfx+'<li class="subhead">' + e + '\n'
 
 # Generate a menu pane.  extra is a list of items to add to the list;
 # it's in the form of nested lists of tuples
 def menupane [html] (request, extra=None, nav=None):
+    from menu import Menu, SubMenu, Link, Heading
+    from user import EditSwitchItem
+    
     crumbs = request.session.breadcrumbs
     if crumbs:
         '\n<div id="breadcrumbs">\n'
-        path = [ '<a class="crumb" %s href="%s">%s</a>' % (desc and ('title="%s"' % desc) or '',
+        path = [ ' <a class="crumb" %s href="%s">%s</a>' % (desc and ('title="%s"' % desc) or '',
                                                            url, title)
                  for (title, url, desc) in crumbs ]
-        '<span class="divider">&gt;</span>\n'.join(path)
+        '\n  <span class="divider">&rarr;</span>\n'.join(path)
         '\n</div>\n'
     
-    '<div id="menu">\n'
-
-    '<ul>\n'
+    # Login info
 
     session = request.session
     user = session.getuser()
+
+    menu = Menu()
     
     if user is None:
-        '<li class="login"><a href="%s/user/login">Log in</a>\n' % prefix
+        menu += [ Link('Log in', '%s/user/login' % prefix) ]
     else:
-        '<li class="login">Logged in as <a href="%(prefix)s/user/%(user)s/">%(fullname)s</a>\n' % {
-            'prefix': prefix,
-            'user': user.username,
-            'fullname': user.fullname }
-        '<ul>\n'
-        '<li>Edit:&nbsp;'
-        if session.wantedit:
-            '<a href="%s/user/editmode?wantedit=0">Off</a>&nbsp;<span class="selected">On</span>' % prefix
-        else:
-            '<span class="selected">Off</span>&nbsp;<a href="%s/user/editmode?wantedit=1">On</a>' % prefix
-            
-        '\n<li><a href="%s/user/logout">Log out</a>\n' % prefix
-        '</ul>\n'
-         
-    '<li class="collections">Collections:\n'
-    '  <ul>\n'
+        menu += [ SubMenu(heading='Logged in:',
+                          items=[Link('%s' % user.fullname,
+                                      '%s/user/%s/' % (prefix, user.username))]),
+                  Link('Log out', '%s/user/logout' % prefix),
+                  EditSwitchItem(request.session) ]
 
-    q = [ Collection.q.visibility == str('public') ]
-    if user is not None:
-        q.append(user.mayAdmin)
-        q.append(Collection.q.ownerID == user.id)
+    # Context menu
+    menu += request.context_menu
 
-    for c in Collection.select(OR(*q), orderBy=Collection.q.id):
-        '    <li><a href="%(pre)s/%(c)s/">%(c)s</a>\n' % { 'pre': prefix, 'c': c.name }
+    # Page-specific menu
+    if extra:
+        menu += extra
 
-    '  </ul>\n'
+    '<div id="menu">\n'                 # DIV for whole menu pane
 
-    if extra is not None:
-        generate_extra(extra)
+    menu.render(depth=1)
     
-    '</ul>\n'
-
     if nav is not None:
         nav
-        
-    '</div>\n'
 
+    '</div>\n'
+        
 def error [html] (request, heading, body):
     '<div class="error">\n'
     '<span class="header">\n'

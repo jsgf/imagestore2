@@ -88,13 +88,15 @@ def view [html] (self, request, p, size, default):
 
     post()
 
-def view_rotate_link [html] (self, request, p, size=None, extra={}):
-    if not (self.coll.mayEdit(request, p) and request.session.wantedit):
+def view_rotate_link [html] (self, request, p, size=None, extra=None, wantedit=False):
+    if not (self.coll.mayEdit(request, p) and (wantedit or request.session.wantedit)):
         return self.view_newwin_link(request, p, size, extra=extra)
 
     url='%s#thumb:%d' % (request.get_url(), p.id)
 
     thsz = thumb_size(p.id)
+
+    extra = extra or {}
     extra[str('style')] = str('width:%dpx; height:%dpx;' % thsz)
     extra[str('class')] = str(' thumb')
 
@@ -109,7 +111,7 @@ def view_rotate_link [html] (self, request, p, size=None, extra={}):
           <td valign="center" align="left"><a title="This way up" class="right-arrow" href="%(rot90)s">%(right)s</a></td>
         </tr>
         <tr><td colspan=3 class="bottom" align="center" valign="top"><a title="This way up" class="down-arrow" href="%(rot180)s">%(down)s</a></td></tr>
-        </table>"""
+        </table>\n"""
     else:
         # Non-table version seems pretty problematic
         twu = """\
@@ -127,7 +129,7 @@ def view_rotate_link [html] (self, request, p, size=None, extra={}):
         'rot180': self.rotate_url(p, (180 + p.orientation) % 360, url),
         'rot270': self.rotate_url(p, (270 + p.orientation) % 360, url),
 
-        'thumb':  self.view_newwin_link(request, p, size, extra=extra),
+        'thumb':  self.edit_newwin_link(request, p, extra=extra),
 
         'up':     arrow('up', extra={'title': 'Up is up'}),
         'down':   arrow('down'),

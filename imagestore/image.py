@@ -3,12 +3,13 @@ import re
 from quixote.errors import TraversalError, AccessError
 from quixote.html import htmltext as H, TemplateIO
 import quixote.form2 as form2
+from quixote.http_response import Stream
 
 from sqlobject import SQLObjectNotFound
 from ImageTransform import sizes, transform, transformed_size, thumb_size, extmap
 from db import Picture, Keyword
 from pages import join_extra, prefix, pre, post
-from form import userOptList
+from form import userOptList, splitKeywords
 
 def sizere():
     return '|'.join(sizes.keys())
@@ -105,7 +106,7 @@ class EditUI:
             ret = ret.getvalue()
         else:
             keywords = form['keywords']
-            keywords = [ k.strip() for k in keywords.split(',') if k.strip() ]
+            keywords = splitKeywords(keywords)
             keywords = [ Keyword.select(Keyword.q.word==k).count() and Keyword.byWord(k) or \
                          Keyword(word=k, collectionID=p.collectionID)
                          for k in keywords ]
@@ -126,7 +127,6 @@ class EditUI:
 
         return ret
 
-
 class ImageUI:
     " class for /COLLECTION/image namespace (not an individual image) "
     _q_exports = [ 'details', 'edit', 'rotate' ]
@@ -143,7 +143,7 @@ class ImageUI:
         if not self.coll.mayViewOrig(request, p):
             raise AccessError('You may not view this original image')
         request.response.set_content_type(p.mimetype)
-        return p.getimage()             # XXX stream
+        return Stream(p.getimagechunks(), p.datasize)
 
     # generate a transformed image
     def image(self, request, p, size, preferred):
@@ -158,11 +158,13 @@ class ImageUI:
             set_preferred_size(request, size)
         
         file = transform(p.id, size)
-        ret = ''.join([ d for d in file])
 
         request.response.set_content_type('image/jpeg')
 
-        return ret
+        if True or size == 'thumb':     # XXX streaming seems to cause a deadlock
+            return ''.join(file)        # so we have a size
+        else:
+            return Stream(file)
 
     def rotate(self, request):
         try:
@@ -299,20 +301,32 @@ class ImageUI:
 
         return r.getvalue()
 
-    def view_link(self, request, p, size=None, link=None, preferred=False, extra={}):
+    def view_link(self, request, p, size=None, link=None, preferred=False, url=None, extra={}):
         if link is None:
             user = request.session.getuser()
             link = self.thumb_img(p=p, showvis=(user and p.ownerID == user.id))
 
+        url = url or self.view_url(p=p, size=size, preferred=preferred)
+
         e = join_extra(extra)
 
-        return H('<a %(extra)s href="%(url)s">%(link)s</a>' % {
-            'url': self.view_url(p=p, size=size, preferred=preferred),
+        return H('<a id="pic%(id)d" %(extra)s href="%(url)s">%(link)s</a>' % {
+            'id': p.id,
+            'url': url,
             'link': link,
             'extra': e })
 
-    def view_newwin_link(self, request, p, size=None, link=None, preferred=False, extra={}):
+    def edit_newwin_link(self, request, p, extra=None):
+        extra = extra or {}
+
+        extra['target'] = str(p.id)
+
+        return self.view_link(request, p, url=self.edit_url(p))
+        
+    def view_newwin_link(self, request, p, size=None, link=None, preferred=False, extra=None):
         from style import view_margin
+
+        extra = extra or {}
         
         if size is None:
             size = preferred_size(request, None)

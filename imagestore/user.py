@@ -11,8 +11,23 @@ from pages import pre, post, menupane, error, prefix
 from user_page import login_form, user_page as user_page_ptl, user_edit as user_edit_ptl
 from db import User, getColByName, setColByName, Picture
 from dbfilters import userFilter
+from menu import Link, Separator, MenuItem
 
 _q_exports = [ 'login', 'logout', 'editmode', 'editusers' ]
+
+def _q_access(request):
+    sess_user = request.session.getuser()
+    
+    if sess_user and sess_user.mayAdmin:
+        request.context_menu += [ Separator(),
+                                  Link('User admin', '%s/user/editusers' % prefix) ]
+
+
+def user_url(user):
+    if user is None:
+        return '%s/user/login' % prefix
+    else:
+        return '%s/user/%s/' % (prefix, user.username)
 
 perms = [ ('mayAdmin', 'May administer'),
           ('mayViewall', 'May view everything'),
@@ -21,9 +36,9 @@ perms = [ ('mayAdmin', 'May administer'),
           ('mayCreateCat', 'May create collections') ]
 
 def login(request):
-    ret = [ pre(request, 'Imagestore Login', 'login', trail=False) ]
-
-    ret.append('<h1>Imagestore Login</h1>')
+    body = TemplateIO(html=True)
+    
+    body += H('<h1>Imagestore Login</h1>')
 
     session = request.session
 
@@ -49,24 +64,27 @@ def login(request):
             failed = True
 
         if failed:
-            ret.append(error(request, 'User unknown or password incorrect', 'Please try again.'))
-            ret.append(login_form(request, username=username))
+            body += error(request, 'User unknown or password incorrect', 'Please try again.')
+            body += login_form(request, username=username)
         else:
-            ret.append('<p>Hi, %s, you\'ve logged in' % user.fullname)
+            body += ('<p>Hi, %s, you\'ve logged in' % user.fullname)
             session.setuser(user.id)
             if referer is not None and referer != '':
                 request.redirect(referer)
             else:
-                request.redirect('%s/user/%s/' % (prefix, user.username))
+                request.redirect(user_url(user))
     else:
-        ret.append(login_form(request, referer=request.get_environ('HTTP_REFERER')))
+        body += login_form(request, referer=request.get_environ('HTTP_REFERER'))
 
 
-    # Put this here so it accurately reflects the logged-in state
-    ret.append(menupane(request))
-    
-    ret.append(post())
-    return ''.join([ str(r) for r in ret ])
+    page = TemplateIO(html=True)
+
+    page += pre(request, 'Imagestore Login', 'login', trail=False)
+    page += menupane(request)
+    page += body
+    page += post()
+
+    return page.getvalue()
 
 def logout(request):
     request.session.setuser(None)
@@ -94,10 +112,7 @@ def _q_index(request):
 
     user = session.getuser()
 
-    if user is None:
-        request.redirect('%s/user/login' % prefix)
-    else:
-        request.redirect('%s/user/%s/' % (prefix, user.username))
+    request.redirect(user_url(user))
 
     return ''
 
@@ -154,7 +169,7 @@ class UserWidget(form2.CompositeWidget):
         if self['delete']:
             classnames += ' deleted'
         r += H('<tr title="%s" class="%s">') % (self.get_hint(), classnames)
-        r += H('<td><a href="%s/user/%s/">%d</a></td>') % (prefix, self.user.username, self.user.id)
+        r += H('<td><a href="%s">%d</a></td>') % (user_url(self.user), self.user.id)
         r += self.render_content()
         r += H('</tr>\n')
             
@@ -294,34 +309,34 @@ def editusers(request):
     if user is None or not user.mayAdmin:
         raise AccessError("You may not change user information")
 
-    form = form2.Form()
-    form.add(UserListWidget, 'users')
-    userlist = form.get_widget('users')
+    userform = form2.Form()
+    userform.add(UserListWidget, 'users')
+    userlist = userform.get_widget('users')
 
-    form.add(form2.HiddenWidget, 'state', value=0)
+    userform.add(form2.HiddenWidget, 'state', value=0)
 
     for u in User.select(userFilter(), orderBy=User.q.id):
         userlist.adduser(u)
 
-    state = int(form['state'])
+    state = int(userform['state'])
     
     if state == 0:
-        form.get_widget('state').value = 1
-        form.add_submit('update', 'Update users')
-    elif state == 1 or (state == 2 and form.has_errors()):
-        form.get_widget('state').value = 2
-        form.add_submit('confirm', 'Confirm updates')
+        userform.get_widget('state').value = 1
+        userform.add_submit('update', 'Update users')
+    elif state == 1 or (state == 2 and userform.has_errors()):
+        userform.get_widget('state').value = 2
+        userform.add_submit('confirm', 'Confirm updates')
     elif state == 2:
         pass
     else:
         raise QueryError('Bad state %d' % state)
 
     if state > 0:
-        form.add_submit('cancel', 'Cancel changes')
+        userform.add_submit('cancel', 'Cancel changes')
     else:
-        form.add_reset('reset', 'Cancel changes')
+        userform.add_reset('reset', 'Cancel changes')
 
-    if form.get_submit() == 'cancel' or (state > 0 and not userlist.changed()):
+    if userform.get_submit() == 'cancel' or (state > 0 and not userlist.changed()):
         print 'CANCEL'
         request.redirect(request.get_path())
         return ''
@@ -333,17 +348,17 @@ def editusers(request):
                 w.skip_widget()
 
     def render():
-        ret = []
+        ret = TemplateIO(html=True)
 
-        ret.append(pre(request, 'User administration', 'editusers'))
-        ret.append(menupane(request))
-        ret.append('<h1>User administration</h1>\n')
-        ret.append(form.render())
-        ret.append(post())
+        ret += pre(request, 'User administration', 'editusers')
+        ret += menupane(request)
+        ret += H('<h1>User administration</h1>\n')
+        ret += userform.render()
+        ret += post()
 
-        return '\n'.join([ str(s) for s in ret ])
+        return ret.getvalue()
 
-    if not form.is_submitted() or form.has_errors() or state == 0 or state == 1:
+    if not userform.is_submitted() or userform.has_errors() or state == 0 or state == 1:
         return render()
 
     assert state == 2, 'erk, otherwise'
@@ -370,23 +385,47 @@ def editmode(request):
 
     return ''
 
+def editmode_url(onoff):
+    return '%s/user/editmode?wantedit=%d' % (prefix, onoff)
 
+class EditSwitchItem(MenuItem):
+    def __init__(self, session, classes=None, extra=None):
+        MenuItem.__init__(self, classes=classes, extra=extra)
 
+        self.classes.append('editswitch')
+
+        self.session = session
+
+    def render(self, depth=0):
+        assert self.session.getuser() is not None, "Only makes sense when someone's logged in"
+
+        if self.session.wantedit:
+            off = '<a href="%s">Off</a>' % editmode_url(not self.session.wantedit)
+            on = '<span class="selected">On</span>'
+        else:
+            off = '<span class="selected">Off</span>'
+            on = '<a href="%s">On</a>' % editmode_url(not self.session.wantedit)
+
+        return H('<span %s>Editing:&nbsp%s&nbsp;%s</span>' % (self.tags(), off, on))
+    
 class UserUI:
     _q_exports = [ 'edit' ]
     
     def __init__(self, u):
         self.user = u
 
+    def _q_access(self, request):
+        sess_user = request.session.getuser()
+
+        if sess_user != self.user and not sess_user.mayAdmin:
+            raise AccessError("You may not view this user's details")
+            
     def _q_index(self, request):
         sess_user = request.session.getuser()
 
         if sess_user is None:
-            request.redirect('%s/user/' % prefix)
+            request.redirect(user_url(sess_user))
             return ''
-
-        if sess_user != self.user and not sess_user.mayAdmin:
-            raise AccessError("You may not view this user's details")
 
         return self.user_page(request)
 

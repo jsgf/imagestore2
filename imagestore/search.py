@@ -11,6 +11,7 @@ from pages import pre, post, menupane, prefix, plural, join_extra
 from db import Picture, Keyword
 from dbfilters import mayViewFilter
 from calendar_page import picsbyday
+from menu import SubMenu, Heading, Link, Separator
 
 def listkeywords(base, kwlist, bigletter=False):
     kwlist.sort()
@@ -109,21 +110,21 @@ class KWSearchUI:
 
         groups = group_by_time(pics, int_day)
 
-        extra = self.search.menupane_extra()
+        extra = []
 
         if kwset-useless:
-            extra.append([('refine search', '#refine')])
+            extra += [ Link('refine search', '#refine') ]
         if kwset:
-            extra.append([('new search', '#replace')])
+            extra += [ Link('new search', '#replace') ]
         
         if len(groups) > 1:
-            skiplist = [ ( H(int_day.num_fmt(day)), '#' + H(int_day.num_fmt(day)) )
+            skiplist = [ Link(int_day.num_fmt(day), '#' + int_day.num_fmt(day))
                          for (day, dp) in groups ]
             if len(skiplist) > 15:
                 factor = len(skiplist) / 15
                 skiplist = [ s for (n, s) in zip(range(len(skiplist)), skiplist)
                              if n % factor == 0 ]
-            extra.append(['Skip to:', skiplist])
+            extra += [ SubMenu(heading='Skip to:', items=skiplist) ]
 
         if len(self.kw) > 1:
             searchstr = ' and '.join([ ', '.join(self.kw[:-1]), self.kw[-1] ])
@@ -186,7 +187,7 @@ class SearchUI:
         r = TemplateIO(html=True)
 
         r += pre(request, 'Keyword search', 'search', brieftitle='keywords')
-        r += menupane(request, self.menupane_extra())
+        r += menupane(request)
 
         kw = Keyword.select(Keyword.q.collectionID == self.col.dbobj.id,
                             orderBy=Keyword.q.word)
@@ -202,8 +203,9 @@ class SearchUI:
         return r.getvalue()
 
     def menupane_extra(self):
-        return [ 'Search',
-                 [ ('by keyword', '%s/%s/search/' % (prefix, self.col.dbobj.name)) ] ]
+        return [ Separator(),
+                 SubMenu(heading='Search',
+                         items=[Link('by keyword', '%s/%s/search/' % (prefix, self.col.dbobj.name))]) ]
 
     def search_kw_url(self, kw, d=None):
         return H('%s/%s/search/kw/%s/%s') % (prefix, self.col.dbobj.name, kw,

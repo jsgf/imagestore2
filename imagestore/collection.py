@@ -6,14 +6,14 @@ from pages import prefix
 import collection_page
 from calendarui import CalendarUI
 from search import SearchUI
+from upload import UploadUI
 
 from sqlobject.sqlbuilder import AND
 from db import User, CollectionPerms
-
-from quixote.errors import AccessError
+import menu
 
 class CollectionUI:
-    _q_exports = [ 'image', 'calendar', 'search', 'admin' ]
+    _q_exports = [ 'image', 'calendar', 'search', 'admin', 'upload' ]
 
     def __init__(self, dbobj):
         self.dbobj = dbobj  
@@ -21,6 +21,7 @@ class CollectionUI:
         self.image = ImageUI(self)
         self.calendar = CalendarUI(self)
         self.search = SearchUI(self)
+        self.upload = UploadUI(self)
         
     _q_index = collection_page._q_index
 
@@ -28,11 +29,21 @@ class CollectionUI:
         if not self.mayViewCollection(request):
             raise AccessError, "You may not view this collection"
 
-    def menupane_extra(self):
-        ret = self.calendar.menupane_extra()
-        ret += self.search.menupane_extra()
-        return ret
-    
+        m = menu.SubMenu(heading='Collection: %s' % self.dbobj.name)
+        if self.mayAdminCol(request):
+            m += [ menu.Link(link='Administer',
+                             url=self.collection_admin_url()) ]
+
+        if self.mayUpload(request):
+            um = menu.SubMenu(heading=menu.Link(link='Upload', url=self.collection_upload_url()))
+            if self.upload.have_pending(request.session.getuser()):
+                um += [ menu.Link(link='Pending', url=self.upload.pending_url()) ]
+            m += [ um ]
+
+        request.context_menu += [ menu.Separator(), m ]
+        request.context_menu += [ self.calendar.menupane_extra() ]
+        request.context_menu += self.search.menupane_extra()
+        
     def mayEdit(self, request, p):
         user = request.session.getuser()
         
@@ -108,6 +119,21 @@ class CollectionUI:
 
         return False
 
+    def mayUpload(self, request):
+        user = request.session.getuser()
+
+        if not user:
+            return False;
+
+        if user.mayAdmin or user.mayUpload:
+            return True
+
+        p = self.dbobj.permissions(user)
+        if p and p.mayUpload:
+            return True
+
+        return False
+
     def admin(self, request):
         user = request.session.getuser()
 
@@ -121,6 +147,9 @@ class CollectionUI:
 
     def collection_admin_url(self):
         return self.collection_url() + 'admin'
+
+    def collection_upload_url(self):
+        return self.collection_url() + 'upload/'
 
     def collection_link(self, link, extra=None):
         if extra:

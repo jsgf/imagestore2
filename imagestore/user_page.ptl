@@ -94,11 +94,7 @@ def user_page [html] (self, request):
     u = self.user
     pre(request, u.fullname, 'user-page', brieftitle='user page')
 
-    extra = []
-    if u.mayAdmin:
-        extra = [('User admin', '%s/user/editusers' % prefix)]
-
-    menupane(request, extra=extra)
+    menupane(request)
 
     user_details(u, request)
     user_collections(u, request)

@@ -1,6 +1,7 @@
 # -*- python -*-
 
 from sqlobject.sqlbuilder import *
+import quixote.form2 as form2
 
 from pages import pre, post, join_extra, menupane, prefix
 from db import Picture, User, CollectionPerms, Collection
@@ -8,52 +9,62 @@ from dbfilters import mayViewFilter, userFilter
 from random import randrange
 from image import ImageUI
 from form import userOptList
-
-import quixote.form2 as form2
+from calendarui import int_day
 
 # Actually a method of CollectionUI
 def _q_index [html] (self, request):
-    npics = len(self.dbobj.pictures)
-    pre(request, 'Collection %s: %d pictures' % (self.dbobj.name, npics),
-        bodyid='collection')
-
     filter = mayViewFilter(self.dbobj, request.session.getuser())
 
-    extra = self.menupane_extra()
+    npics = Picture.select(AND(filter, Picture.q.collectionID == self.dbobj.id)).count()
 
-    if self.mayAdminCol(request):
-        extra.append(('Administer %s' % self.dbobj.name, 'admin'))
+    # set we draw the sampler from
+    pics = Picture.select(AND(filter, Picture.q.rating >= 0),
+                          orderBy=Picture.q.record_time).reversed()[:400]
+    count = pics.count()
+    pics = list(pics)
 
-    menupane(request, extra)
+    sampler=[]
+    days=[]
+    
+    if count > 0:
+        for i in range(min(count, 16)):
+            while True:
+                p = pics[randrange(0, count)]
+                if p.id not in sampler:
+                    break
+            sampler.append(p)
+            if int_day.rounddown(p.record_time) not in days:
+                days.append(int_day.rounddown(p.record_time))
+
+    
+    pre(request, 'Collection %s: %d pictures' % (self.dbobj.name, npics),
+        bodyid='collection', brieftitle='Collection: "%s"' % self.dbobj.name)
+
+    extra=[]
+    
+    if days:
+        extra.append(['Days', [ (int_day.num_fmt(d), self.calendar.calendar_url(int_day, d))
+                                for d in days ] ])
+
+    menupane(request)
 
     '<h1>%s: %d pictures</h1>\n' % (self.dbobj.description, npics)
 
-    pics = Picture.select(AND(filter, Picture.q.rating >= 0),
-                          orderBy=Picture.q.record_time).reversed()[:100]
-    pics = [ p.id for p in pics ]
-    count = len(pics)
-
-    if count > 0:
+    if sampler:
         '<div class="sampler">\n'
-
-        done=[]
 
         imageui = ImageUI(self)
 
-        for i in range(min(count, 16)):
-            while True:
-                p = Picture.get(pics[randrange(0, count)])
-                if p.id not in done:
-                    break
-            done.append(p)
-            '<span class="image">'
-            imageui.view_newwin_link(request, p)
+        for p in sampler:
+            '<span class="image">\n'
+            '<a href="%s">%s</a>\n' % ('%s#pic%d' % (self.calendar.calendar_url(int_day, p.record_time), p.id),
+                                       imageui.thumb_img(p, False))
             '</span>\n'
 
-        request.session.set_query_results(done)
-
         '</div>'
-    
+
+        request.session.set_query_results(sampler)
+
     post()
 
 def admin_page [html] (self, request):
@@ -61,7 +72,7 @@ def admin_page [html] (self, request):
     
     pre(request, '%s admin' % col.name, 'collection-admin')
 
-    menupane(request, self.menupane_extra())
+    menupane(request)
 
     '<h1>Edit details for %s</h1>\n' % col.name
 

@@ -69,6 +69,9 @@ class Collection(SQLObject):
     pictures = MultipleJoin('Picture')
 
     def permissions(self, user):
+        if user is None:
+            return None
+        
         cp = CollectionPerms.select((CollectionPerms.q.collectionID == self.id) & (CollectionPerms.q.userID == user.id))
         assert cp.count() == 0 or cp.count() == 1, 'Unexpected number of collection permissions'
 
@@ -105,7 +108,7 @@ class User(SQLObject):
     mayComment = BoolCol(notNone=True, default=False)   # comment on images everywhere
     mayCreateCat = BoolCol(notNone=True, default=False) # may create new collections
 
-    #enabled = BoolCol(notNone=True, default=True)
+    enabled = BoolCol(notNone=True, default=True)
     
     
 class Camera(SQLObject):
@@ -304,7 +307,11 @@ class Picture(SQLObject):
     collection = ForeignKey('Collection', notNone=True, default=lambda: defaultCollection().id)
     keywords = RelatedJoin('Keyword')
     comments = MultipleJoin('Comment')
-    
+
+    # If non-NULL, then this picture is still pending, and doesn't really
+    # exist in the collection
+    upload = ForeignKey('Upload', default=None)
+
     camera = ForeignKey('Camera', default=None)
     
     owner = ForeignKey("User", default=None)
@@ -326,7 +333,7 @@ class Picture(SQLObject):
     
     record_time = DateTimeCol()
     modified_time = DateTimeCol(default=mx.DateTime.gmt, notNone=True)
-
+    
     exposure_program = StringCol(default=None)
     flash = BoolCol(default=False)
     f_number = StringCol(default=None, length=10)
@@ -352,6 +359,15 @@ class Comment(SQLObject):
 
     comment = StringCol(notNone=True)
     
+class Upload(SQLObject):
+    user = ForeignKey('User')
+    collection = ForeignKey('Collection')
+    pictures = MultipleJoin('Picture')
+
+    import_time = DateTimeCol(default=mx.DateTime.gmt, notNone=True)
+
+    #time_idx = Index(import_time)
+    #user_idx = Index(user)
 
 Collection.createTable(ifNotExists=True)
 CollectionPerms.createTable(ifNotExists=True)
@@ -361,6 +377,7 @@ Media.createTable(ifNotExists=True)
 Keyword.createTable(ifNotExists=True)
 User.createTable(ifNotExists=True)
 Camera.createTable(ifNotExists=True)
+Upload.createTable(ifNotExists=True)
 
 if User.select(User.q.username == 'admin').count() == 0:
     User(username='admin', password='admin', email='jeremy@goop.org',

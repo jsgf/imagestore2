@@ -2,11 +2,14 @@
 from mx.DateTime import RelativeDateTime, DateTime, strptime, Error as DTError, oneDay, oneSecond, Monday
 from quixote.errors import TraversalError, QueryError
 from quixote.html import htmltext
-from db import Picture
 from sqlobject.sqlbuilder import AND, OR
+
+from db import Picture
+from dbfilters import mayViewFilter
 from pages import pre, post, menupane, error, prefix
 from calendar_page import _q_index_ptl, most_recent
 from calendar import monthrange, monthcalendar
+from menu import SubMenu, Heading, Link
 
 def kw_summary(pics):
     count = {}
@@ -137,11 +140,15 @@ def pics_grouped(group, first=None, last=None, round=False, filter=None):
 
     debug = False
 
-    if first is None:
-        first = Picture.select(filter, orderBy=Picture.q.record_time)[0].record_time
-    if last is None:
-        last = Picture.select(filter, orderBy=Picture.q.record_time).reversed()[0].record_time
-
+    try:
+        if first is None:
+            first = Picture.select(filter, orderBy=Picture.q.record_time)[0].record_time
+        if last is None:
+            last = Picture.select(filter, orderBy=Picture.q.record_time).reversed()[0].record_time
+    except IndexError:
+        # If there are no pictures, then return an empty list
+        return []
+    
     if round:
         first = group.rounddown(first)
         last = group.roundup(last)
@@ -192,12 +199,12 @@ class CalendarUI:
     _q_index = _q_index_ptl
 
     def menupane_extra(self):
-        return ['Calendar',
-                [('summary', self.calendar_url()),
-                 'Recent...',
-                 [('week', self.calendar_url(int_week)),
-                  ('month', self.calendar_url(int_month)),
-                  ('year', self.calendar_url(int_year))]]]
+        return SubMenu(heading='Calendar',
+                       items=[ Link(link='summary', url=self.calendar_url()),
+                               SubMenu(heading='Recent...',
+                                       items=[Link('week', self.calendar_url(int_week)),
+                                              Link('month', self.calendar_url(int_month)),
+                                              Link('year', self.calendar_url(int_year))])])
     
     def calendar_url(self, interval=None, date=None):
         ret = '%s/%s/calendar/' % (prefix, self.collection.dbobj.name)
@@ -232,16 +239,18 @@ class CalendarUI:
 
         return days
 
-    def yearview(self, year):
+    def yearview(self, request, year):
         """ Returns a list of Months in a year, populated with info
         about pics in that month (only months with any pics are added
         to the list). """
 
         # Get pics grouped into months
+        filter = mayViewFilter(self.collection.dbobj, request.session.getuser())
         months = [ (Month(year, m.month), res) for (m, res) in pics_grouped(int_month,
                                                                             DateTime(year  ,1,1),
                                                                             DateTime(year+1,1,1),
-                                                                            round=True)
+                                                                            round=True,
+                                                                            filter=filter)
                    if res.count() > 0 ]
 
         # Mark each day in the month
@@ -272,9 +281,9 @@ class Year:
 
     def _q_index(self, request):
         if self.year is None:
-            self.year = most_recent().record_time.year
+            self.year = most_recent().year
 
-        y = self.calui.yearview(self.year)
+        y = self.calui.yearview(request, self.year)
 
         return self.formatyear(request, y)
         

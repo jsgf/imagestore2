@@ -44,8 +44,10 @@ class ImagestoreSession(Session):
         return r
 
     def setuser(self, user):
-        self.user = user
-        self.dirty = True
+        if user != self.user:
+            self.user = user
+            self.dirty = True
+            self.breadcrumbs = []
 
     def getuser(self):
         if self.user is None:
@@ -89,6 +91,7 @@ class ImagestoreSession(Session):
 
     def del_breadcrumb(self):
         del self.breadcrumbs[-1]
+        self.dirty = True
 
 class DirMapping:
     """A mapping object that stores values as individual pickle
