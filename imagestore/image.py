@@ -30,14 +30,24 @@ def set_preferred_size(request, size):
 
 # Split an image name into a (id, size, isPreferred, ext) tuple
 def split_image_name(name):
-    regexp='^([0-9]+)(-(%s|orig)(!)?)?(.[a-z]+)$' % sizere()
+    ids = [ '[0-9]+', 'sha1:[0-9a-fA-F]{40}' ]
+    regexp='^(%s)(-(%s|orig)(!)?)?(.[a-z]+)$' % ('|'.join([ '(?:%s)' % i for i in ids]), sizere())
+
     #print 'image looking up >%s< with %s' % (name, regexp)
+    
     m = re.search(regexp, name)
 
     if m is None:
         raise TraversalError('Bad image name format: %s' % name)
 
-    return (int(m.group(1)), m.group(3), m.group(4) is not None, m.group(5))
+    id=m.group(1).lower()
+    if id.startswith('sha1:'):
+        try:
+            id = Picture.byHash(id[5:]).id
+        except SQLObjectNotFound:
+            raise QueryError('hash %s not found' % id)
+
+    return (int(id), m.group(3), m.group(4) is not None, m.group(5))
 
 class DetailsUI:
     " class for /COLLECTION/image/details/NNNN "
