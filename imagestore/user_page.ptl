@@ -2,9 +2,12 @@
 
 from pages import pre, post, menupane
 
-from db import User
+from db import User, getColByName
 from go_scgi import ImagestoreHandler
 prefix = ImagestoreHandler.prefix
+
+from quixote.errors import AccessError
+import quixote.form2 as form2
 
 def login_form [html] (request, username='', referer=''):
     """
@@ -18,24 +21,66 @@ def login_form [html] (request, username='', referer=''):
     </div>
     """ % (username, referer)
 
+def checkbox [html] (name, value, checked=False, title=None):
+    '<input type="checkbox" name="%s" value="%s" %s %s>\n' % \
+            (name, value,
+             checked and 'CHECKED',
+             title and 'title="%s"' % title)
+
+
 def user_details [html] (self, request):
     user = self.user
+    sess_user = request.session.getuser()
+
+    if user != sess_user and not sess_user.mayAdmin:
+        raise AccessError("You may not see this user's private parts")
     
     pre(request, 'User details')
 
-    '<H1>Details for %s</H1>' % user.fullname
-
     menupane(request)
     
-    if user.mayAdmin:
-        '<ul>'
-        for u in User.select(orderBy=User.q.id):
-            '<li><a href="%(pre)s/user/%(name)s/">%(fullname)s (%(name)s)</a>' % {
-                'pre': prefix,
-                'name': u.username,
-                'fullname': u.fullname
-                }
-        '</ul>'
+    '<H1>Details for %s</H1>' % user.fullname
+
+    form = form2.Form()
+
+    form.add(form2.StringWidget, 'username', user.username, title='User name')
+    form.add(form2.StringWidget, 'fullname', user.fullname, title='Full name')
+    form.add(form2.StringWidget, 'email',    user.email,    title='Email address')
+
+    form.add(form2.PasswordWidget, 'password', title='Current password')
+    form.add(form2.PasswordWidget, 'newpassword', title='Change password')
+    form.add(form2.PasswordWidget, 'newpassword2', title='Confirm password')
+
+    form.add_submit('submit', 'Change user details')
+    form.add_submit('cancel', 'Cancel changes')
+    form.add_reset('reset', 'Revert to original')
+
+    if form.get_submit() == 'cancel':
+        request.redirect(request.get_path())
+        return ''
+
+    if not form.is_submitted() or form.has_errors():
+        form.render()
+    else:
+        if form['newpassword']:
+            if form['newpassword'] != form['newpassword2']:
+                form.get_widget('newpassword2').set_error('Passwords do not match')
+            if form['password'] != user.password:
+                form.get_widget('password').set_error('Enter your current password to change it')
+        if form['username'] != user.username and \
+           User.select(User.q.username == form['username']).count() != 0:
+            form.get_widget('username').set_error('Username already taken')
+
+        if form.has_errors():
+            form.render()
+        else:
+            if form['newpassword'] is not None and \
+                   form['newpassword'] == form['newpassword2'] and \
+                   form['password'] == user.password:
+                user.password = form['newpassword']
+
+            user.username = form['username']
+            request.redirect(request.get_path())
 
     post()
 

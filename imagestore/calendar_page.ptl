@@ -3,7 +3,12 @@
 from mx.DateTime import DateTime, RelativeDateTime
 from pages import pre, post, menupane, error, arrow
 from db import Picture
+from dbfilters import mayViewFilter
+from sqlobject.sqlbuilder import AND
 from image import ImageUI
+
+def plural(n, s):
+    return '%d %s%s' % (n, s, ['', 's'][n!=1])
 
 def most_recent():
     return Picture.select(orderBy=Picture.q.record_time).reversed()[0]
@@ -15,44 +20,46 @@ def nextlink [html] (url):
     '<div class="nav nav-next"><a href="%s">Next&nbsp;%s</a></div>' % (url, arrow('right'))
 
 def _q_index_ptl [html] (self, request):
-    pre(request, 'Calendar view', 'calendar')
+    from calendarui import sorted_intervals, int_day, int_week
 
-    from calendarui import intervals, sorted_intervals
-
-    if self.interval is None:
-        self.interval = 'week'
-    
     if self.date is None:
-        self.date = intervals[self.interval].rounddown(most_recent().record_time)
+        self.date = self.interval.rounddown(most_recent().record_time)
 
-    interval = intervals[self.interval]
+    filter = mayViewFilter(self.collection.dbobj, request.session.getuser())
     
-    days = self.build_calendar(self.date, interval)
+    days = self.build_calendar(self.date, self.interval, filter=filter)
+
+    total = reduce(lambda a,b:a+b, [0,0]+[ p.count() for (d,p) in days ])
+
+    pre(request, 'Calendar: %s - %s' % (self.interval.long_fmt(self.date),
+                                        plural(total, 'picture')),
+        'calendar')
+
+    '<h1>%s - %s</h1>' % (self.interval.long_fmt(self.date), plural(total, 'picture'))
 
     if days is None or len(days) == 0:
-            error(request, 'No images in specified range', 'Please select another date range')
+            error(request, 'No pictures in specified range', 'Please select another date range')
 
     nav = ''
-    prev = Picture.select(Picture.q.record_time < self.date,
+    prev = Picture.select(AND(Picture.q.record_time < self.date, filter),
                           orderBy=Picture.q.record_time).reversed()
     if prev.count() > 0:
-        prev = interval.rounddown(prev[0].record_time - interval.step)
+        prev = self.interval.rounddown(prev[0].record_time)
         nav += prevlink(self.calendar_url(self.interval, prev))
 
-    next = Picture.select(Picture.q.record_time >= (self.date+interval.step),
+    next = Picture.select(AND(Picture.q.record_time >= (self.date+self.interval.step), filter),
                           orderBy=Picture.q.record_time)
     if next.count() > 0:
-        next = interval.rounddown(next[0].record_time)
+        next = self.interval.rounddown(next[0].record_time)
         nav += nextlink(self.calendar_url(self.interval, next))
 
     menupane(request, extra=self.menupane_extra(), nav=nav)
-    
 
     for i in sorted_intervals:
         sel=''
-        if i.name == self.interval:
+        if i == self.interval:
             sel='selected'
-        '<a class="%s" href="%s">%s</a>\n' % (sel, self.calendar_url(i.name, self.date),
+        '<a class="%s" href="%s">%s</a>\n' % (sel, self.calendar_url(i, self.date),
                                               i.name.capitalize())
 
 
@@ -62,7 +69,7 @@ def _q_index_ptl [html] (self, request):
     for d,pl in days:
         '<div class="day">\n'
         '<div class="day-link" id="day:%(date)s"><a href="%(url)s">%(date)s</a></div>\n' % {
-            'url': self.calendar_url('day', d),
+            'url': self.calendar_url(int_day, d),
             'date': d.strftime(str('%Y-%m-%d'))
             }
         '<div class="day-pics">\n'
@@ -77,20 +84,70 @@ def _q_index_ptl [html] (self, request):
     post()
 
 
+def emitmonth [html](request, calui, year, m):
+    from calendarui import int_month, int_day
+
+    title = plural(m.total, 'picture')
+    
+    '\n<table class="month">\n'
+    '  <thead>\n'
+    '    <tr><td colspan="7"><a title="%s" href="%s">%s</a></td></tr>\n' % \
+      (title, calui.calendar_url(int_month, DateTime(year, m.month)), m.getname())
+    '  </thead>\n'
+    '  <tbody>\n'
+    mc = m.getcalendar()
+
+    if False:
+        # If we're making a 6-row month, fold the last row into the first
+        # User testing (ie, Rachel) says no
+        if len(mc) == 6:
+            mm=[]
+            for m1,m2 in zip(mc[0], mc[5]):
+                mm.append(m1 or m2)
+            mc[0] = mm
+            del mc[5]
+
+    for week in mc:
+        '    <tr>'
+        for d in week:
+            if d == 0:
+                '<td></td>'
+                continue
+            mark =  m.ismarked(d)
+            if mark != 0:
+                title = plural(mark, 'picture')
+                '<td class="mark"><a href="%s" title="%s">%d</a></td>' % \
+                     (calui.calendar_url(int_day, DateTime(year, m.month, d)), title, d)
+            else:
+                '<td>%d</td>' % d
+        '</tr>\n'
+    '  </tbody>\n'
+    '</table>\n'
+
 # Class of calendarui.Year
 def formatyear [html] (self, request, year):
-    from calendarui import pics_grouped, int_year
+    from calendarui import pics_grouped, int_year, kw_summary
 
-    pre(request, "Year %d" % self.year, 'calendar')
+    filter = mayViewFilter(self.calui.collection.dbobj, request.session.getuser())
 
-    '<h1>Year %d</h1>\n' % self.year
+    pics = pics_grouped(int_year, round=True, filter=filter)
 
-    round = RelativeDateTime(month=1,day=1,hour=0,minute=0,second=0)
+    total = 0
+    for d,c in pics:
+        if d.year == self.year:
+            total = c.count()
+
+    total = plural(total, 'picture')
+
+    pre(request, "Year %d: %s" % (self.year, total), 'calendar')
+
+    '<h1>Year: %d - %s</h1>\n' % (self.year, total)
+
     prev = None
     next = None
 
     '<div class="years">\n'
-    for d,c in pics_grouped(int_year, round=True):
+    for d,c in pics:
         if d.year < self.year:
             prev = d
         if next is None and d.year > self.year:
@@ -99,56 +156,43 @@ def formatyear [html] (self, request, year):
         selected=''
         if d.year == self.year:
             selected='selected'
-        '  <a class="%s" title="%d images" href="%s">%d</a>\n' % \
-          (selected, c.count(), self.calui.calendar_url('year', d), d.year)
+
+        title = plural(c.count(), 'picture')
+        
+        '  <a class="%s" title="%s" href="%s">%d</a>\n' % \
+          (selected, title,
+           self.calui.calendar_url(int_year, d), d.year)
         
     '</div>\n'
     
     nav = ''
     if prev is not None:
-        nav += prevlink(self.calui.calendar_url('year', prev))
+        nav += prevlink(self.calui.calendar_url(int_year, prev))
     if next is not None:
-        nav += nextlink(self.calui.calendar_url('year', next))
+        nav += nextlink(self.calui.calendar_url(int_year, next))
 
     menupane(request, extra=self.calui.menupane_extra(), nav=nav)
     
-    '<div class="calendar-year">\n'
+    '<table class="calendar-year">\n'
+
+    ya = [ [ None ] * 3,
+           [ None ] * 3,
+           [ None ] * 3,
+           [ None ] * 3 ]
+
     for m in year:
-        '<table class="month">\n'
-        '  <thead>\n'
-        '    <tr><td colspan="7"><a href="%s">%s</a></td></tr>\n' % \
-          (self.calui.calendar_url('month', DateTime(self.year, m.month)), m.getname())
-        '  </thead>\n'
-        '  <tbody>\n'
-        mc = m.getcalendar()
+        mi = m.month - 1
+        ya[mi / 3][mi % 3] = m
 
-        if False:
-            # If we're making a 6-row month, fold the last row into the first
-            # User testing (ie, Rachel) says no
-            if len(mc) == 6:
-                mm=[]
-                for m1,m2 in zip(mc[0], mc[5]):
-                    mm.append(m1 or m2)
-                mc[0] = mm
-                del mc[5]
-
-        for week in mc:
-            '    <tr>'
-            for d in week:
-                if d == 0:
-                    '<td></td>'
-                    continue
-                mark =  m.ismarked(d)
-                if mark != 0:
-                    title = '%d image' % mark
-                    if mark != 1:
-                        title += 's'
-                    '<td class="mark"><a href="%s" title="%s">%d</a></td>' % (self.calui.calendar_url('day', DateTime(self.year, m.month, d)), title, d)
-                else:
-                    '<td>%d</td>' % d
-            '</tr>\n'
-        '  </tbody>\n'
-        '</table>\n'
-    '</div>'
+    for row in ya:
+        '<tr>\n'
+        for m in row:
+            ' <td>'
+            if m is not None:
+                emitmonth(request, self.calui, self.year, m)
+            '</td>\n'
+        '</tr>\n'
+        
+    '</table>'
 
     post()

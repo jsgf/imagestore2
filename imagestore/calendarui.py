@@ -8,6 +8,26 @@ from pages import pre, post, menupane, error, prefix
 from calendar_page import _q_index_ptl, most_recent
 from calendar import monthrange, monthcalendar
 
+def kw_summary(pics):
+    count = {}
+    for p in pics:
+        for k in p.keywords:
+            count[k.word] = count.get(k.word, 0) + 1
+    tot = count.items()
+    tot.sort(lambda a,b: cmp(b[1],a[1]))
+    return [ t[0] for t in tot ]
+
+def ordinal(n):
+    o='th'
+    if n == 1:
+        o = 'st'
+    elif n == 2:
+        o = 'nd'
+    elif n == 3:
+        o = 'rd'
+
+    return '%d%s' % (n,o)
+
 class Interval:
     def __init__(self, name, step, round):
         self.name = name
@@ -25,22 +45,73 @@ class Interval:
     def __str__(self):
         return 'Interval(%s)' % self.name
 
+    def num_fmt(self, time):
+        return time.strftime('%F')
+
+class DayInterval(Interval):
+    def __init__(self):
+        Interval.__init__(self, 'day', RelativeDateTime(days=+1),
+                          RelativeDateTime(hour=0, minute=0, second=0))
+
+    def long_fmt(self, time):
+        return time.strftime('%%A, %%B %s, %%Y' % ordinal(time.day))
+
+
+class WeekInterval(Interval):
+    def __init__(self):
+        Interval.__init__(self, 'week', RelativeDateTime(days=+7),
+                          RelativeDateTime(weekday=(Monday,0)))
+
+    def long_fmt(self, time):
+        return time.strftime('Week of %%B %s, %%Y' % ordinal(time.day))
+
+class MonthInterval(Interval):
+    def __init__(self):
+        Interval.__init__(self, 'month', RelativeDateTime(months=+1),
+                          RelativeDateTime(day=1, hour=0, minute=0, second=0))
+
+    def num_fmt(self, time):
+        return time.strftime('%Y-%m')
+
+    def long_fmt(self, time):
+        return time.strftime('%B, %Y')
+
+class YearInterval(Interval):
+    def __init__(self):
+        Interval.__init__(self, 'year', RelativeDateTime(years=+1),
+                          RelativeDateTime(month=1, day=1, hour=0, minute=0, second=0))
+
+    def num_fmt(self, time):
+        return time.strftime('%Y')
+
+    def long_fmt(self, time):
+        return time.strftime('%Y')
+
 intervals = {}
 
-int_day  =Interval('day', RelativeDateTime(days=+1),
-               RelativeDateTime(hour=0, minute=0, second=0))
-int_week =Interval('week', RelativeDateTime(days=+7),
-               RelativeDateTime(weekday=(Monday,0)))
-int_month=Interval('month', RelativeDateTime(months=+1),
-               RelativeDateTime(day=1, hour=0, minute=0, second=0))
-int_year =Interval('year', RelativeDateTime(years=+1),
-               RelativeDateTime(month=1, day=1, hour=0, minute=0, second=0))
+int_day  =DayInterval()
+int_week =WeekInterval()
+int_month=MonthInterval()
+int_year =YearInterval()
 
 # A base for RelativeDateTime comparisons
 zeroDate = DateTime(0,1,1,0,0,0)
 
 sorted_intervals = intervals.values()
 sorted_intervals.sort(lambda a,b: cmp(zeroDate + a.step, zeroDate + b.step))
+
+def parse(s):
+    " Try parsing several different forms of date "
+    try:
+        return strptime(s, '%Y-%m-%d')
+    except DTError, x:
+        pass
+    try:
+        return strptime(s, '%Y-%m')
+    except DTError, x:
+        pass
+    return strptime(s, '%Y')
+
 
 def yrange(start, stop, inc):
     ' A generic range supporting any type with comparison and += '
@@ -58,7 +129,7 @@ def pics_in_range(start, end=None, delta=None, filter=None):
     q = [ Picture.q.record_time >= start, Picture.q.record_time < end ]
     if filter is not None:
         q.append(filter)
-    return Picture.select(AND(*q), orderBy=Picture.q.record_time)
+    return Picture.select(AND(*q), orderBy=Picture.q.record_time).distinct()
 
 def pics_grouped(group, first=None, last=None, round=False, filter=None):
     ''' return a list of (DateTime, select-result) tuples counting the number
@@ -67,9 +138,9 @@ def pics_grouped(group, first=None, last=None, round=False, filter=None):
     debug = False
 
     if first is None:
-        first = Picture.select(orderBy=Picture.q.record_time)[0].record_time
+        first = Picture.select(filter, orderBy=Picture.q.record_time)[0].record_time
     if last is None:
-        last = Picture.select(orderBy=Picture.q.record_time).reversed()[0].record_time
+        last = Picture.select(filter, orderBy=Picture.q.record_time).reversed()[0].record_time
 
     if round:
         first = group.rounddown(first)
@@ -95,7 +166,7 @@ def pics_grouped(group, first=None, last=None, round=False, filter=None):
 class CalendarUI:
     _q_exports = [ 'year' ]
     
-    def __init__(self, collection, date=None, interval=None):
+    def __init__(self, collection, date=None, interval=int_week):
         self.collection = collection
 
         self.interval = interval
@@ -107,12 +178,12 @@ class CalendarUI:
     # elements, though only the last of each is used
     def _q_lookup(self, request, component):
         #print 'Calendar: dealing with component: %s' % component
-        
+
         if component in intervals.keys():
-            self.interval = component
+            self.interval = intervals[component]
         else:
             try:
-                self.date = strptime(component, '%Y-%m-%d')
+                self.date = parse(component)
             except DTError, x:
                 raise TraversalError("Badly formatted date")
 
@@ -124,16 +195,22 @@ class CalendarUI:
         return ['Calendar',
                 [('summary', self.calendar_url()),
                  'Recent...',
-                 [('week', self.calendar_url('week')),
-                  ('month', self.calendar_url('month')),
-                  ('year', self.calendar_url('year'))]]]
+                 [('week', self.calendar_url(int_week)),
+                  ('month', self.calendar_url(int_month)),
+                  ('year', self.calendar_url(int_year))]]]
     
     def calendar_url(self, interval=None, date=None):
         ret = '%s/%s/calendar/' % (prefix, self.collection.dbobj.name)
         if interval is not None:
-            ret += interval + '/'
+            if isinstance(interval, str):
+                interval = intervals[interval]
+            ret += interval.name + '/'
         if date is not None:
-            ret += date.strftime('%Y-%m-%d') + '/'
+            if interval is not None:
+                ret += interval.num_fmt(date)
+            else:
+                ret += date.strftime('%Y-%m-%d')
+            ret += '/'
 
         return htmltext(ret)
         
@@ -149,7 +226,7 @@ class CalendarUI:
 
         pics = pics_grouped(int_day, date_start, date_end, round=True, filter=filter)
 
-        days = [ (date, list(sel)) for date,sel in pics if sel.count() != 0 ]
+        days = [ (date, sel) for date,sel in pics if sel.count() != 0 ]
 
         #print 'bulld_calendar(%s - %s) -> %s' % (date_start, date_end, days)
 
@@ -188,13 +265,9 @@ class Year:
         
     def _q_lookup(self, request, component):
         try:
-            self.year = strptime(component, '%Y').year
+            self.year = parse(component).year
         except DTError:
-            try:
-                self.year = strptime(component, '%Y-%m-%d').year
-                request.redirect('../%d/' % self.year)
-            except DTError:
-                raise QueryError('Bad year format')
+            raise QueryError('Bad year format')
         return self
 
     def _q_index(self, request):
@@ -212,11 +285,13 @@ class Month:
         self.days = monthrange(year, month)
 
         self.marked = {}
+        self.total = 0
 
     def getname(self):
         return DateTime(self.year, self.month).strftime('%B')
 
     def markday(self, day, number):
+        self.total += number
         self.marked[day] = self.marked.get(day, 0) + number
 
     def ismarked(self, day):

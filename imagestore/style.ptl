@@ -85,6 +85,9 @@ A.selected:hover { color: %(strong-active)s; }
   display: block;
 }
 
+TABLE > THEAD {
+  font-weight: bold;
+}
 
 /* Menu pane */
 #menu { 
@@ -336,14 +339,24 @@ TABLE.thiswayup A:hover .thumb {
 
     """\
 /* view windows */
-BODY.view {
+BODY#view {
   margin: 0;
+  padding: 0;
+  border: 0;
   background-color: black;
 }
-BODY.view .picture { 
-  margin: 15px;			/* update Image.view_margin to match */
+BODY#view > A {
+  padding: 0;
+  margin: 0;
+  border: 0;
 }
-BODY.view .nav { 
+BODY#view IMG.picture {
+  padding: 0;
+  border: 0;
+  margin-left: %(view-margin)dpx;
+  margin-top: %(view-margin)dpx;
+}
+BODY#view .nav { 
   position: fixed;
   top: 0px;
   left: 0px;
@@ -357,103 +370,107 @@ BODY.view .nav {
 
   vertical-align: middle;
 }
-BODY.view .nav a:hover { 
+BODY#view .nav a:hover { 
   font-size: 150%%;
   font-weight: bold;
   padding: 0px 5px 5px;
 }
-BODY.view .nav .size A {
+BODY#view .nav .size A {
   text-align: center;
   padding-left: .5em;
   padding-right: .5em;
   background-color: black;
 }
-BODY.view .nav .size A.selected	{
+BODY#view .nav .size A.selected	{
   background-color: #888888;
 }
-BODY.view .nav .prev {
+BODY#view .nav .prev {
   position: absolute;
   left: 20px;
   background-color: black;
 }
-BODY.view .nav .next { 
+BODY#view .nav .next { 
   position: absolute;
   right: 20px;
   background-color: black;
 }
-
+""" % {
+        'view-margin': view_margin
+        }
+    
+    """
 /* Picture details */
-.details { 
+#details { 
   margin: 2%%;
 }
-.details .name, DIV.details .val {
+#details .name, DIV.details .val {
   font-size: 75%%;
 }
-.details .name {
+#details .name {
   font-weight: bold;
   display: inline-block;
 }
-.details .detail-thumb { 
+#details .detail-thumb { 
   display: block;
   float: right;
 }
-.details .detail_tab .name { 
+#details .detail_tab .name { 
   text-align: right;
   font-weight: bold;
 }
-.details .detail_tab .val { 
+#details .detail_tab .val { 
   text-align: left;
 }
-.details DT {
+#details DT {
 }
-.details DD { 
+#details DD { 
   display: block;
   margin-left: 1em;
   margin-bottom: 1em;
 }
 
 /* calendar windows */
-BODY.calendar DIV.day { 
+BODY#calendar DIV.day { 
   margin-top: 4em;
   margin-left: 5%%;
   margin-right: 5%%;
   clear: both;
 }
-BODY.calendar DIV.day .day-link { 
+BODY#calendar DIV.day .day-link { 
   display: block;
   margin-bottom: 1em;
   margin-left: -2em;
   font-weight: bold;
 }
-BODY.calendar .calendar-year .years A {
+BODY#calendar .calendar-year .years A {
   margin: 1em;
 }
-BODY.calendar .calendar-year TABLE.month {
+BODY#calendar .calendar-year TABLE.month {
   display: inline-table;
   float: left;
   margin: 1em;
   border: 1px solid #555555;
 }
-BODY.calendar .calendar-year .month THEAD {
+BODY#calendar .calendar-year .month THEAD {
   text-align: center;
   font-weight: bold;
 }
-BODY.calendar .calendar-year .month TBODY {
+BODY#calendar .calendar-year .month TBODY {
   text-align: right;
   padding: 2px;
 }
-BODY.calendar .calendar-year .month .mark {
+BODY#calendar .calendar-year .month .mark {
   border: 1px solid #aaaaaa;
   background-color: %(highlight-color)s;
   padding: 1px;
   font-weight: bold;
 }
-BODY.calendar .calendar-year .month .mark A             { color: white; }
-BODY.calendar .calendar-year .month .mark A:hover       { color: %(strong-active)s; }
-BODY.calendar .calendar-year .month .mark A:active      { color: %(strong-active)s; }
+BODY#calendar .calendar-year .month .mark A             { color: white; }
+BODY#calendar .calendar-year .month .mark A:hover       { color: %(strong-active)s; }
+BODY#calendar .calendar-year .month .mark A:active      { color: %(strong-active)s; }
 
 /* Collection */
-BODY.collection .sampler { 
+BODY#collection .sampler { 
   top: 0;
   bottom: 0;
   left: 10em;
@@ -463,10 +480,27 @@ BODY.collection .sampler {
   position: absolute;
   margin: auto;
 }
-BODY.collection .sampler .image { 
+BODY#collection .sampler .image { 
   width: 160px;
   height: 160px;
-}""" % {
+}
+
+/* User details editing */
+#edituser .deleted {
+  background-color: red;
+  font-weight: bold;
+}
+#edituser THEAD {
+  font-size: 70%%;
+}
+#edituser .UserListWidget > .content DIV {
+  display: inline;
+}
+#edituser DIV.UserListWidget .title {
+  display: none;
+}
+
+""" % {
         'highlight-color':      '#777777',      # for highlighting things
         'active-color':         '#ffa66b',      # orange
         'strong-active':        '#ff8b3e',      # brighter orange

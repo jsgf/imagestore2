@@ -4,6 +4,7 @@ from sqlobject.sqlbuilder import *
 
 from pages import pre, post, join_extra, menupane
 from db import Picture
+from dbfilters import mayViewFilter
 from random import randrange
 from image import ImageUI
 
@@ -11,37 +12,38 @@ from image import ImageUI
 def _q_index [html] (self, request):
     npics = len(self.dbobj.pictures)
     pre(request, 'Collection %s: %d pictures' % (self.dbobj.name, npics),
-        bodyclass='collection')
+        bodyid='collection')
+
+    filter = mayViewFilter(self.dbobj, request.session.getuser())
 
     '<h1>%s: %d pictures</h1>\n' % (self.dbobj.description, npics)
 
     menupane(request, self.calendar.menupane_extra())
 
-    pics = Picture.select(AND(Picture.q.collectionID == self.dbobj.id,
-                              Picture.q.visibility == str('public'),
-                              Picture.q.rating >= 0),
+    pics = Picture.select(AND(filter, Picture.q.rating >= 0),
                           orderBy=Picture.q.record_time).reversed()[:100]
     count = pics.count()
 
-    '<div class="sampler">\n'
+    if count > 0:
+        '<div class="sampler">\n'
 
-    done=[]
+        done=[]
 
-    imageui = ImageUI(self)
-    
-    for i in range(16):
-        while True:
-            p = pics[randrange(0, count)]
-            if p.id not in done:
-                break
-        done.append(p.id)
-        '<span class="image">'
-        imageui.view_newwin_link(request, p)
-        '</span>\n'
+        imageui = ImageUI(self)
 
-    request.session.set_query_results(done)
+        for i in range(min(count, 16)):
+            while True:
+                p = pics[randrange(0, count)]
+                if p.id not in done:
+                    break
+            done.append(p.id)
+            '<span class="image">'
+            imageui.view_newwin_link(request, p)
+            '</span>\n'
 
-    '</div>'
+        request.session.set_query_results(done)
+
+        '</div>'
     
     post()
 

@@ -2,29 +2,28 @@
 
 from db import Collection
 from sqlobject.sqlbuilder import OR
-from types import *
 
 from go_scgi import ImagestoreHandler
 prefix = ImagestoreHandler.prefix
 
-def pre [html] (request, title, bodyclass=''):
+def pre [html] (request, title, bodyid=''):
     """\
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 EN">
 <head>
   <link type="text/css" rel="stylesheet" href="%(base)s/style.css">
   <title>%(title)s</title>
 </head>
-<body class="%(class)s">\n""" % {
+<body id="%(id)s">\n""" % {
       'title': title,
       'base': prefix,
-      'class': bodyclass
+      'id': bodyid
       }
 
 def post [html] ():
     "\n</body>\n</html>\n"
 
-def html(request, title, page, bodyclass=''):
-    return pre(request, title, bodyclass) + page + post()
+def html(request, title, page, bodyid=''):
+    return pre(request, title, bodyid) + page + post()
 
 def join_extra [html] (extra):
     return ' '.join([ '%s="%s"' % (k, extra[k]) for k in extra.keys() ])
@@ -42,14 +41,14 @@ def arrow [html] (dir, alt=None, extra={}):
 
 def generate_extra [html] (extra):
     for e in extra:
-        if type(e) == ListType:
+        if isinstance(e, list):
             '<ul>\n'
             generate_extra(e)
             '</ul>\n'
-        elif type(e) == TupleType:
+        elif isinstance(e, tuple):
             (text,url) = e
             '<li><a href="%s">%s</a>\n' % (url, text)
-        elif type(e) == StringType or type(e) == type(htmltext('')):
+        elif isinstance(e, str) or isinstance(e, htmltext):
             '<li class="subhead">' + e + '\n'
 
 # Generate a menu pane.  extra is a list of items to add to the list;
@@ -70,7 +69,13 @@ def menupane [html] (request, extra=None, nav=None):
             'user': user.username,
             'fullname': user.fullname }
         '<ul>\n'
-        '<li><a href="%s/user/logout">log out</a>\n' % prefix
+        '<li>Edit:&nbsp;'
+        if session.wantedit:
+            '<a href="%s/user/editmode?wantedit=0">Off</a>&nbsp;<span class="selected">On</span>' % prefix
+        else:
+            '<span class="selected">Off</span>&nbsp;<a href="%s/user/editmode?wantedit=1">On</a>' % prefix
+            
+        '\n<li><a href="%s/user/logout">Log out</a>\n' % prefix
         '</ul>\n'
          
     '<li class="collections">Collections:\n'
@@ -78,8 +83,9 @@ def menupane [html] (request, extra=None, nav=None):
 
     q = [ Collection.q.visibility == str('public') ]
     if user is not None:
+        q.append(user.mayAdmin)
         q.append(Collection.q.ownerID == user.id)
-        
+
     for c in Collection.select(OR(*q), orderBy=Collection.q.id):
         '    <li><a href="%(pre)s/%(c)s/">%(c)s</a>\n' % { 'pre': prefix, 'c': c.name }
 

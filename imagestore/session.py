@@ -25,6 +25,8 @@ class ImagestoreSession(Session):
         
         self.user = None
         self.results = []
+
+        self.wantedit = False               # true if the user wants to edit things
         
     def start_request(self, request):
         Session.start_request(self, request)
@@ -59,13 +61,8 @@ class ImagestoreSession(Session):
         if cur not in self.results:
             return (None, None)
 
-        idx=0
+        idx = self.results.index(cur)
 
-        # why don't lists have a find() method?
-        for r in self.results:
-            if r == cur:
-                break
-            idx += 1
         prev = None
         next = None
         if idx > 0:

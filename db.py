@@ -4,7 +4,7 @@ import sha
 import mx.DateTime
 import os.path
 
-lazycol=False
+lazycol=True
 
 dbinfo = {
     'lurch':    { 'conn': 'mysql://imagestore:im_zwarp@lurch/imagestore',
@@ -27,6 +27,12 @@ __connection__ = conn
 
 _encode_media=dbinfo[db]['encode']      # use base64 for binary data (sqlite needs it)
 _chunksize=128*1024                     # chunk Media into lumps
+
+def getColByName(so, name):
+    return so.__class__.__dict__['_get_' + name](so)
+
+def setColByName(so, name, val):
+    so.__class__.__dict__['_set_' + name](so, val)
 
 def defaultCollection():
     return Collection.byName('default')
@@ -67,13 +73,14 @@ class CollectionPerms(SQLObject):
     user = ForeignKey('User')
     collection = ForeignKey('collection')
 
-    mayAdmin = BoolCol(notNone=False, default=False)    # update ACL
-    mayViewAll = BoolCol(notNone=False, default=False)  # view all images
-    mayView = BoolCol(notNone=False, default=False)     # view public images
-    mayUpload = BoolCol(notNone=False, default=False)   # upload new images
-    mayComment = BoolCol(notNone=False, default=False)  # add comments to images
-    mayEdit = BoolCol(notNone=False, default=False)     # edit image metadata
-    mayCurate = BoolCol(notNone=False, default=False)   # administer keywords
+    mayAdmin = BoolCol(notNone=True, default=False)     # update ACL
+    mayViewall = BoolCol(notNone=True, default=False)   # view all images
+    mayView = BoolCol(notNone=True, default=True)       # view public images
+    mayViewRestricted = BoolCol(notNone=True, default=False) # view restricted images
+    mayUpload = BoolCol(notNone=True, default=False)    # upload new images
+    mayComment = BoolCol(notNone=True, default=False)   # add comments to images
+    mayEdit = BoolCol(notNone=True, default=False)      # edit image metadata
+    mayCurate = BoolCol(notNone=True, default=False)    # administer keywords
     
 class User(SQLObject):
     "Imagestore user database"
@@ -89,6 +96,9 @@ class User(SQLObject):
     mayUpload = BoolCol(notNone=True, default=False)    # upload images everywhere
     mayComment = BoolCol(notNone=True, default=False)   # comment on images everywhere
     mayCreateCat = BoolCol(notNone=True, default=False) # may create new collections
+
+    #enabled = BoolCol(notNone=True, default=True)
+    
     
 class Camera(SQLObject):
     owner = ForeignKey("User")
@@ -109,6 +119,8 @@ class Media(SQLObject):
 
     hash = StringCol(length=40, varchar=False, notNone=True)
     sequence = IntCol(notNone=True)
+
+    idx = Index((hash,sequence), unique=True)
 
     # XXX we need MEDIUMBLOB for MySQL, but not for SQLite and
     # possibly something else for other DBs
@@ -251,9 +263,13 @@ class Picture(SQLObject):
     def mayView(self, user):
         if self.visibility == 'public':
             return True
-        if self.owner == user:
+
+        if user is None:
+            return False
+        
+        if user.mayViewall or user.mayAdmin:
             return True
-        if user is not None and (user.mayViewall or user.mayAdmin):
+        if self.owner == user:
             return True
 
         return False
@@ -268,7 +284,6 @@ class Picture(SQLObject):
             return True
 
         return False
-
 
     hash = StringCol(length=40, varchar=False, notNone=True, unique=True, alternateID=True)
     mimetype = StringCol(notNone=True, length=40)
@@ -313,6 +328,13 @@ class Picture(SQLObject):
 
     # This is present on imaged imported from Imagestore1
     md5hash = StringCol(length=32, varchar=False, default=None)
+
+    owner_idx = Index(owner)
+    date_idx = Index(record_time)
+    mod_idx = Index(modified_time)
+    vis_idx = Index(visibility)
+    md5_idx = Index(md5hash)
+    rating_idx = Index(rating)
 
 class Comment(SQLObject):
     user = ForeignKey('User')

@@ -17,7 +17,7 @@ sorted_sizes=[ a for (a,b) in sorted_sizes ]
 def view [html] (self, request, p, size, default):
     id = p.id
     pre(request, 'View image %d' % id,
-        bodyclass='view')
+        bodyid='view')
     
     if size is None:
         size = preferred_size(request)
@@ -28,9 +28,22 @@ def view [html] (self, request, p, size, default):
 
     (pw,ph) = transformed_size(id, size)
 
+    # Try to resize the window to a useful inner size.
+    # - do the simple thing
+    # - see if it worked
+    # - if not, try again
+    #
+    # XXX FIXME: apparently IE doesn't support innerWidth/Height,
+    # and you have to use something else.  See
+    # http://webfx.eae.net/dhtml/wincontrols/wincontrols.html
     """\
 <script language="JavaScript"><!--
-        window.resizeTo(%(w)d, %(h)d)
+        window.resizeTo(%(w)d, %(h)d);
+        bw = %(w)d - window.innerWidth;
+        bh = %(h)d - window.innerHeight;
+        if (bw != 0 || bh != 0) {
+          window.resizeTo(%(w)d + bw, %(h)d + bh);
+        }
 --></script>\n""" % { 'w': pw+(2*view_margin), 'h': ph+(2*view_margin) }
 
     '<div class="nav">\n'
