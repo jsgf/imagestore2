@@ -1,0 +1,41 @@
+# -*- python -*-
+
+from pages import pre, post, menupane
+
+from db import User
+from go_scgi import ImagestoreHandler
+prefix = ImagestoreHandler.prefix
+
+def login_form [html] (request, username='', referer=''):
+    """
+    <div class="loginform">
+    <form method="POST" action="login">
+    <div class="input username">User name: <input name="username" type="text" width=20 value="%s"></div>
+    <div class="input password">Password: <input name="password" type="password" width=20></div>
+    <div class="input submit"><input value="Log in" type="submit"></div>
+    <input name="referer" type="hidden" value="%s">
+    </form>
+    </div>
+    """ % (username, referer)
+
+def user_details [html] (self, request):
+    user = self.user
+    
+    pre(request, 'User details')
+
+    '<H1>Details for %s</H1>' % user.fullname
+
+    menupane(request)
+    
+    if user.mayAdmin:
+        '<ul>'
+        for u in User.select(orderBy=User.q.id):
+            '<li><a href="%(pre)s/user/%(name)s/">%(fullname)s (%(name)s)</a>' % {
+                'pre': prefix,
+                'name': u.username,
+                'fullname': u.fullname
+                }
+        '</ul>'
+
+    post()
+
