@@ -17,7 +17,7 @@ sorted_sizes=[ a for (a,b) in sorted_sizes ]
 def view [html] (self, request, p, size, default):
     id = p.id
     pre(request, 'View image %d' % id,
-        bodyid='view')
+        bodyid='view', trail=False)
     
     if size is None:
         size = preferred_size(request)
@@ -143,7 +143,7 @@ def view_rotate_link [html] (self, request, p, size=None, extra={}):
 
 
 def details [html] (self, request, p):
-    pre(request, 'Details for picture %d' % p.id, 'details')
+    pre(request, 'Details for picture %d' % p.id, 'details', trail=False)
 
     title = p.title or ''
 

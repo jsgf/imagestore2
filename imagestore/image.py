@@ -97,7 +97,7 @@ class EditUI:
         if not form.is_submitted() or form.has_errors():
             ret = TemplateIO(html=True)
             
-            ret += pre('Edit details', 'editdetails')
+            ret += pre(request, 'Edit details', 'editdetails', trail=False)
             ret += self.image.view_rotate_link(request, p)
             ret += form.render()
             ret += post()

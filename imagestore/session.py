@@ -25,7 +25,8 @@ class ImagestoreSession(Session):
         
         self.user = None
         self.results = []
-
+        self.breadcrumbs = []
+        
         self.wantedit = False               # true if the user wants to edit things
         
     def start_request(self, request):
@@ -34,6 +35,7 @@ class ImagestoreSession(Session):
     def has_info(self):
         return self.user is not None or \
                (self.results is not None and len(self.results) != 0) or \
+               self.breadcrumbs or \
                Session.has_info(self)
 
     def is_dirty(self):
@@ -51,8 +53,8 @@ class ImagestoreSession(Session):
 
         return User.get(self.user)
 
-    def set_query_results(self, q):
-        self.results = q
+    def set_query_results(self, pics):
+        self.results = [ p.id for p in pics ]
         self.dirty = True
 
     def get_results_neighbours(self, cur):
@@ -71,6 +73,22 @@ class ImagestoreSession(Session):
             next = self.results[idx+1]
         return (prev, next)
 
+    def add_breadcrumb(self, title, url, desc):
+        t = (str(title), str(url), desc and str(desc))
+        try:
+            idx = self.breadcrumbs.index(t)
+        except ValueError:
+            idx = len(self.breadcrumbs)
+
+        newlist = self.breadcrumbs[:idx] + [ t ]
+        newlist = newlist[-10:]
+
+        if newlist != self.breadcrumbs:
+            self.dirty = True
+            self.breadcrumbs = newlist
+
+    def del_breadcrumb(self):
+        del self.breadcrumbs[-1]
 
 class DirMapping:
     """A mapping object that stores values as individual pickle

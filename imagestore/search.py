@@ -7,9 +7,10 @@ from sqlobject import SQLObjectNotFound
 from calendarui import int_day
 
 from image import ImageUI
-from pages import pre, post, menupane, prefix
+from pages import pre, post, menupane, prefix, plural, join_extra
 from db import Picture, Keyword
 from dbfilters import mayViewFilter
+from calendar_page import picsbyday
 
 def listkeywords(base, kwlist, bigletter=False):
     kwlist.sort()
@@ -95,11 +96,9 @@ class KWSearchUI:
         # Sort by time
         pics.sort(lambda a,b: cmp(a.record_time, b.record_time))
 
-        request.session.set_query_results([ p.id for p in pics ])
+        request.session.set_query_results(pics)
 
         r = TemplateIO(html=True)
-
-        r += pre(request, 'Search for %s' % (' and '.join(self.kw)), 'kwsearch')
 
         # Useless keywords are common to all images in this search
         useless = Set([ k.word for k in pics[0].keywords ])
@@ -107,13 +106,15 @@ class KWSearchUI:
             useless &= Set([ k.word for k in p.keywords ])
 
         kwset = Set([ k.word for p in pics for k in p.keywords ])
-        kwset -= useless
-        kwset = list(kwset)
-        kwset.sort()
 
         groups = group_by_time(pics, int_day)
 
         extra = self.search.menupane_extra()
+
+        if kwset-useless:
+            extra.append([('refine search', '#refine')])
+        if kwset:
+            extra.append([('new search', '#replace')])
         
         if len(groups) > 1:
             skiplist = [ ( H(int_day.num_fmt(day)), '#' + H(int_day.num_fmt(day)) )
@@ -122,39 +123,34 @@ class KWSearchUI:
                 factor = len(skiplist) / 15
                 skiplist = [ s for (n, s) in zip(range(len(skiplist)), skiplist)
                              if n % factor == 0 ]
-            extra.append([ 'Skip to:', skiplist ])
+            extra.append(['Skip to:', skiplist])
+
+        if len(self.kw) > 1:
+            searchstr = ' and '.join([ ', '.join(self.kw[:-1]), self.kw[-1] ])
+        else:
+            searchstr = self.kw[0]
+
+        r += pre(request, 'Search for %s: %s' % (searchstr, plural(len(pics), 'picture')),
+                 'kwsearch', brieftitle=searchstr)
 
         r += menupane(request, extra)
 
-        r += H('<h1>Search for %s: %d pictures</h1>\n') % (' and '.join(self.kw), len(pics))
+        r += H('<h1>Search for %s: %s</h1>\n') % (searchstr, plural(len(pics), 'picture'))
 
-        if kwset:
-            r += H('<p><a href="#refine">(refine search)</a><br clear="both">\n')
+        r += picsbyday(request, groups, self.col)
 
-
-        for (day, dp) in groups:
-            r += H('<div class="day">\n')
-            r += H('<h3 id="%s"><a href="%s">%s</a></h3>\n') % \
-                 (int_day.num_fmt(day),
-                  self.col.calendar.calendar_url(int_day, day),
-                  int_day.num_fmt(day))
-
-            for p in dp:
-                r += '  ' + ImageUI(self.col).view_rotate_link(request, p) + '\n'
-            r += H('</div>\n')
-
-        if kwset:
+        if kwset - useless:
             r += H('<div class="title-box kwlist" id="refine">\n')
             r += H('<h2>Refine search</h2>\n')
 
             r += listkeywords('%s/%s/search/kw/%s' % (prefix,
                                                       self.col.dbobj.name,
                                                       '/'.join(self.kw)),
-                              kwset)
+                              list(kwset-useless))
             r += H('</div>\n')
 
         if len(self.kw) > 1:
-            r += H('<div class="title-box kwlist">\n')
+            r += H('<div id="expand" class="title-box kwlist">\n')
             r += H('<h2>Expand search (remove keyword)</h2>\n')
 
             for k in self.kw:
@@ -167,10 +163,11 @@ class KWSearchUI:
             r += H('</div>\n')
 
         if kwset:
-            r += H('<div class="title-box kwlist">\n')
-            r += H('<h2>Replace search</h2>\n')
+            r += H('<div id="replace" class="title-box kwlist">\n')
+            r += H('<h2>New search</h2>\n')
+
             r += listkeywords('%s/%s/search/kw' % (prefix, self.col.dbobj.name),
-                              kwset)
+                              list(kwset))
             r += H('</div>\n')
 
         r += post()
@@ -188,7 +185,7 @@ class SearchUI:
     def _q_index(self, request):
         r = TemplateIO(html=True)
 
-        r += pre('Search', 'search')
+        r += pre(request, 'Keyword search', 'search', brieftitle='keywords')
         r += menupane(request, self.menupane_extra())
 
         kw = Keyword.select(Keyword.q.collectionID == self.col.dbobj.id,
@@ -207,3 +204,14 @@ class SearchUI:
     def menupane_extra(self):
         return [ 'Search',
                  [ ('by keyword', '%s/%s/search/' % (prefix, self.col.dbobj.name)) ] ]
+
+    def search_kw_url(self, kw, d=None):
+        return H('%s/%s/search/kw/%s/%s') % (prefix, self.col.dbobj.name, kw,
+                                             d and '#' + int_day.num_fmt(d) or '')
+
+    def search_kw_link(self, kw, d=None, extra=None):
+        if extra:
+            extra = join_extra(extra)
+
+        return H('<a %s href="%s">%s</a>') % (extra or '',
+                                              self.search_kw_url(kw, d), kw)

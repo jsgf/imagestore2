@@ -6,7 +6,15 @@ from sqlobject.sqlbuilder import OR
 from go_scgi import ImagestoreHandler
 prefix = ImagestoreHandler.prefix
 
-def pre [html] (request, title, bodyid=''):
+def plural(n, s):
+    return '%d %s%s' % (n, s, ['', 's'][n!=1])
+
+def pre [html] (request, title, bodyid, trail=True, brieftitle=None):
+    if trail:
+        request.session.add_breadcrumb(brieftitle or title,
+                                       request.get_path(),
+                                       brieftitle and title)
+        
     """\
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 EN">
 <head>
@@ -26,11 +34,14 @@ def html(request, title, page, bodyid=''):
     return pre(request, title, bodyid) + page + post()
 
 def join_extra [html] (extra):
-    return ' '.join([ '%s="%s"' % (k, extra[k]) for k in extra.keys() ])
+    return ' '.join([ '%s="%s"' % i for i in extra.items() ])
 
 def arrow [html] (dir, alt=None, extra={}):
     if alt is None:
-        alt = dir + " arrow"
+        alt = { 'up':   '&uarr;',
+                'down': '&darr;',
+                'left': '&larr;',
+                'right':'&rarr;' }[dir]
 
     '<img class="arrow %(dir)s-arrow" alt="%(alt)s" %(extra)s src="%(prefix)s/static/arrow-small-%(dir)s.png">' % {
         'extra': join_extra(extra),
@@ -54,6 +65,15 @@ def generate_extra [html] (extra):
 # Generate a menu pane.  extra is a list of items to add to the list;
 # it's in the form of nested lists of tuples
 def menupane [html] (request, extra=None, nav=None):
+    crumbs = request.session.breadcrumbs
+    if crumbs:
+        '\n<div id="breadcrumbs">\n'
+        path = [ '<a class="crumb" %s href="%s">%s</a>' % (desc and ('title="%s"' % desc) or '',
+                                                           url, title)
+                 for (title, url, desc) in crumbs ]
+        '<span class="divider">&gt;</span>\n'.join(path)
+        '\n</div>\n'
+    
     '<div id="menu">\n'
 
     '<ul>\n'

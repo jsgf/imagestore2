@@ -126,6 +126,27 @@ INPUT[type="text"]:focus, INPUT[type="password"]:focus {
   padding: 0px;
 }
 
+/* Display of picture thumbnails grouped by day */
+.day { 
+  margin-top: 4em;
+  margin-left: 5%%;
+  margin-right: 5%%;
+  clear: both;
+}
+.day H3 { 
+  margin-bottom: 1em;
+  margin-left: -2em;
+  font-weight: bold;
+}
+.day .day-keywords {
+  margin-left: 1em;
+  font-weight: normal;
+  font-size: 80%%;
+}
+.day .day-keywords A {
+  white-space: nowrap;
+}
+
 /* Menu pane */
 #menu { 
   position: fixed;
@@ -172,6 +193,20 @@ INPUT[type="text"]:focus, INPUT[type="password"]:focus {
   position: absolute;
   bottom: 0px;
   right: 4px;
+}
+/* Breadcrumb trail */
+#breadcrumbs {
+  margin-left: -5em;
+  margin-bottom: 2em;
+  font-size: 60%%;
+}
+#breadcrumbs .divider {
+  color: %(active-color)s;
+  margin-left: 1em;
+  margin-right: 1em;
+}
+#breadcrumbs .crumb {
+  white-space: nowrap;
 }
 
 /* Forms */
@@ -515,18 +550,6 @@ BODY#view .nav .next {
 }
 
 /* calendar windows */
-BODY#calendar DIV.day { 
-  margin-top: 4em;
-  margin-left: 5%%;
-  margin-right: 5%%;
-  clear: both;
-}
-BODY#calendar DIV.day .day-link { 
-  display: block;
-  margin-bottom: 1em;
-  margin-left: -2em;
-  font-weight: bold;
-}
 BODY#calendar .calendar-year .years A {
   margin: 1em;
 }
@@ -581,9 +604,10 @@ BODY#collection .sampler .image {
   border: 1px solid #555555;
   background-color: %(background-color)s;
   position: absolute;
-  top: -1.5em;
+  top: -1.7em;
   right: 0.5em;
   font-size: 110%%;
+  padding: .2em;
 }
 .title-box H3 {
   font-size: 100%%;
@@ -655,14 +679,6 @@ BODY#collection .sampler .image {
   font-size: 190%%;
   text-transform: uppercase;
   float: left;
-}
-
-#kwsearch .day {
-  margin-bottom: 2em;
-}
-#kwsearch .day h3 {
-  margin-left: -1em;
-  font-size: 60%%;
 }
 """ % {
         'background-color':     '#444444',

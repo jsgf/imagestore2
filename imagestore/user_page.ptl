@@ -6,6 +6,7 @@ from db import User, Picture, Collection, CollectionPerms
 from go_scgi import ImagestoreHandler
 prefix = ImagestoreHandler.prefix
 
+from collection import CollectionUI
 from quixote.errors import AccessError
 import quixote.form2 as form2
 
@@ -39,7 +40,7 @@ def user_edit [html] (self, request):
     if user != sess_user and not sess_user.mayAdmin:
         raise AccessError("You may not see this user's private parts")
     
-    pre(request, 'Edit details for %s' % user.fullname)
+    pre(request, 'Edit details for %s' % user.fullname, 'useredit', brieftitle='edit user details')
 
     menupane(request)
     
@@ -91,7 +92,7 @@ def user_edit [html] (self, request):
 
 def user_page [html] (self, request):
     u = self.user
-    pre('user-page', u.fullname)
+    pre(request, u.fullname, 'user-page', brieftitle='user page')
 
     extra = []
     if u.mayAdmin:
@@ -138,9 +139,8 @@ def user_collections [html] (u, request):
             '<h3>Your collections</h3>\n'
             '<ul class="collection-list">\n'
             for c in mycols:
-                '<li><a href="%(p)s/%(c)s/admin">%(c)s</a> - %(d)s (%(v)s, %(np)d pics)\n' % {
-                    'p': prefix,
-                    'c': c.name,
+                '<li>%(admin)s - %(d)s (%(v)s, %(np)d pics)\n' % {
+                    'admin': CollectionUI(c).collection_admin_link(c.name),
                     'd': c.description,
                     'v': c.visibility,
                     'np': Picture.select(Picture.q.collectionID == c.id).count(),

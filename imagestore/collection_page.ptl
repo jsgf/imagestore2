@@ -3,7 +3,7 @@
 from sqlobject.sqlbuilder import *
 
 from pages import pre, post, join_extra, menupane, prefix
-from db import Picture, User, CollectionPerms
+from db import Picture, User, CollectionPerms, Collection
 from dbfilters import mayViewFilter, userFilter
 from random import randrange
 from image import ImageUI
@@ -45,7 +45,7 @@ def _q_index [html] (self, request):
                 p = Picture.get(pics[randrange(0, count)])
                 if p.id not in done:
                     break
-            done.append(p.id)
+            done.append(p)
             '<span class="image">'
             imageui.view_newwin_link(request, p)
             '</span>\n'
@@ -59,7 +59,7 @@ def _q_index [html] (self, request):
 def admin_page [html] (self, request):
     col = self.dbobj
     
-    pre('collection-admin', '%s admin' % col.name)
+    pre(request, '%s admin' % col.name, 'collection-admin')
 
     menupane(request, self.menupane_extra())
 
@@ -87,7 +87,8 @@ def admin_page [html] (self, request):
 
     if props.get_submit() == 'delete' and nopics:
         col.destroySelf()
-        request.redirect(prefix)
+        request.session.del_breadcrumb()
+        request.redirect(str('%s/user/') % prefix)
         return ''
 
     if not props.is_submitted() or props.has_errors():
@@ -105,7 +106,8 @@ def admin_page [html] (self, request):
             col.visibility = str(props['visibility'])
             col.showOriginal = str(props['showOriginal'])
 
-            request.redirect(request.get_path())
+            request.session.del_breadcrumb()
+            request.redirect(self.collection_admin_url())
 
 
     '<div class="title-box user-perms">\n'

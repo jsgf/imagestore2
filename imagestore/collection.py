@@ -1,4 +1,5 @@
 from quixote.errors import AccessError
+from quixote.html import htmltext as H
 
 from imagestore.image import ImageUI
 from pages import prefix
@@ -114,3 +115,21 @@ class CollectionUI:
             raise AccessError('You may not modify this collection')
         
         return collection_page.admin_page(self, request)
+
+    def collection_url(self):
+        return '%s/%s/' % (prefix, self.dbobj.name)
+
+    def collection_admin_url(self):
+        return self.collection_url() + 'admin'
+
+    def collection_link(self, link, extra=None):
+        if extra:
+            extra = join_extra(extra)
+
+        return H('<a %s href="%s">%s</a>') % (extra or '', self.collection_url(), link)
+
+    def collection_admin_link(self, link, extra=None):
+        if extra:
+            extra = join_extra(extra)
+
+        return H('<a %s href="%s">%s</a>') % (extra or '', self.collection_admin_url(), link)

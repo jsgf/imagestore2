@@ -1,14 +1,14 @@
 # -*- python -*-
 
+from sets import Set
 from mx.DateTime import DateTime, RelativeDateTime
-from pages import pre, post, menupane, error, arrow
+
+from sqlobject.sqlbuilder import AND
+
+from pages import pre, post, menupane, error, arrow, plural
 from db import Picture
 from dbfilters import mayViewFilter
-from sqlobject.sqlbuilder import AND
 from image import ImageUI
-
-def plural(n, s):
-    return '%d %s%s' % (n, s, ['', 's'][n!=1])
 
 def most_recent():
     return Picture.select(orderBy=Picture.q.record_time).reversed()[0]
@@ -19,8 +19,60 @@ def prevlink [html] (url):
 def nextlink [html] (url):
     '<div class="nav nav-next"><a href="%s">Next&nbsp;%s</a></div>' % (url, arrow('right'))
 
+def freqlist(list):
+    " Take a list of items, and return a list of unique (item, count) tuples. "
+    list.sort()
+    item=None
+    count=0
+
+    ret=[]
+    for i in list:
+        if i != item:
+            if item is not None and count:
+                ret.append((item, count))
+            item = i
+            count = 0
+        count += 1
+    if item is not None and count:
+        ret.append((item, count))
+
+    ret.sort(lambda a,b: cmp(b[1],a[1]))
+
+    return ret    
+
+def picsbyday [html] (request, days, collection):
+    # Days is list of (date, piclist) tuples.  This routine displays
+    # them grouped by day, along with a summary of the keywords used
+    # for that day's pictures.
+    maxkw = 10
+    
+    from calendarui import int_day
+
+    for d,pl in days:
+        keywords = freqlist([ k.word for p in pl for k in p.keywords if k.word != 'unclassified' ])
+        ellip = len(keywords) > maxkw
+        keywords = [ collection.search.search_kw_link(k, d, { 'title': plural(c, 'occurrence')}) for k,c in keywords[:maxkw] ]
+        
+        '<div id="%s" class="day">\n' % (int_day.num_fmt(d))
+        '<h3>\n'
+        '  <a class="day-link" id="day:%(date)s" href="%(url)s">%(date)s</a>\n' % {
+            'date': d.strftime(str('%Y-%m-%d')),
+            'url': collection.calendar.calendar_url(int_day, d),
+            }
+        '  <span class="day-keywords">\n'
+        '%(keywords)s%(ellip)s\n' % {
+            'keywords': ',\n'.join([ '    ' + k for k in keywords ]),
+            'ellip': ellip and '&hellip;' or '',
+            }
+        '  </span>\n'
+        '</h3>\n' 
+        '<div class="day-pics">\n'
+        for p in pl:
+            ImageUI(collection).view_rotate_link(request, p) + '\n'
+        '</div></div>\n'
+
 def _q_index_ptl [html] (self, request):
-    from calendarui import sorted_intervals, int_day, int_week
+    from calendarui import sorted_intervals, int_week
 
     if self.date is None:
         self.date = self.interval.rounddown(most_recent().record_time)
@@ -33,12 +85,7 @@ def _q_index_ptl [html] (self, request):
 
     pre(request, 'Calendar: %s - %s' % (self.interval.long_fmt(self.date),
                                         plural(total, 'picture')),
-        'calendar')
-
-    '<h1>%s - %s</h1>' % (self.interval.long_fmt(self.date), plural(total, 'picture'))
-
-    if days is None or len(days) == 0:
-            error(request, 'No pictures in specified range', 'Please select another date range')
+        'calendar', brieftitle='%s: %s' % (self.interval.name, self.interval.num_fmt(self.date)))
 
     nav = ''
     prev = Picture.select(AND(Picture.q.record_time < self.date, filter),
@@ -53,7 +100,13 @@ def _q_index_ptl [html] (self, request):
         next = self.interval.rounddown(next[0].record_time)
         nav += nextlink(self.calendar_url(self.interval, next))
 
-    menupane(request, extra=self.menupane_extra(), nav=nav)
+    menupane(request, extra=self.menupane_extra() + self.collection.search.menupane_extra(),
+             nav=nav)
+
+    '<h1>%s - %s</h1>' % (self.interval.long_fmt(self.date), plural(total, 'picture'))
+
+    if days is None or len(days) == 0:
+            error(request, 'No pictures in specified range', 'Please select another date range')
 
     for i in sorted_intervals:
         sel=''
@@ -62,22 +115,9 @@ def _q_index_ptl [html] (self, request):
         '<a class="%s" href="%s">%s</a>\n' % (sel, self.calendar_url(i, self.date),
                                               i.name.capitalize())
 
+    picsbyday(request, days, self.collection)
 
-    results=[]
-
-    for d,pl in days:
-        '<div class="day">\n'
-        '<div class="day-link" id="day:%(date)s"><a href="%(url)s">%(date)s</a></div>\n' % {
-            'url': self.calendar_url(int_day, d),
-            'date': d.strftime(str('%Y-%m-%d'))
-            }
-        '<div class="day-pics">\n'
-        for p in pl:
-            results.append(p.id)
-            ImageUI(self.collection).view_rotate_link(request, p) + '\n'
-        '</div></div>\n'
-
-    request.session.set_query_results(results)
+    request.session.set_query_results([ p for d, piclist in days for p in piclist ])
 
     post()
 

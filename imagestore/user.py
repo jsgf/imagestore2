@@ -21,7 +21,7 @@ perms = [ ('mayAdmin', 'May administer'),
           ('mayCreateCat', 'May create collections') ]
 
 def login(request):
-    ret = [ pre(request, 'Imagestore Login') ]
+    ret = [ pre(request, 'Imagestore Login', 'login', trail=False) ]
 
     ret.append('<h1>Imagestore Login</h1>')
 
@@ -368,7 +368,7 @@ def editmode(request):
 
     request.redirect(request.get_environ('HTTP_REFERER'))
 
-    return pre(request, 'Lost') + ('<h1><a href="%s/">You seem lost</a></h1>' % prefix)+post()
+    return ''
 
 
 
