@@ -473,7 +473,7 @@ class UserUI:
     def _q_access(self, request):
         sess_user = request.session.getuser()
 
-        if sess_user != self.user and not sess_user.mayAdmin:
+        if not sess_user or (sess_user != self.user and not sess_user.mayAdmin):
             raise AccessError("You may not view this user's details")
             
     def _q_index(self, request):

@@ -10,6 +10,8 @@ import mx.DateTime
 
 from sqlobject import *
 
+db.db_connect();
+
 #conn = MySQLConnection(host='127.0.0.1', db='imagestore', user='root', passwd='zwarp', debug=0)
 #conn = MySQLConnection(host='lurch', db='imagestore', user='imagestore', passwd='im_zwarp', debug=0)
 conn = connectionForURI('mysql://imagestore@127.0.0.1/imagestore?cache=0')

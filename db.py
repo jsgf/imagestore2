@@ -382,7 +382,8 @@ class Picture(SQLObject):
     camera = ForeignKey('Camera', default=None)
     
     owner = ForeignKey("User", default=None)
-    visibility = EnumCol(enumValues=["public","private"], default="public", notNone=True)
+    visibility = EnumCol(enumValues=["public","restricted","private"],
+                         default="public", notNone=True)
     photographer = ForeignKey('User', default=None)
 
     title = StringCol(length=127,default='')

@@ -70,7 +70,7 @@ def user_edit [html] (self, request):
         if form['newpassword']:
             if form['newpassword'] != form['newpassword2']:
                 form.get_widget('newpassword').set_error('Passwords do not match')
-            if form['password'] != user.password:
+            if not sess_user.mayAdmin and form['password'] != user.password:
                 form.get_widget('password').set_error('Enter your current password')
         if form['username'] != user.username and \
            User.select(User.q.username == form['username']).count() != 0:
