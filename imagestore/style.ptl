@@ -63,7 +63,7 @@ A:hover .thumb	{ border: %(thumb-hover-border)dpx solid %(strong-active)s; paddi
 
 .arrow		{ border: 0; padding: 0; }
 A .arrow-left, A .arrow-right { 
-  vertical-align: center;
+  vertical-align: middle;
 }
 .selected	{
   background-color: %(highlight-color)s;
@@ -429,8 +429,8 @@ BODY.calendar .calendar-year .years A {
   margin: 1em;
 }
 BODY.calendar .calendar-year TABLE.month {
+  display: inline-table;
   float: left;
-  display: inline;
   margin: 1em;
   border: 1px solid #555555;
 }

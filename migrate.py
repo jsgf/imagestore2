@@ -174,7 +174,7 @@ if __name__ == '__main__':
 
     q = None
     if len(sys.argv) > 1:
-        q = MigImages.q.id > int(sys.argv[1])
+        q = MigImages.q.id >= int(sys.argv[1])
         print 'starting from %d' % int(sys.argv[1])
 
     migrate(MigImages.select(q, orderBy=MigImages.q.id, lazyColumns=True))
