@@ -41,7 +41,7 @@ def db_connect():
 
     # Create tables if necessary
     for c in [ Collection, CollectionPerms, Picture, Comment,
-               Media, Keyword, User, Camera, Upload ]:
+               Media, Keyword, User, Camera, Upload, Session ]:
         #print 'c=%s' % c
         c.setConnection(conn)
 	if not conn.tableExists(c._table):
@@ -441,4 +441,6 @@ class Upload(SQLObject):
     time_idx = Index(import_time)
     user_idx = Index(user)
 
-
+class Session(SQLObject):
+    session = StringCol(length=16, unique=True, alternateID=True, varchar=False, notNone=True)
+    data = StringCol()

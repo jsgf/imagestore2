@@ -9,8 +9,9 @@ from cPickle import load, dump
 import os
 from stat import ST_MTIME
 from time import time
+from cStringIO import StringIO
 
-from db import User, conn
+from db import User, conn, Session as dbSession
 
 class ImagestorePublisher(SessionPublisher):
     def __init__(self, *args, **kwargs):
@@ -40,6 +41,12 @@ class ImagestoreSession(Session):
         # clean up after request, to make sure
         # nothing is cached too long
         gc.collect()
+
+    def set_dirty(self):
+        if False:
+            from quixote import get_request
+            print 'set_dirty %s' % get_request().get_path()
+        self.dirty = True
         
     def has_info(self):
         return self.user is not None or \
@@ -48,14 +55,18 @@ class ImagestoreSession(Session):
                Session.has_info(self)
 
     def is_dirty(self):
-        r = (self.has_info() and self.dirty) or self._form_tokens
+        if False:
+            from quixote import get_request
+            print 'is_dirty %s: has_info=%s dirty=%s' % (get_request().get_path(),
+                                                         self.has_info(), self.dirty)
+        r = (self.has_info() and self.dirty)
         self.dirty = False
         return r
 
     def setuser(self, user):
         if user != self.user:
             self.user = user
-            self.dirty = True
+            self.set_dirty()
             self.breadcrumbs = []
 
     def getuser(self):
@@ -70,8 +81,10 @@ class ImagestoreSession(Session):
             return None
 
     def set_query_results(self, pics):
-        self.results = [ p.id for p in pics ]
-        self.dirty = True
+        res = [ p.id for p in pics ]
+        if res != self.results:
+            self.set_dirty()
+            self.results = res
 
     def get_results_neighbours(self, cur):
         if self.results is None:
@@ -107,12 +120,15 @@ class ImagestoreSession(Session):
         newlist = newlist[-10:]
 
         if newlist != self.breadcrumbs:
-            self.dirty = True
+            self.set_dirty()
             self.breadcrumbs = newlist
 
     def del_breadcrumb(self):
         del self.breadcrumbs[-1]
-        self.dirty = True
+        self.set_dirty()
+
+    def __str__(self):
+        return 'session %s user=%s breadcrumbs=%s results=%s dirty=%s' % (self.id, self.user, self.breadcrumbs, self.results, self.dirty)
 
 class DirMapping:
     """A mapping object that stores values as individual pickle
@@ -186,6 +202,7 @@ class DirMapping:
         filename = self._gen_filename(session.id)
         file = open(filename, "wb")
         print "saving session to %s" % file
+        session.dirty = False
         dump(session, file, 1)
         file.close()
 
@@ -202,7 +219,62 @@ class DirMapping:
         else:
             raise KeyError(session_id, "no such file: %s" % filename)
 
-class ImagestoreSessionMapping(DirMapping):
+class SQLMapping:
+    """ Store sessions in a Session SQLObject """
+    def __init__(self):
+        pass
+
+    def __getitem__(self, session_id):
+        try:
+            s = dbSession.bySession(session_id)
+            data = load(StringIO(s.data))
+            s.expire()
+            #print 'getitem(%s) -> %s' % (session_id, data)
+            return data
+        except SQLObjectNotFound:
+            raise KeyError(session_id, "session %s doesn't exist" % session_id)
+
+    def get(self, session_id, default=None):
+        try:
+            return self[session_id]
+        except KeyError:
+            return default
+
+    def has_key(self, session_id):
+        return dbSession.select(dbSession.q.session == session_id).count() != 0
+
+    def __setitem__(self, session_id, session):
+        #print 'set session_id=%s session=%s' % (session_id, session)
+
+        data = StringIO()
+        session.dirty = False
+        dump(session, data)
+        
+        try:
+            s = dbSession.bySession(session_id)
+            s.data = data.getvalue()
+        except SQLObjectNotFound:
+            s = dbSession(session=session_id, data=data.getvalue())
+        s.expire()
+
+    def __delitem__(self, session_id):
+        s = self.get(session_id)
+        if s is not None:
+            s.destroySelf()
+        else:
+            raise KeyError(session_id, 'no such session %s' % session_id)
+
+    def keys(self):
+        return [ s.session for s in dbSession.select() ]
+
+    def values(self):
+        return [ s.data for s in dbSession.select() ]
+
+    def items(self):
+        return [ (s.session, s.data) for s in dbSession.select() ]
+        
+class ImagestoreSessionMapping(SQLMapping):
     def __init__(self):
         print 'making an ImagestoreSessionMapping'
-        DirMapping.__init__(self, save_dir='./session/')
+        #DirMapping.__init__(self, save_dir='./session/')
+        SQLMapping.__init__(self)
