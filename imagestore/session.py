@@ -90,7 +90,7 @@ class ImagestoreSession(Session):
         return (prev, next)
 
     def get_result_ends(self):
-        if self.results is None:
+        if not self.results:
             return (None,None)
 
         return (self.results[0], self.results[-1])
