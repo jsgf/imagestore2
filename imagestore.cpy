@@ -1,4 +1,4 @@
-use MaskTools, CookieAuthenticate
+use MaskTools
 
 from db import *
 from mx.DateTime import DateTime, RelativeDateTime, strptime, today
@@ -120,7 +120,7 @@ function:
                 size += '!'
         else:
             size = ''
-        return "%s/image/%d%s.%s" % (root.base, id, size, self.extmap[Picture(id).mimetype])
+        return "%s/image/%d%s.%s" % (root.base, id, size, self.extmap[Picture.get(id).mimetype])
 
     def thumb_url(self, id):
         return "%s/image/%d-thumb.jpg" % (root.base, id)
@@ -193,7 +193,7 @@ function:
         if not self.mayEdit(id):
             return self.view_newwin_link(id, size, extra=extra)
 
-        p = Picture(id)
+        p = Picture.get(id)
 
         url='%s#thumb:%d' % (request.browserUrl, id)
 
@@ -212,7 +212,7 @@ function:
                     'rot180': self.rotate_url(id, (180 + p.orientation) % 360, url),
                     'rot270': self.rotate_url(id, (270 + p.orientation) % 360, url),
                     'thumb':  self.view_newwin_link(id, size, extra=extra),
-                    'up':     root.arrow('up'),
+                    'up':     root.arrow('up', extra={'title': 'Up is up'}),
                     'down':   root.arrow('down'),
                     'left':   root.arrow('left'),
                     'right':  root.arrow('right'),
@@ -220,7 +220,7 @@ function:
                 
     def thumb_img(self, id, extra={}):
         "Generate an <img> element for a thumbnail"
-        p = Picture(id)
+        p = Picture.get(id)
         e = join([ '%s="%s"' % (k, tools.escapeHtml(extra[k])) for k in extra.keys() ], ' ')
 
         (tw,th) = ImageTransform.thumb_size(id)
@@ -282,7 +282,7 @@ function:
         return '<a href="%s">%s</a>' % (self.edit_url(id), link)
         
     def query_neighbours(self, id):
-        """If Picture(id) is in the results list of the last query,
+        """If Picture.get(id) is in the results list of the last query,
         then find its neighbours and return them"""
         
         if not request.sessionMap.has_key('query-results'):
@@ -306,50 +306,33 @@ function:
             next = qr[idx+1]
         return (prev, next)
 
-    def detail_string(self, id, orientfn=None):
-        if orientfn is None:
-            orientfn = lambda a: ''
-            
-        p = Picture(id)
-        
-        ret="""
-        <table border=0>
-        <tr>
-                <td>Top:</td>
-                <td align="center">
-                        %(orient0)s
-                </td>
-                <td></td>
-                <td rowspan=3>
-                        <table border=0>
-			<tr><td align=right><b>Create date</b></td><td>%(create_time)s</td></tr>
-			<tr><td align=right><b>Exposure time</b></td><td>%(shutter)s</td></tr>
-			<tr><td align=right><b>F-Number</b></td><td>%(fnumber)s</td></tr>
-			<tr><td align=right><b>Program-mode</b></td><td>%(program)s</td></tr>
-			<tr><td align=right><b>Exposure bias</b></td><td>%(exp_bias)s EV</td></tr>
-			<tr><td align=right><b>Focal length</b></td><td>%(focal)d mm</td></tr>
-			<tr><td align=right><b>Dimensions</b></td><td>%(width)dx%(height)d</td></tr>
-                        </table>
-                </td>
-        </tr>
-        <tr>
-                <td>%(orient270)s</td>
-                <td>%(thumb)s</td>
-                <td>%(orient90)s</td>
-        </tr>
-        <tr>
-                <td></td>
-                <td align="center">%(orient180)s</td>
-                <td>%(orient)d &deg;</td>
-        </tr>
-        </table>
-        """ % {
-                    'orient':           p.orientation,
-                    'orient0':          orientfn(0),
-                    'orient90':         orientfn(90),
-                    'orient180':        orientfn(180),
-                    'orient270':        orientfn(270),
+    def detail_string(self, id):
+        p = Picture.get(id)
 
+        title = p.title
+        if title is None:
+            title = ''
+            
+        ret="""
+        <div class="details">
+        %(thumb)s
+        
+        <table class="detail_tab">
+        <tr><td class="name">Create date</td><td class="val">%(create_time)s</td></tr>
+        <tr><td class="name">Exposure time</td><td class="val">%(shutter)s</td></tr>
+        <tr><td class="name">F-Number</td><td class="val">%(fnumber)s</td></tr>
+        <tr><td class="name">Program-mode</td><td class="val">%(program)s</td></tr>
+        <tr><td class="name">Exposure bias</td><td class="val">%(exp_bias)s EV</td></tr>
+        <tr><td class="name">Focal length</td><td class="val">%(focal)d mm</td></tr>
+        <tr><td class="name">Dimensions</td><td class="val">%(width)dx%(height)d</td></tr>
+        </table>
+        <dl>
+        <dt class="name">Title:</dt><dd class="val title">%(title)s</dd>
+        <dt class="name">Description:</dt><dd class="val description">%(description)s</dd>
+        <dt class="name">Keywords:</dt><dd class="val keywords">%(keywords)s</dd>
+        </dl>
+        </div>
+        """ % {
                     'create_time':      p.record_time.strftime('%Y-%m-%d %H:%M'),
                     'shutter':          p.exposure_time,
                     'fnumber':          p.f_number,
@@ -359,16 +342,20 @@ function:
                     'height':           p.height,
                     'program':          p.exposure_program,
 
-                    'thumb':            self.view_link(id),
+                    'thumb':            self.view_rotate_link(id),
+
+                    'keywords':         ', '.join([ k.word for k in p.keywords]),
+                    'title':            title,
+                    'description':      p.description,
                     }
-                
+
         return ret
         
 view:
     def orig(self, id):
         "Generate the raw data for an image - this generates a series of streamed chunks"
         id = int(id)
-        p = Picture(id)
+        p = Picture.get(id)
 
         response.sendResponse = 0
 
@@ -399,7 +386,7 @@ view:
         for d in file:
             ret += d
 
-        p=Picture(id)
+        p=Picture.get(id)
         response.headerMap["content-type"] = 'image/jpeg'
         response.headerMap['content-length'] = len(ret)
         response.headerMap['last-modified'] = p.modified_time.strftime('%a, %d %b %Y %H:%M:%S GMT')
@@ -429,7 +416,7 @@ view:
                 window.resizeTo(%(w)d, %(h)d)
         --></script>\n""" % { 'w': pw+(2*self.view_margin), 'h': ph+(2*self.view_margin) }
         
-        p = Picture(id)
+        p = Picture.get(id)
 
         ret += '<div class="nav">\n'
         if prev is not None:
@@ -467,7 +454,7 @@ view:
         if not self.mayEdit(id):
             return 'nope'               # XXX better message
 
-        p = Picture(id)
+        p = Picture.get(id)
         def orientfn(a):
             checked=''
             if a == 0:
@@ -491,7 +478,7 @@ view:
         if not self.mayEdit(id):
             return 'nope'               # XXX make a better message
         
-        p=Picture(id)
+        p=Picture.get(id)
         if angle in (0, 90, 180, 270):
             p.orientation=angle
             
@@ -598,7 +585,7 @@ view:
         reltime = self.interval[interval]
         if date is None:
             # If no date provided, show images in the last interval
-            last=Picture.select(Picture.q.record_time, orderBy='-record_time')[0]
+            last=Picture.select(orderBy='-record_time')[0]
             date = last.record_time-reltime+1
         else:
             date = strptime(date, '%Y-%m-%d')
@@ -674,10 +661,11 @@ function:
         </html>
         """
 
-    def arrow(self, dir, alt=None):
+    def arrow(self, dir, alt=None, extra={}):
         if alt is None:
             alt='%s arrow' % dir
-        return '<img class="arrow %(dir)s-arrow" alt="%(alt)s" src="%(base)s/static/arrow-small-%(dir)s.png">' % {
+        return '<img class="arrow %(dir)s-arrow" alt="%(alt)s" %(extra)s src="%(base)s/static/arrow-small-%(dir)s.png">' % {
+            'extra': join([ '%s="%s"' % (k, tools.escapeHtml(extra[k])) for k in extra.keys() ], ' '),
             'alt': alt,
             'base': self.base,
             'dir': dir }

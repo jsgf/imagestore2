@@ -1,12 +1,30 @@
-from SQLObject import *
+from sqlobject import *
 from EXIF import Ratio
 import sha
 import mx.DateTime
+import os.path
 
-conn = SQLiteConnection('imagestore.db', debug=0)
+lazycol=False
+
+dbinfo = {
+    'lurch':    { 'conn': lambda: MySQLConnection(host='lurch', db='imagestore2', user='imagestore', passwd='im_zwarp', debug=0),
+                  'encode': False,
+                  },
+    'local':    { 'conn': 'sqlite:' + os.path.abspath('imagestore.db'),
+                  'encode': True,
+                  },
+    }
+
+db='local'
+
+conn = connectionForURI(dbinfo[db]['conn'])
+conn.debug = 0
+
 __connection__ = conn
 
-_encode_media=True                      # use base64 for binary data (sqlite needs it)
+#print 'connection: %s' % conn
+
+_encode_media=dbinfo[db]['encode']      # use base64 for binary data (sqlite needs it)
 _chunksize=128*1024                     # chunk Media into lumps
 
 def defaultCat():
@@ -52,7 +70,7 @@ class User(SQLObject):
     username = StringCol(length=100, unique=True, notNone=True, alternateID=True)
     email = StringCol(length=100, notNone=True)
     password = StringCol(length=32, default=None)
-    fullname = StringCol(default=None)
+    fullname = StringCol(default=None,length=100)
 
     # Default/global capabilities
     mayAdmin = BoolCol(notNone=True, default=False)     # control users & perms
@@ -64,21 +82,24 @@ class User(SQLObject):
 class Camera(SQLObject):
     owner = ForeignKey("User")
 
-    nickname = StringCol(unique=True)
-    manufacturer = StringCol()
-    model = StringCol()
-    serial = StringCol()
+    nickname = StringCol(length=32,unique=True,alternateID=True)
+    manufacturer = StringCol(length=80)
+    model = StringCol(length=80)
+    serial = StringCol(length=80)
     notes = StringCol()
 
 class Media(SQLObject):
     """Media chunks; a single piece of data, like an image, will be
-    chunked into one or more records in the Media table.  Each chunk
+    chunked into one on more records in the Media table.  Each chunk
     will have the SHA1 hash of the combined data, and a sequence
     number starting from 0."""
 
     hash = StringCol(length=40, varchar=False, notNone=True)
     sequence = IntCol(notNone=True)
-    data = StringCol(sqlType="MEDIUMBLOB")
+
+    # XXX we need MEDIUMBLOB for MySQL, but not for SQLite and
+    # possibly something else for other DBs
+    data = StringCol() #sqlType="MEDIUMBLOB"
     
     def _set_data(self, v):
         if _encode_media:
@@ -103,11 +124,12 @@ def setmedia(data, hash=None):
     media=None
 
     # Make sure there's no old/partial/existing pieces of this data
-    for m in Media.select(Media.q.hash == hash):
+    for m in Media.select(Media.q.hash == hash, lazyColumns=lazycol):
         m.destroySelf()
     
     while len(data) > 0:
-        m = Media.new(data=data[:_chunksize], hash=hash, sequence=order)
+        #print 'inserting hash %s seq %d, datasize=%d, chunksize=%d' % (hash, order, len(data), len(data[:_chunksize]))
+        m = Media(data=data[:_chunksize], hash=hash, sequence=order)
         data=data[_chunksize:]
         order += 1
         if media is None:
@@ -128,7 +150,7 @@ def getmedia(id, verify=False):
     if verify:
         sha1 = sha.new()
 
-    m = Media(id)
+    m = Media.get(id)
         
     data=''
     for d in getmediachunks(m.hash):
@@ -155,29 +177,34 @@ class Keyword(SQLObject):
 class Picture(SQLObject):
     "Pictures - including movies and other media"
 
-    def getimage(self):
-        return getmedia(self.mediaid)
+    def getimage(self, verify=False):
+        return getmedia(self.mediaid, verify)
 
     def getimagechunks(self):
         return getmediachunks(self.hash)
     
-    def getthumb(self):
-        return getmedia(self.thumbid)
+    def getthumb(self, verify=False):
+        #print 'id=%d thumbid=%d' % (self.id, self.thumbid)
+        return getmedia(self.thumbid, verify)
 
-    def converttime(self, timestr):
-        return mx.DateTime.strptime(str(timestr), '%Y-%m-%d %H:%M:%S')
+##    def converttime(self, timestr):
+##        print 'class=%s timestr=%s' % (timestr.class, timestr)
+##        try:
+##            return mx.DateTime.strptime(str(timestr), '%Y-%m-%d %H:%M:%S')
+##        except:
+##            return mx.DateTime.strptime(str(timestr), '%Y-%m-%d %H:%M:%S.00')
 
-    def _get_record_time(self):
-        return self.converttime(self._SO_get_record_time())
+##    def _get_record_time(self):
+##        return self.converttime(self._SO_get_record_time())
 
-    def _get_modified_time(self):
-        return self.converttime(self._SO_get_modified_time())
+##    def _get_modified_time(self):
+##        return self.converttime(self._SO_get_modified_time())
 
     hash = StringCol(length=40, varchar=False, notNone=True, unique=True, alternateID=True)
     mimetype = StringCol(notNone=True, length=40)
 
     datasize = IntCol(notNone=True)
-    mediaid = ForeignKey("Media")
+    mediaid = ForeignKey("Media", unique=True)
     link = ForeignKey("Picture", default=None)
 
     catalogue = ForeignKey('Catalogue', notNone=True, default=lambda: defaultCat().id)
@@ -190,7 +217,7 @@ class Picture(SQLObject):
     visibility = EnumCol(enumValues=["public","private"], default="public", notNone=True)
     photographer = ForeignKey('User', default=None)
 
-    #title = StringCol(length=127,default=None)
+    title = StringCol(length=127,default='')
     description = StringCol(default=None)
     copyright = StringCol(default=None)
     rating = IntCol(default=0, notNone=True)
@@ -207,19 +234,22 @@ class Picture(SQLObject):
     modified_time = DateTimeCol(default=mx.DateTime.gmt, notNone=True)
 
     exposure_program = StringCol(default=None)
-    flash = BoolCol()
-    f_number = StringCol(length=10)
-    exposure_time = StringCol(length=10) # actually an EXIF.Ratio
-    exposure_bias = IntCol()
+    flash = BoolCol(default=False)
+    f_number = StringCol(default=None, length=10)
+    exposure_time = StringCol(default=None, length=10) # actually an EXIF.Ratio
+    exposure_bias = IntCol(default=0)
     brightness = IntCol(default=None)
-    focal_length = IntCol()
+    focal_length = IntCol(default=0)
+
+    # This is present on imaged imported from Imagestore1
+    md5hash = StringCol(length=32, varchar=False, default=None)
 
 class Comment(SQLObject):
     user = ForeignKey('User')
     picture = ForeignKey('Picture')
     timestamp = DateTimeCol(default=mx.DateTime.gmt, notNone=True)
 
-    comment = StringCol()
+    comment = StringCol(notNone=True)
     
 
 Catalogue.createTable(ifNotExists=True)
@@ -232,10 +262,10 @@ User.createTable(ifNotExists=True)
 Camera.createTable(ifNotExists=True)
 
 if User.select(User.q.username == 'admin').count() == 0:
-    User.new(username='admin', password='admin', email='jeremy@goop.org',
-             fullname='Administrator',
-             mayAdmin=True, mayViewall=True, mayUpload=True, mayComment=False,
-             mayCreateCat=True)
+    User(username='admin', password='admin', email='jeremy@goop.org',
+         fullname='Administrator',
+         mayAdmin=True, mayViewall=True, mayUpload=True, mayComment=False,
+         mayCreateCat=True)
 if Catalogue.select(Catalogue.q.name == 'default').count() == 0:
-    Catalogue.new(name='default')
+    Catalogue(name='default')
 

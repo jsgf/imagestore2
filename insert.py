@@ -7,7 +7,7 @@ import Image
 from mx.DateTime import DateTime
 from StringIO import StringIO
 
-import SQLObject
+import sqlobject as SQLObject
 import EXIF
 
 from db import *
@@ -24,6 +24,13 @@ _ignore = {
 _mimetypes = {
     'JPEG': 'image/jpeg',
     }
+
+class ImportException(Exception):
+    def __init__(self, value):
+        self.value = value
+
+    def __str__(self):
+        return self.value
 
 def mkDateTime(s):
     s=str(s)
@@ -66,7 +73,14 @@ def get_EXIF_metadata(file, imgattr):
         'record_time':          mkDateTime,
         'orientation':          lambda o: { 1:0, 3: 180, 6: 270, 8: 90, 9: 0 }[int(str(o))]
     }
+
+    # These fields are overridden, even if the EXIF has info, since
+    # the camera often doesn't know
+    override = ('orientation')
+    
     for a in attrmap.keys():
+        if imgattr.has_key(a) and a in override:
+            continue
         for e in attrmap[a]:
             if exif.has_key(e) and exif[e] is not None:
                 #print "a=%s e=%s" % (a, e)
@@ -102,22 +116,21 @@ def import_file(filename, owner, public, catalogue, keywords=[], **imgattr):
 
 def import_image(imgdata, owner, public, catalogue, keywords=[], **imgattr):
     imgfile = StringIO(imgdata)
-    
-    try:
-	img = Image_from_data(imgdata)
-    except IOError:
-	return 'I/O error'
 
+    try:
+        img = Image_from_data(imgdata)
+    except IOError:
+        raise ImportException('Unsupported file type')
+    
     if _ignore.has_key(img.format):
-	return 'unwanted type'
+	return -1
 
     sha1 = sha.new(imgdata)
     hash=sha1.digest().encode('hex')
 
     s = Picture.select(Picture.q.hash==hash)
     if s.count() != 0:
-        print "(already present) ",
-        return s[0].id
+        raise ImportException('already present: %d' % s[0].id)
         
     try:
         m = setmedia(imgdata)
@@ -134,7 +147,8 @@ def import_image(imgdata, owner, public, catalogue, keywords=[], **imgattr):
             if imgattr.has_key('thumbnail'):
                 thumbdata = imgattr['thumbnail']
                 del imgattr['thumbnail']
-
+            #print 'imgattr=%s' % imgattr
+            
         if thumbdata is None:
             print "(generating thumbnail)",
             thimg=thumbnail(img, (160,160))
@@ -151,18 +165,18 @@ def import_image(imgdata, owner, public, catalogue, keywords=[], **imgattr):
         width,height = img.size
         th_width,th_height = thimg.size
 
-        pic = Picture.new(owner=owner,
-                          visibility=public,
-                          hash=m.hash,
-                          media=m,
-                          datasize=len(imgdata),
-                          mimetype=_mimetypes[img.format],
-                          width=width,
-                          height=height,
-                          thumb=thumb,
-                          th_width=th_width,
-                          th_height=th_height,
-                          **imgattr)
+        pic = Picture(owner=owner,
+                      visibility=public,
+                      hash=m.hash,
+                      media=m,
+                      datasize=len(imgdata),
+                      mimetype=_mimetypes[img.format],
+                      width=width,
+                      height=height,
+                      thumb=thumb,
+                      th_width=th_width,
+                      th_height=th_height,
+                      **imgattr)
 
         add_keywords(catalogue, pic, keywords)
     except:
@@ -174,8 +188,13 @@ def import_image(imgdata, owner, public, catalogue, keywords=[], **imgattr):
 def handle_file(file, owner, catalogue, public):
     if not quiet:
 	print 'Processing %s... ' % file,
-    ret = import_file(file, owner, public, catalogue,
-                      photographer=owner)
+
+    try:
+        ret = import_file(file, owner, public, catalogue,
+                          photographer=owner)
+    except ImportException, x:
+        ret = '(%s)' % x
+        
     if not quiet:
 	print ret
 
@@ -192,16 +211,16 @@ def handle_dir(dir, owner, catalogue, public):
             continue
         f = os.path.join(dir, f)
         if isdir(f):
-            handle_dir(f, owner, public)
+            handle_dir(f, owner, public, catalogue)
         elif isfile(f):
-            handle_file(f, owner, public)
+            handle_file(f, owner, public, catalogue)
 
 def add_keywords(cat, image, keywords=[]):
     for k in keywords:
         try:
             kw = Keyword.byWord(k)
         except SQLObjectNotFound, x:
-            kw = Keyword.new(word=k, catalogue=cat)
+            kw = Keyword(word=k, catalogue=cat)
 
         image.addKeyword(kw)
         cat.addKeyword(kw)
@@ -210,7 +229,7 @@ def get_user(username, email, fullname):
     u=User.select(User.q.username==username)
     if u.count() != 0:
         return u[0]
-    return User.new(username=username, fullname=fullname, email=email)
+    return User(username=username, fullname=fullname, email=email)
 
 if __name__ == '__main__':
     optlist, args = getopt.getopt(sys.argv[1:], 'o:p:qh')

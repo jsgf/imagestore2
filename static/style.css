@@ -135,6 +135,32 @@ BODY.view .nav .next {
   background-color: black;
 }
 
+/* Picture details */
+DIV.details .name, DIV.details .val {
+  font-size: 75%;
+}
+DIV.details .name {
+  font-weight: bold;
+  display: inline-block;
+}
+DIV.details .thiswayup { 
+  display: block;
+  float: right;
+}
+DIV.details .detail_tab .name { 
+  text-align: right;
+  font-weight: bold;
+}
+DIV.details .detail_tab .val { 
+  text-align: left;
+}
+DIV.details DT {
+}
+DIV.details DD { 
+  display: block;
+  margin-left: 1em;
+  margin-bottom: 1em;
+}
 
 /* calendar windows */
 BODY.calendar DIV.day { 

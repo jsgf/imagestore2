@@ -48,7 +48,7 @@ typemap = { 'jpg':          'image/jpeg',
 def transform(id, size = 'medium'):
     debug=False
 
-    p = db.Picture(id)
+    p = db.Picture.get(id)
     (tw, th) = sizes[size]
 
     if size == 'thumb' and p.th_width <= tw and p.th_height <= th:
@@ -111,7 +111,7 @@ def transform(id, size = 'medium'):
 def transformed_size(id, size):
     debug=False
     
-    p = db.Picture(id)
+    p = db.Picture.get(id)
 
     (pw,ph) = (p.width, p.height)
 
@@ -150,7 +150,7 @@ def Image_from_data(data, *kw):
     return Image.open(data, *kw)
 
 def thumb_size(id):
-    p = db.Picture(id)
+    p = db.Picture.get(id)
 
     tw = p.th_width
     th = p.th_height
