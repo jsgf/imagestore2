@@ -55,8 +55,10 @@ def get_EXIF_metadata(file, imgattr):
         #'comment':		[ 'Image UserComment' ],
         
         # Exposure details
-        'exposure_time':	[ 'EXIF ExposureTime' ],
-        'f_number':		[ 'EXIF FNumber' ],
+        'exposure_time':	[ 'EXIF ExposureTime',
+                                  'EXIF ShutterSpeedValue' ],
+        'f_number':		[ 'EXIF FNumber',
+                                  'EXIF ApertureValue' ],
         'focal_length':		[ 'EXIF FocalLength' ],
         'exposure_bias':	[ 'EXIF ExposureBiasValue' ],
         'flash':		[ 'EXIF Flash' ],
@@ -64,9 +66,13 @@ def get_EXIF_metadata(file, imgattr):
         'exposure_program':     [ 'EXIF ExposureProgram' ],
         
         'thumbnail':            [ 'JPEGThumbnail' ],
+
+        'manufacturer':         [ 'IFD Make' ],
+        'model':                [ 'IFD Model' ],
         
         # Image orientation (size comes from outer info)
         'orientation':		[ 'Image Orientation' ],
+
     }
 
     typemap = {
@@ -179,7 +185,8 @@ def import_image(imgdata, owner, public, catalogue, keywords=[], **imgattr):
                       **imgattr)
 
         add_keywords(catalogue, pic, keywords)
-    except:
+    except Exception, x:
+        print 'exception '% x
         print "(rollback)"
         raise
 

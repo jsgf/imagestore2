@@ -24,10 +24,65 @@ Basic ideas:
 - access control
   - public/private
   - ACLs? groups?
-- arrange photos into "collections"
+- arrange photos into "catalogues"
   - multiple users/photo owners
 - repeated importing without consequence
   - accumulate metadata?
+- useful web interface
+  - next/prev links
+  - obvious, usable URLs for data (less important for images)
+  - good-sized thumbnails
+  - clean styling
+
+URL layout:
+
+/imagestore/
+	catalogues/				# catalogue administration
+		new/
+		edit/NAME -> ../../NAME/edit
+
+	<catalogue-name>/			# catalogue root
+		image/
+			NNNN(-SIZE!?)?.html	# generate a viewer page for the image
+			NNNN(-SIZE!?)?(.ext)?	# generate an image data stream (ext ignored)			
+		details/
+			NNNN.html		# generate details display
+
+		edit/
+			multi.html		# edit multiple images
+			NNNN/details		# edit details editor
+			NNNN/rotate/ANGLE	# rotate image
+
+		import/				# image importing
+
+		admin/				# catalogue administration
+
+		search/				# search interface
+
+		calendar/			# time interface
+			INTERVAL/DATE		# view for a particular day/week/month/year
+			summary/DATE		# calendar summary
+
+		keyword/			# keyword management
+			edit/			# edit keywords
+			graph/			# generate keyword relation graphs
+
+	user/					# user settings
+		prefs/				# preferences
+		rss/				# personal rss feed
+
+	admin/					# imagestore administration
+		user/				# user summary
+			NAME			# user editor
+
+	rss/					# RSS feed
+
+NNNN: image number
+SIZE: thumb|tiny|small|medium|large|orig - trailing ! sets as default size
+ANGLE: 0|90|180|270
+INTERVAL: day|week|month|year
+DATE: YYYY-MM-DD
+DATERANGE: DATE:DATE | INTERVAL:DATE
 
 Data design:
 

@@ -7,7 +7,7 @@ import os.path
 lazycol=False
 
 dbinfo = {
-    'lurch':    { 'conn': lambda: MySQLConnection(host='lurch', db='imagestore2', user='imagestore', passwd='im_zwarp', debug=0),
+    'lurch':    { 'conn': 'mysql://imagestore:im_zwarp@lurch/imagestore',
                   'encode': False,
                   },
     'local':    { 'conn': 'sqlite:' + os.path.abspath('imagestore.db'),
@@ -17,6 +17,7 @@ dbinfo = {
 
 db='local'
 
+print 'path='+dbinfo[db]['conn']
 conn = connectionForURI(dbinfo[db]['conn'])
 conn.debug = 0
 
@@ -40,7 +41,14 @@ class Catalogue(SQLObject):
     Catalogues have their own set of user permissions.
     """
 
-    name = StringCol(length=100, notNone=True, unique=True, alternateID=True)
+    # Short URL-friendly name
+    name = StringCol(length=20, notNone=True, unique=True, alternateID=True)
+
+    # Description
+    #description = StringCol(length=100, default='')
+
+    # Owner
+    #owner = ForeignKey('User')
 
     # Keywords used in this catalogue
     keywords = RelatedJoin('Keyword')
@@ -124,7 +132,9 @@ def setmedia(data, hash=None):
     media=None
 
     # Make sure there's no old/partial/existing pieces of this data
-    for m in Media.select(Media.q.hash == hash, lazyColumns=lazycol):
+    # XXX What if this is legit, ie, genuine duplicate data?
+    for m in Media.select(Media.q.hash == hash, orderBy='sequence', lazyColumns=lazycol):
+        #print 'deleting hash id (%d,%s,%d)' % (m.id, m.hash, m.sequence)
         m.destroySelf()
     
     while len(data) > 0:

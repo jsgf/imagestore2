@@ -136,6 +136,9 @@ BODY.view .nav .next {
 }
 
 /* Picture details */
+DIV.details { 
+  margin: 2%;
+}
 DIV.details .name, DIV.details .val {
   font-size: 75%;
 }

@@ -1,0 +1,19 @@
+# -*- python -*-
+
+def pre [html] (title, top='.', bodyclass=''):
+    """\
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 EN">
+<head>
+<title>%(title)s</title>
+<link type="text/css" rel="stylesheet" href="%(base)s/static/style.css">
+</head>
+<body class="%(class)s">\n""" % {
+    'title': title,
+    'base': top,
+    'class': bodyclass }
+
+def post [html] ():
+    "\n</body>\n"
+
+def html(title, page, top='.', bodyclass=''):
+    return str(pre(title, top, bodyclass)) + page + str(post())
