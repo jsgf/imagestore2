@@ -21,9 +21,9 @@ dbinfo = {
                   },
     }
 
-db='localmysql'
+#db='localmysql'
 #db='local'
-#db='lurch-local'
+db='lurch-local'
 
 conn = None
 
@@ -44,11 +44,11 @@ def db_connect():
                Media, Keyword, User, Camera, Upload ]:
         #print 'c=%s' % c
         c.setConnection(conn)
-        c.createTable(ifNotExists=True)
-
-        if c == Media and conn.dbName == 'mysql':
-            # allow media table to grow big
-            conn.query('alter table media max_rows=10000000 avg_row_length=%d' % _chunksize)
+	if not conn.tableExists(c._table):
+	    c.createTable(ifNotExists=True)
+            if c == Media and conn.dbName == 'mysql':
+                # allow media table to grow big
+                conn.query('alter table media max_rows=10000000 avg_row_length=%d' % _chunksize)
 
     # Create a default user and collection
     if User.select(User.q.username == 'admin').count() == 0:
