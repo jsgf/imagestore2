@@ -60,7 +60,7 @@ def get_EXIF_metadata(file, imgattr):
 
     typemap = {
         'record_time':          mkDateTime,
-        'orientation':          lambda o: return { 1:0, 3: 180, 6: 270, 8: 90, 9: 0 }[o]
+        'orientation':          lambda o: { 1:0, 3: 180, 6: 270, 8: 90, 9: 0 }[int(str(o))]
     }
     for a in attrmap.keys():
         for e in attrmap[a]:
@@ -190,15 +190,15 @@ def handledir(dir, owner, public):
         elif isfile(f):
             handlefile(f, owner, public)
 
-def getuser(username, fullname):
+def getuser(username, email, fullname):
     u=User.select(User.q.username==username)
     if u.count() != 0:
         return u[0]
-    return User.new(username=username, fullname=fullname)
+    return User.new(username=username, fullname=fullname, email=email)
 
 if __name__ == '__main__':
     optlist, args = getopt.getopt(sys.argv[1:], 'o:p:qh')
-    owner = getuser('jeremy@goop.org', 'Jeremy Fitzhardinge')
+    owner = getuser(username='jeremy', email='jeremy@goop.org', fullname='Jeremy Fitzhardinge')
     public='public'
 
     for opt in optlist:

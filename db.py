@@ -50,7 +50,7 @@ class User(SQLObject):
     "Imagestore user database"
     
     username = StringCol(length=100, unique=True, notNone=True, alternateID=True)
-    email = StringCol(default=username, length=100, notNone=True)
+    email = StringCol(length=100, notNone=True)
     password = StringCol(length=32, default=None)
     fullname = StringCol(default=None)
 
@@ -180,7 +180,7 @@ class Picture(SQLObject):
     mediaid = ForeignKey("Media")
     link = ForeignKey("Picture", default=None)
 
-    catalogue = ForeignKey('Catalogue', notNone=True, default=defaultCat)
+    catalogue = ForeignKey('Catalogue', notNone=True, default=lambda: defaultCat().id)
     keywords = RelatedJoin('Keyword')
     comments = MultipleJoin('Comment')
     

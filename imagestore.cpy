@@ -27,7 +27,7 @@ def onError():
 # This is to get rid of visible foo?blah=blat&biff=foo type URL paths
 # (though they'll still work)
 def initNonStaticRequest():
-    print '%s request.path: %s' % (request.method, request.path)
+    print 'request: %s %s' % (request.method, request.path)
     
     # match /image/1234-size.jpg and map back to
     # /image/image?id=1234&size=<size> so that we can refer to images with
@@ -94,7 +94,7 @@ variable:
     sizes = ImageTransform.sizes.keys()
 
     # Margins of view window (must match the stylesheet)
-    view_margin = 10
+    view_margin = 15                    # update BODY.view .picture/margin in style.css
 
 
     # Cookie names
@@ -131,11 +131,15 @@ function:
     def edit_url(self, id):
         return '%s/image/edit/%d.html' % (root.base, id)
 
+    def rotate_url(self, id, angle, frompage):
+        id=int(id)
+        angle=int(angle)
+        return '%s/image/thiswayup?id=%d&angle=%d&frompage=%s' % (root.base, id, angle, frompage)
 
     ##
     ## Manage preference cookies
     ##
-    def preferred_size(self, default='medium'):
+    def preferred_size(self, default='small'):
         ret = default
         try:
             ret = request.simpleCookie[self.ck_preferred_size].value
@@ -157,10 +161,19 @@ function:
         s.sort(lambda a,b: cmp(a[1][0]*a[1][1], b[1][0]*b[1][1]))
         return [ a for (a,b) in s ]
 
-    ###
-    ### The following functions build pieces of HTML for insertion in
-    ### the output
-    ###    
+
+    ##
+    ## may* functions return a bool which indicates if the current
+    ## user may perform a particuar operation
+    ##
+
+    def mayEdit(self, id):
+        return True                     # XXX fixme
+    
+    ##
+    ## The following functions build pieces of HTML for insertion in
+    ## the output
+    ##    
     def picture_img(self, id, size, preferred=False, extra={}):
         "Generate an <img> element for a picture"
         e = join([ '%s="%s"' % (k, tools.escapeHtml(extra[k])) for k in extra.keys() ], ' ')
@@ -174,6 +187,37 @@ function:
                  'ref': self.picture_url(id, size, preferred) }
     
 
+    def view_rotate_link(self, id, size=None, extra={}):
+        id=int(id)
+        
+        if not self.mayEdit(id):
+            return self.view_newwin_link(id, size, extra=extra)
+
+        p = Picture(id)
+
+        url='%s#thumb:%d' % (request.browserUrl, id)
+
+        return \
+        """<table class="thiswayup">
+                <tr><td colspan="3" align="center">%(up)s</td></tr>
+                <tr>
+                        <td><a title="This way up" href="%(rot270)s">%(left)s</a></td>
+                        <td>%(thumb)s</td>
+                        <td><a title="This way up" href="%(rot90)s">%(right)s</a></td>
+                <tr>
+                <tr><td colspan="3" align="center"><a title="This way up" href="%(rot180)s">%(down)s</a></td></tr>
+        </table>""" % {
+                    'rot0':   self.rotate_url(id, (  0 + p.orientation) % 360, url),
+                    'rot90':  self.rotate_url(id, ( 90 + p.orientation) % 360, url),
+                    'rot180': self.rotate_url(id, (180 + p.orientation) % 360, url),
+                    'rot270': self.rotate_url(id, (270 + p.orientation) % 360, url),
+                    'thumb':  self.view_newwin_link(id, size, extra=extra),
+                    'up':     root.arrow('up'),
+                    'down':   root.arrow('down'),
+                    'left':   root.arrow('left'),
+                    'right':  root.arrow('right'),
+                    }
+                
     def thumb_img(self, id, extra={}):
         "Generate an <img> element for a thumbnail"
         p = Picture(id)
@@ -181,10 +225,11 @@ function:
 
         (tw,th) = ImageTransform.thumb_size(id)
         
-        return '<img class="thumb" width=%(w)d height=%(h)d style="width: %(w)dpx height: %(h)dpx" alt="%(alt)s" %(extra)s src="%(ref)s">' % \
+        return '<img id="thumb:%(id)d" class="thumb" width=%(w)d height=%(h)d style="width: %(w)dpx height: %(h)dpx" alt="%(alt)s" %(extra)s src="%(ref)s">' % \
                { 'w': tw,
                  'h': th,
                  'alt': 'Thumbnail of picture %d' % id,
+                 'id': id,
                  'extra': e,
                  'ref': self.thumb_url(id) }
 
@@ -196,7 +241,7 @@ function:
         """Generate a link to a full-sized image.  By default, the
         thumbnail is the link contents."""
         
-        if size is None:
+        if False and size is None:
             size = self.preferred_size(None)
         
         if link is None:
@@ -228,7 +273,7 @@ function:
             'w': tw + (2*self.view_margin),
             'h': th + (2*self.view_margin),
             }
-        return self.view_link(id, size=size, link=link, preferred=preferred, extra=extra)
+        return self.view_link(id, size=None, link=link, preferred=preferred, extra=extra)
 
     def details_link(self, id, link):
         return '<a href="%s">%s</a>' % (self.details_url(id), link)
@@ -388,7 +433,7 @@ view:
 
         ret += '<div class="nav">\n'
         if prev is not None:
-            ret += self.view_link(prev, size, '&lt;&lt;&nbsp;Prev',
+            ret += self.view_link(prev, size, root.arrow('left')+'&nbsp;Prev',
                                   extra={'title': 'Image %d' % prev,
                                          'class': 'prev'}) + '\n'
 
@@ -406,7 +451,7 @@ view:
         ret += '</span>\n'
 
         if next is not None:
-            ret += self.view_link(next, size, 'Next&nbsp;&gt;&gt;',
+            ret += self.view_link(next, size, 'Next&nbsp;'+root.arrow('right'),
                                   extra={'title': 'Image %d' % next,
                                          'class': 'next'}) + '\n'
 
@@ -419,7 +464,9 @@ view:
     def edit(self, id):
         id = int(id)
 
-        # XXX check for user permissions to edit
+        if not self.mayEdit(id):
+            return 'nope'               # XXX better message
+
         p = Picture(id)
         def orientfn(a):
             checked=''
@@ -437,6 +484,22 @@ view:
 
         return root.pre('Details for %d' % id) + self.detail_string(id) + root.post()
 
+    def thiswayup(self, id, angle, frompage=None):
+        id = int(id)
+        angle = int(angle)
+        
+        if not self.mayEdit(id):
+            return 'nope'               # XXX make a better message
+        
+        p=Picture(id)
+        if angle in (0, 90, 180, 270):
+            p.orientation=angle
+            
+        response.headerMap['status']=302
+        response.headerMap['location']=frompage
+
+        return ''
+        
 ##
 ## Calendar/time-related display
 ##
@@ -535,24 +598,25 @@ view:
         reltime = self.interval[interval]
         if date is None:
             # If no date provided, show images in the last interval
-            date = today()-reltime
+            last=Picture.select(Picture.q.record_time, orderBy='-record_time')[0]
+            date = last.record_time-reltime+1
         else:
             date = strptime(date, '%Y-%m-%d')
         
         days = self.build_calendar(date, date_inc=reltime)
         ret=""
         if len(days) == 0:
-            ret += "No images in specified range.<br>"
+            ret += '<div class="error"><span class="header">No images in specified range</span> Please select another date range</div>'
 
         prev = Picture.select(Picture.q.record_time < date, orderBy='-record_time')
         if prev.count() > 0:
             prev = prev[0].record_time + self.zeroTime
-            ret += '<a href="%s">Prev</a>\n' % self.calendar_url(interval, prev-reltime+1)
+            ret += '<a href="%s">%s&nbsp;Prev</a>\n' % (self.calendar_url(interval, prev-reltime+1), root.arrow('left'))
             
         next = Picture.select(Picture.q.record_time >= (date+reltime), orderBy='record_time')
         if next.count() > 0:
             next = next[0].record_time + self.zeroTime
-            ret += '<a href="%s">Next</a>\n' % self.calendar_url(interval, next)
+            ret += '<a href="%s">Next&nbsp;%s</a>\n' % (self.calendar_url(interval, next), root.arrow('right'))
 
         ret += "<br>"
 
@@ -567,12 +631,16 @@ view:
         idx=0
         for d,pl in days:
             ret += '<div class="day">\n'
-            ret += '<a class="day-link" href="%s">%s</a>\n' % (self.calendar_url('day', d), d.strftime('%Y-%m-%d'))
+            ret += '<a id="day:%(date)s" class="day-link" href="%(url)s">%(date)s</a>\n' % {
+                'url': self.calendar_url('day', d),
+                'date': d.strftime('%Y-%m-%d')
+                }
+            ret += '<div class="day-pics">\n'
             for p in pl:
                 query_results.append(p.id)
-                ret += image.view_newwin_link(p.id) + '\n'
+                ret += image.view_rotate_link(p.id) + '\n'
                 idx+=1
-            ret += '</div>\n'
+            ret += '</div></div>\n'
 
         request.sessionMap['query-results'] = query_results
         return root.pre('Calendar', 'calendar') + ret + root.post()
@@ -605,7 +673,16 @@ function:
         </body>
         </html>
         """
-    
+
+    def arrow(self, dir, alt=None):
+        if alt is None:
+            alt='%s arrow' % dir
+        return '<img class="arrow %(dir)s-arrow" alt="%(alt)s" src="%(base)s/static/arrow-small-%(dir)s.png">' % {
+            'alt': alt,
+            'base': self.base,
+            'dir': dir }
+
+
 view:
     def index(self, page=1):
         page = int(page)

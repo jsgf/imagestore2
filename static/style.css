@@ -10,8 +10,10 @@
    Overall classes:
    .picture:	<img>s referring to full-sized pictures
    .thumb:	<img>s referring to thumbnails
+   .arrow:	<img>s for little arrows
 
    .selected:	any selected option
+   .error:	error messages
  */
 
 /* Overall default definitions */
@@ -27,14 +29,72 @@ A:active	{ color: #ffa66b; }
 
 .picture	{ border: 0; padding: 0; }
 .thumb		{ border: 0; padding: 5px; }
+.arrow		{ border: 0; padding: 0; }
+A .arrow-left, A .arrow-right { 
+  vertical-align: center;
+}
 .selected	{ background-color: #888888; font-weight: bold; }
-A.selected:hover { color: #ff8b3e; }
+A.selected:hover { color: #ff8b3e; } /* use a more saturated orange */
+
+.error {
+  text-align: center;
+  color: white;
+
+  padding: 1em;
+  border-color: #dddddd;
+  border-style: dashed;
+  border-width: 1;
+}
+.error .header { 
+  font-weight: bold;
+  display: block;
+}
+
+/*
+.thiswayup .thumb { 
+  padding: 5px;
+  position: relative;
+}
+.thiswayup .up-arrow { 
+  position: relative;
+  top: 0px;
+  left: 76px;
+}
+.thiswayup .down-arrow { 
+  position: relative;
+  bottom: 0px;
+  left: 76px;
+}
+.thiswayup .left-arrow { 
+  position: relative;
+  left: 0px;
+  top: 56px;
+}
+.thiswayup .right-arrow { 
+  position: relative;
+  left: 0px;
+  top: 56px;
+}
+*/
+
+TABLE.thiswayup { 
+  display: inline;
+  border: 0px;
+  padding: 5px;
+  border-spacing: 0;
+}
+.thiswayup .thumb {
+  padding: 0;
+}
+
 
 /* view windows */
 BODY.view {
-  margin: 10px;
+  margin: 0;
   background-color: black;
-
+}
+BODY.view .picture { 
+  margin: 15px;			/* update Image.view_margin to match */
 }
 BODY.view .nav { 
   position: fixed;
@@ -81,9 +141,11 @@ BODY.calendar DIV.day {
   margin-top: 4em;
   margin-left: 5%;
   margin-right: 5%;
+  clear: both;
 }
 BODY.calendar DIV.day .day-link { 
   display: block;
   margin-bottom: 1em;
+  margin-left: -2em;
   font-weight: bold;
 }
