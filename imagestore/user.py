@@ -9,7 +9,7 @@ import quixote.form2 as form2
 
 from pages import pre, post, menupane, error, prefix
 from user_page import login_form, user_page as user_page_ptl, user_edit as user_edit_ptl
-from db import User, getColByName, setColByName, Picture
+from db import User, Picture
 from dbfilters import userFilter
 from menu import Link, Separator, MenuItem
 
@@ -137,7 +137,7 @@ class UserWidget(form2.CompositeWidget):
         self.add(form2.StringWidget, 'fullname', user.fullname, title='Full name')
         self.add(form2.StringWidget, 'email', user.email, title='Email')
         for (p, desc) in perms:
-            self.add(form2.CheckboxWidget, 'perm.'+p, getColByName(user, p), title=p[3:], hint=desc)
+            self.add(form2.CheckboxWidget, 'perm.'+p, getattr(user, p), title=p[3:], hint=desc)
         self.add(form2.CheckboxWidget, 'delete', False, 'Delete user')
 
         for w in self.get_widgets():
@@ -196,11 +196,11 @@ class UserWidget(form2.CompositeWidget):
             return True
 
         for v in ['username', 'fullname', 'email']:
-            if self[v] != getColByName(self.user, v):
+            if self[v] != getattr(self.user, v):
                 return True
 
         for (p, desc) in perms:
-            if self['perm.'+p] != getColByName(self.user, p):
+            if self['perm.'+p] != getattr(self.user, p):
                 return True
 
         return False
@@ -228,7 +228,7 @@ class UserWidget(form2.CompositeWidget):
             return
 
         for (p, desc) in perms:
-            setColByName(self.user, p, self['perm.'+p])
+            setattr(self.user, p, self['perm.'+p])
 
         self.user.username = self['username']
         self.user.fullname = self['fullname']
