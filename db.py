@@ -21,8 +21,9 @@ dbinfo = {
                   },
     }
 
-#db='localmysql'
-db='lurch-local'
+db='localmysql'
+#db='local'
+#db='lurch-local'
 
 conn = None
 
@@ -41,8 +42,13 @@ def db_connect():
     # Create tables if necessary
     for c in [ Collection, CollectionPerms, Picture, Comment,
                Media, Keyword, User, Camera, Upload ]:
+        #print 'c=%s' % c
         c.setConnection(conn)
         c.createTable(ifNotExists=True)
+
+        if c == Media and conn.dbName == 'mysql':
+            # allow media table to grow big
+            conn.query('alter table media max_rows=10000000 avg_row_length=%d' % _chunksize)
 
     # Create a default user and collection
     if User.select(User.q.username == 'admin').count() == 0:
@@ -58,9 +64,6 @@ def db_connect():
 
 _encode_media=dbinfo[db]['encode']      # use base64 for binary data (sqlite needs it)
 _chunksize=63*1024                      # chunk Media into lumps
-
-def defaultCollection():
-    return Collection.byName('default')
 
 class Collection(SQLObject):
     """
@@ -134,6 +137,7 @@ class User(SQLObject):
     mayComment = BoolCol(notNone=True, default=False)   # comment on images everywhere
     mayCreateCat = BoolCol(notNone=True, default=False) # may create new collections
     mayRate = BoolCol(notNone=True, default=False)      # may rate pictures
+
     enabled = BoolCol(notNone=True, default=True)
     
     
@@ -278,10 +282,10 @@ def getmedia(id, verify=False):
 class Keyword(SQLObject):
     "Picture keywords"
 
-    word = StringCol(length=20, unique=True, notNone=True, alternateID=True)
+    word = StringCol(length=50, unique=True, notNone=True, alternateID=True)
     pictures = RelatedJoin('Picture')
 
-    collection = ForeignKey('Collection')
+    collection = ForeignKey('Collection', notNone=True)
 
 def strToKeyword(word, collection, create):
     try:
@@ -371,7 +375,7 @@ class Picture(SQLObject):
     mediaid = ForeignKey("Media", unique=True)
     link = ForeignKey("Picture", default=None)
 
-    collection = ForeignKey('Collection', notNone=True, default=lambda: defaultCollection().id)
+    collection = ForeignKey('Collection', notNone=True)
     keywords = RelatedJoin('Keyword')
     comments = MultipleJoin('Comment')
 
@@ -382,7 +386,7 @@ class Picture(SQLObject):
     camera = ForeignKey('Camera', default=None)
     
     owner = ForeignKey("User", default=None)
-    visibility = EnumCol(enumValues=["public","restricted","private"],
+    visibility = EnumCol(enumValues=["public", "restricted" ,"private"],
                          default="public", notNone=True)
     photographer = ForeignKey('User', default=None)
 
@@ -434,7 +438,7 @@ class Upload(SQLObject):
 
     import_time = DateTimeCol(default=mx.DateTime.gmt, notNone=True)
 
-    #time_idx = Index(import_time)
-    #user_idx = Index(user)
+    time_idx = Index(import_time)
+    user_idx = Index(user)
 
 
