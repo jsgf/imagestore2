@@ -31,6 +31,9 @@ class ArrayStream:
 	else:
 	    self.offset = off
 
+    def tell(self):
+        return self.offset
+    
     def data(self):
 	return join(self._data, '')
 

@@ -695,6 +695,8 @@ class IFD_Tag:
                                         FIELD_TYPES[self.field_type][2],
                                         self.printable,
                                         self.field_offset)
+    def __sqlrepr__(self, db):
+        return "'%s'" % self.printable
 
 # class that handles an EXIF header
 class EXIF_header:
