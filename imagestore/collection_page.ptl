@@ -10,7 +10,7 @@ from image import ImageUI
 # Actually a method of CollectionUI
 def _q_index [html] (self, request):
     npics = len(self.dbobj.pictures)
-    pre('Collection %s: %d pictures' % (self.dbobj.name, npics),
+    pre(request, 'Collection %s: %d pictures' % (self.dbobj.name, npics),
         bodyclass='collection')
 
     '<h1>%s: %d pictures</h1>\n' % (self.dbobj.description, npics)

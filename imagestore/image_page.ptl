@@ -1,13 +1,12 @@
 # -*- python -*-
 
 from imagestore.image import preferred_size, set_preferred_size
-from ImageTransform import transformed_size, sizes
+from ImageTransform import transformed_size, sizes, thumb_size
 from pages import pre, post, join_extra, arrow
 from go_scgi import ImagestoreHandler
 prefix = ImagestoreHandler.prefix
 from db import Picture
-
-view_margin=15
+from style import view_margin, thiswayup_img_padding, table_twu, arrow_height
 
 sorted_sizes=sizes.items()
 sorted_sizes.sort(lambda a,b: cmp(a[1][0]*a[1][1], b[1][0]*b[1][1]))
@@ -17,7 +16,7 @@ sorted_sizes=[ a for (a,b) in sorted_sizes ]
 
 def view [html] (self, request, p, size, default):
     id = p.id
-    pre('View image %d' % id,
+    pre(request, 'View image %d' % id,
         bodyclass='view')
     
     if size is None:
@@ -82,31 +81,56 @@ def view_rotate_link [html] (self, request, p, size=None, extra={}):
 
     url='%s#thumb:%d' % (request.get_url(), p.id)
 
-    """
-    <table class="thiswayup">
-    <tr><td colspan="3" align="center">%(up)s</td></tr>
-    <tr>
-    <td><a title="This way up" href="%(rot270)s">%(left)s</a></td>
-    <td>%(thumb)s</td>
-    <td><a title="This way up" href="%(rot90)s">%(right)s</a></td>
-    <tr>
-    <tr><td colspan="3" align="center"><a title="This way up" href="%(rot180)s">%(down)s</a></td></tr>
-    </table>""" % {
+    thsz = thumb_size(p.id)
+    extra[str('style')] = str('width:%dpx; height:%dpx;' % thsz)
+    extra[str('class')] = str(' thumb')
+
+    if table_twu:
+        # Table version should work everywhere
+        twu = """\
+        <table class="thiswayup" style="width:%(tablewidth)dpx; height:%(tableheight)dpx;" cellspacing=0 cellpadding=0 border=0>
+        <tr><td colspan=3 class="top" align="center" valign="bottom">%(up)s</td></tr>
+        <tr>
+          <td valign="center" align="right"><a title="This way up" class="left-arrow" href="%(rot270)s">%(left)s</a></td>
+          <td>%(thumb)s</td>
+          <td valign="center" align="left"><a title="This way up" class="right-arrow" href="%(rot90)s">%(right)s</a></td>
+        </tr>
+        <tr><td colspan=3 class="bottom" align="center" valign="top"><a title="This way up" class="down-arrow" href="%(rot180)s">%(down)s</a></td></tr>
+        </table>"""
+    else:
+        # Non-table version seems pretty problematic
+        twu = """\
+        <div class="thiswayup" style="width:%(totwidth)dpx; height:%(totheight)dpx;">
+          %(thumb)s
+          %(up)s
+          <a title="This way up" class="down-arrow" href="%(rot180)s">%(down)s</a>
+          <a title="This way up" class="left-arrow" href="%(rot270)s">%(left)s</a>
+          <a title="This way up" class="right-arrow" href="%(rot90)s">%(right)s</a>
+        </div>"""
+
+    twu % {
         'rot0':   self.rotate_url(p, (  0 + p.orientation) % 360, url),
         'rot90':  self.rotate_url(p, ( 90 + p.orientation) % 360, url),
         'rot180': self.rotate_url(p, (180 + p.orientation) % 360, url),
         'rot270': self.rotate_url(p, (270 + p.orientation) % 360, url),
+
         'thumb':  self.view_newwin_link(request, p, size, extra=extra),
+
         'up':     arrow('up', extra={'title': 'Up is up'}),
         'down':   arrow('down'),
         'left':   arrow('left'),
         'right':  arrow('right'),
+        
+        'totwidth': thsz[0] + (2*thiswayup_img_padding),
+        'totheight': thsz[1] + (2*thiswayup_img_padding),
+
+        'tablewidth': thsz[0] + (2*arrow_height),
+        'tableheight': thsz[1] + (2*arrow_height),
         }
 
 
-
 def details [html] (self, request, p):
-    pre('Details for picture %d' % p.id, 'details')
+    pre(request, 'Details for picture %d' % p.id, 'details')
 
     title = p.title
     if title is None:

@@ -7,12 +7,12 @@ from types import *
 from go_scgi import ImagestoreHandler
 prefix = ImagestoreHandler.prefix
 
-def pre [html] (title, bodyclass=''):
+def pre [html] (request, title, bodyclass=''):
     """\
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 EN">
 <head>
+  <link type="text/css" rel="stylesheet" href="%(base)s/style.css">
   <title>%(title)s</title>
-  <link type="text/css" rel="stylesheet" href="%(base)s/static/style.css">
 </head>
 <body class="%(class)s">\n""" % {
       'title': title,
@@ -23,8 +23,8 @@ def pre [html] (title, bodyclass=''):
 def post [html] ():
     "\n</body>\n</html>\n"
 
-def html(title, page, bodyclass=''):
-    return pre(title, bodyclass) + page + post()
+def html(request, title, page, bodyclass=''):
+    return pre(request, title, bodyclass) + page + post()
 
 def join_extra [html] (extra):
     return ' '.join([ '%s="%s"' % (k, extra[k]) for k in extra.keys() ])
@@ -33,21 +33,11 @@ def arrow [html] (dir, alt=None, extra={}):
     if alt is None:
         alt = dir + " arrow"
 
-    # XXX put this into .css stylesheet?
-    if dir in ('up', 'down'):
-        (w,h) = (8, 4)
-    elif dir in ('left', 'right'):
-        (w,h) = (4, 8)
-    else:
-        raise Error('Bad direction')
-
-    '<img class="arrow %(dir)s-arrow" style="width:%(w)dpx; height:%(h)dpx;" alt="%(alt)s" %(extra)s src="%(prefix)s/static/arrow-small-%(dir)s.png">' % {
+    '<img class="arrow %(dir)s-arrow" alt="%(alt)s" %(extra)s src="%(prefix)s/static/arrow-small-%(dir)s.png">' % {
         'extra': join_extra(extra),
         'alt': alt,
         'prefix': prefix,
         'dir': dir,
-        'w': w,
-        'h': h,
         }
 
 def generate_extra [html] (extra):
@@ -64,7 +54,7 @@ def generate_extra [html] (extra):
 
 # Generate a menu pane.  extra is a list of items to add to the list;
 # it's in the form of nested lists of tuples
-def menupane [html] (request, extra=None):
+def menupane [html] (request, extra=None, nav=None):
     '<div class="menu">\n'
 
     '<ul>\n'
@@ -99,6 +89,10 @@ def menupane [html] (request, extra=None):
         generate_extra(extra)
     
     '</ul>\n'
+
+    if nav is not None:
+        nav
+        
     '</div>\n'
 
 def error [html] (request, heading, body):

@@ -1,20 +1,21 @@
 # -*- python -*-
 
+from mx.DateTime import DateTime
 from pages import pre, post, menupane, error, arrow
 from db import Picture
 from image import ImageUI
 
-def _q_index_ptl [html] (self, request):
-    pre('Calendar view', 'calendar')
+def most_recent():
+    return Picture.select(orderBy=Picture.q.record_time).reversed()[0]
 
-    menupane(request, self.menupane_extra())
+def _q_index_ptl [html] (self, request):
+    pre(request, 'Calendar view', 'calendar')
 
     if self.interval is None:
         self.interval = 'week'
     
     if self.date is None:
-        last=Picture.select(orderBy=Picture.q.record_time).reversed()[0]
-        self.date = last.record_time - self.intervals[self.interval]+1
+        self.date = most_recent().record_time - self.intervals[self.interval]+1
 
     reltime = self.intervals[self.interval]
     
@@ -23,12 +24,25 @@ def _q_index_ptl [html] (self, request):
     if days is None or len(days) == 0:
             error(request, 'No images in specified range', 'Please select another date range')
 
+    nav = ''
     prev = Picture.select(Picture.q.record_time < self.date,
                           orderBy=Picture.q.record_time).reversed()
     if prev.count() > 0:
         prev = prev[0].record_time + self.zeroTime
-        '<a href="%s">%s&nbsp;Prev</a>\n' % (self.calendar_url(self.interval, prev-reltime+1),
-                                             arrow('left'))
+        nav += '<div class="nav nav-prev"><a href="%s">%s&nbsp;Prev</a></div>\n' % \
+               (self.calendar_url(self.interval, prev-reltime+1),
+                arrow('left'))
+
+    next = Picture.select(Picture.q.record_time >= (self.date+reltime),
+                          orderBy=Picture.q.record_time)
+    if next.count() > 0:
+        next = next[0].record_time + self.zeroTime
+        nav += '<div class="nav nav-next"><a href="%s">Next&nbsp;%s</a></div>\n' % \
+               (self.calendar_url(self.interval, next),
+                arrow('right'))
+
+    menupane(request, extra=self.menupane_extra(), nav=nav)
+    
 
     for i, v in self.intervalList():
         sel=''
@@ -36,12 +50,6 @@ def _q_index_ptl [html] (self, request):
             sel='selected'
         '<a class="%s" href="%s">%s</a>\n' % (sel, self.calendar_url(i, self.date), i.capitalize())
 
-    next = Picture.select(Picture.q.record_time >= (self.date+reltime),
-                          orderBy=Picture.q.record_time)
-    if next.count() > 0:
-        next = next[0].record_time + self.zeroTime
-        '<a href="%s">Next&nbsp;%s</a>\n' % (self.calendar_url(self.interval, next),
-                                             arrow('right'))
 
     results=[]
     idx = 0
@@ -60,5 +68,45 @@ def _q_index_ptl [html] (self, request):
         '</div></div>\n'
 
     request.session.set_query_results(results)
+
+    post()
+
+
+# Class of calendarui.Year
+def formatyear [html] (self, request, year):
+    pre(request, "Year %d" % self.year, 'calendar')
+
+    '<h1>Year %d</h1>\n' % self.year
+
+    menupane(request, extra=self.calui.menupane_extra())
+    
+    '<div class="calendar-year">\n'
+    for m in year:
+        '<table class="month">\n'
+        '  <thead>\n'
+        '    <tr><td colspan=7><a href="%s">%s</a></td></tr>\n' % \
+          (self.calui.calendar_url('month', DateTime(self.year, m.month)), m.getname())
+        '  </thead>\n'
+        '  <tbody>\n'
+        mc = m.getcalendar()
+
+        for week in mc:
+            '    <tr>'
+            for d in week:
+                if d == 0:
+                    '<td></td>'
+                    continue
+                mark =  m.ismarked(d)
+                if mark != 0:
+                    title = '%d image' % mark
+                    if mark != 1:
+                        title += 's'
+                    '<td class="mark"><a href="%s" title="%s">%d</a></td>' % (self.calui.calendar_url('day', DateTime(self.year, m.month, d)), title, d)
+                else:
+                    '<td>%d</td>' % d
+            '</tr>\n'
+        '  </tbody>\n'
+        '</table>\n'
+    '</div>'
 
     post()

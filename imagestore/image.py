@@ -242,7 +242,7 @@ class ImageUI:
             'extra': e })
 
     def view_newwin_link(self, request, p, size=None, link=None, preferred=False, extra={}):
-        from image_page import view_margin
+        from style import view_margin
         
         if size is None:
             size = preferred_size(request, None)

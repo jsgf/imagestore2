@@ -11,15 +11,18 @@ from quixote.util import StaticDirectory
 import db, sqlobject
 
 from collection import CollectionUI
-from pages import pre, post, html, menupane
+from pages import pre, post, html, menupane, prefix
+from style import style_css
 
-_q_exports = [ 'collections', 'user', 'admin', 'rss', 'static' ]
+_q_exports = [ 'collections', 'user', 'admin', 'rss', 'static', ('style.css', 'style_css') ]
 
 def _q_index(request):
     ret = menupane(request)
-        
-    return html('Imagestore', ret)
-        
+
+    request.redirect('%s/default/' % prefix)
+    
+    return html(request, 'Imagestore', ret)
+
 def _q_lookup(request, component):
     try:
         return CollectionUI(db.Collection.byName(component))
@@ -27,7 +30,7 @@ def _q_lookup(request, component):
         raise TraversalError(str(x))
     
 def collections(request):
-    return html('Collections', 'collections')
+    return html(request, 'Collections', 'collections')
 
 def admin(request):
     return 'admin'
