@@ -1,0 +1,70 @@
+#!/bin/sh
+# Startup script for imagestore
+#
+# chkconfig: - 85 15
+# description: Imagestore photo database
+
+# Source function library.
+. /etc/rc.d/init.d/functions
+
+prog="imagestore"
+script="go_scgi.py"
+
+IMAGESTOREDIR=/home/jeremy/p4/imagestore2
+
+start() {
+    if [ ! -f /var/lock/subsys/imagestore ]; then
+        echo -n $"Starting $prog: "
+
+	cd $IMAGESTOREDIR
+        daemon $IMAGESTOREDIR/$script -m16 -p4000 -l /var/log/imagestore.log
+        RETVAL=$?
+        echo
+        [ $RETVAL = 0 ] && touch /var/lock/subsys/imagestore
+    else
+        return 0
+    fi
+    return $RETVAL
+}
+
+stop() {
+    if test "`skill -0 -n $script`"; then
+	echo -n $"Stopping $prog: "
+	skill $script
+	echo
+    fi
+    RETVAL=$?
+    [ $RETVAL = 0 ] && rm -f /var/lock/subsys/imagestore
+    return $RETVAL
+}
+
+case "$1" in
+	start)
+	    start
+	    ;;
+	
+	stop)
+	    stop
+	    ;;
+	
+	status)
+	    status cpuspeed
+	    ;;
+	restart)
+	    stop
+	    start
+	    ;;
+	condrestart)
+	    if test "x`pidof $script`" != x; then
+		stop
+		start
+	    fi
+	    ;;
+	
+	*)
+	    echo $"Usage: $0 {start|stop|restart|condrestart|status}"
+	    exit 1
+
+esac
+
+exit $RETVAL
