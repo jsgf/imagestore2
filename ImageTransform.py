@@ -60,6 +60,8 @@ def transform(id, size = 'medium'):
         d.seek(0)
         return d
 
+    short = size in ('thumb', 'tiny')	# short watermark
+
     cvtargs = ''
 
     if debug:
@@ -75,15 +77,27 @@ def transform(id, size = 'medium'):
 
     copyright=p.copyright
     if copyright is None:
-        copyright='Copyright \xa9 %s %s' % (p.record_time.strftime('%Y'), p.photographer.email)
+        copyright='\xa9%s %s' % (p.record_time.strftime('%Y'), p.photographer.email)
+	if not short:
+	    copyright = 'Copyright '+copyright
 
+    if not short:
+        brand='Imagestore '
+    else:
+        brand=''
+    if not short:
+        our_fontsize = fontsize
+    else:
+        our_fontsize = fontsize*.75
     # Watermark
-    cvtargs += '-box "#00000070" -fill white -pointsize %(size)d -font %(font)s -encoding Unicode -draw "gravity SouthWest text 10,20 \\"Imagestore #%(id)d %(copy)s\\"" -quality %(qual)d' % {
+    cvtargs += '-box "#00000070" -fill white -pointsize %(size)d -font %(font)s -encoding Unicode -draw "gravity SouthWest text 10,20 \\"%(brand)s#%(id)d %(copy)s\\"" -quality %(qual)d' % {
         'font': font,
-        'size': fontsize,
+        'size': our_fontsize,
         'id': id,
         'qual': 70,
-        'copy': copyright }
+        'copy': copyright,
+	'brand': brand
+	}
 
     temp = tempfile.NamedTemporaryFile(mode='wb', suffix='.'+extmap[p.mimetype])
     tmplen=0
