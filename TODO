@@ -2,8 +2,7 @@
 
 Short term:
 
-* Session DB in main DB
- - session timeouts
+* session expiration
 
 * Break large search results up
  - kw search done; should also do uploads and calendars
@@ -11,6 +10,7 @@ Short term:
 * Browser compatiblity
  - IE doesn't handle fixed positioning
  - visibility marker placement
+ - something about window sizing
 
 * Better handling of file types
  - play/display mpegs
