@@ -17,6 +17,8 @@ from dbfilters import mayViewCollectionFilter
 
 import menu
 
+from nav import Nav
+
 _q_exports = [ 'collections', 'user', 'admin', 'rss', 'static', ('style.css', 'style_css') ]
 
 def _q_index(request):
@@ -46,6 +48,9 @@ def _q_access(request):
                                                              url=CollectionUI(c).collection_url(),
                                                              extra={ 'title': c.description })
                                                    for c in collections ]) ]
+
+    # add navigation
+    request.navigation = Nav(request)
     
 def collections(request):
     return html(request, 'Collections', 'collections')

@@ -217,15 +217,15 @@ INPUT[type="text"]:focus, INPUT[type="password"]:focus {
   margin: 1em 0;
 }
 
-#menu .nav-prev { 
-  position: absolute;
-  bottom: 0px;
-  left: 4px;
+#menu #nav {
+  width: 100%%;
+  height: 1.5em;
 }
-#menu .nav-next { 
-  position: absolute;
-  bottom: 0px;
-  right: 4px;
+#menu #nav .prev { 
+  text-align: left;
+}
+#menu #nav .next { 
+  text-align: right;
 }
 
 /* Breadcrumb trail */
@@ -233,7 +233,6 @@ INPUT[type="text"]:focus, INPUT[type="password"]:focus {
   margin-left: -5em;
   margin-bottom: 2em;
   font-size: 60%%;
-  height: 1em;
 }
 #breadcrumbs .divider {
   color: %(active-color)s;
@@ -489,7 +488,7 @@ BODY#view IMG.picture {
   margin-left: %(view-margin)dpx;
   margin-top: %(view-margin)dpx;
 }
-BODY#view .nav { 
+BODY#view #nav { 
   position: fixed;
   top: 0px;
   left: 0px;
@@ -503,26 +502,26 @@ BODY#view .nav {
 
   vertical-align: middle;
 }
-BODY#view .nav a:hover { 
+BODY#view #nav a:hover { 
   font-size: 150%%;
   font-weight: bold;
   padding: 0px 5px 5px;
 }
-BODY#view .nav .size A {
+BODY#view #nav .options A {
   text-align: center;
   padding-left: .5em;
   padding-right: .5em;
   background-color: black;
 }
-BODY#view .nav .size A.selected	{
+BODY#view #nav .options A.selected {
   background-color: #888888;
 }
-BODY#view .nav .prev {
+BODY#view #nav .prev {
   position: absolute;
   left: 20px;
   background-color: black;
 }
-BODY#view .nav .next { 
+BODY#view #nav .next { 
   position: absolute;
   right: 20px;
   background-color: black;

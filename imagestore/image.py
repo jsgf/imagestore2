@@ -8,7 +8,7 @@ from quixote.http_response import Stream
 from sqlobject import SQLObjectNotFound
 from ImageTransform import sizes, transform, transformed_size, thumb_size, extmap
 from db import Picture, Keyword
-from pages import join_extra, prefix, pre, post
+from pages import join_extra, prefix, pre, post, menupane
 from form import userOptList, splitKeywords
 
 def sizere():
@@ -92,13 +92,22 @@ class EditUI:
                  value=p.visibility, title='Visibility',
                  options=[ s for s in ['public', 'restricted', 'private']])
 
-        form.add_submit('submit', 'Update picture details')
+        (prev,next) = request.session.get_results_neighbours(p.id)
+
+        if next is not None:
+            form.add_submit('submit-next', H('Update picture and go to next >>'))
+        else:
+            form.add_submit('submit', 'Update picture details')
         form.add_reset('reset', 'Revert changes')
 
         if not form.is_submitted() or form.has_errors():
+            self.image.set_prevnext(request, p.id,
+                                    urlfn=lambda pic, size, s=self.image: s.edit_url(pic))
+            
             ret = TemplateIO(html=True)
             
             ret += pre(request, 'Edit details', 'editdetails', trail=False)
+            ret += menupane(request)
             ret += self.image.view_rotate_link(request, p)
             ret += form.render()
             ret += post()
@@ -113,16 +122,20 @@ class EditUI:
 
             for k in p.keywords:
                 if k not in keywords:
-                    print 'removing: %s' % k.word
+                    #print 'removing: %s' % k.word
                     p.removeKeyword(k)
 
             for k in keywords:
                 if k not in p.keywords:
-                    print 'adding: %s' % k.word
+                    #print 'adding: %s' % k.word
                     p.addKeyword(k)
 
             p.visibility = form['visibility']
-            request.redirect(request.get_path())
+
+            if form.get_submit() == 'submit-next' and next:
+                request.redirect(self.image.edit_url(Picture.get(next)))
+            else:
+                request.redirect(request.get_path())
             ret = ''
 
         return ret
@@ -349,3 +362,26 @@ class ImageUI:
 
     def edit_link(self, p, link):
         return H('<a href="%s">%s</a>' % (self.edit_url(p), link))
+
+    def set_prevnext(self, request, id, size=None, urlfn=None):
+        (first, last) = request.session.get_result_ends()
+        (prev,next) = request.session.get_results_neighbours(id)
+
+        if urlfn is None:
+            urlfn = lambda pic, size: self.view_url(pic, size)
+
+        if first is not None and first != id and first != prev:
+            first = Picture.get(first)
+            request.navigation.set_first(urlfn(first, size), title='Image %d' % first.id)
+        if last is not None and last != id and last != next:
+            last = Picture.get(last)
+            request.navigation.set_last(urlfn(last, size), title='Image %d' % last.id)
+
+        if prev is not None:
+            prev = Picture.get(prev)
+            request.navigation.set_prev(urlfn(prev, size), title='Image %d' % prev.id)
+
+        if next is not None:
+            next = Picture.get(next)
+            request.navigation.set_next(urlfn(next, size), title='Image %d' % next.id)
+

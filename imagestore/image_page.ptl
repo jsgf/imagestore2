@@ -16,9 +16,6 @@ sorted_sizes=[ a for (a,b) in sorted_sizes ]
 
 def view [html] (self, request, p, size, default):
     id = p.id
-    pre(request, 'View image %d' % id,
-        bodyid='view', trail=False)
-    
     if size is None:
         size = preferred_size(request)
     elif size == 'orig':
@@ -28,6 +25,29 @@ def view [html] (self, request, p, size, default):
 
     (pw,ph) = transformed_size(id, size)
 
+    self.set_prevnext(request, id, size)
+        
+    for s in sorted_sizes:
+        if sizes[s][0]*sizes[s][1] < (640*480):
+            continue
+        if s != 'full' and sizes[s][0] > p.width and sizes[s][1] > p.height:
+            continue
+        
+        request.navigation.add_option(self.view_url(p, size=s, preferred=True),
+                                      link=s.capitalize(),
+                                      title='%dx%d' % transformed_size(id, s),
+                                      selected= s==size)
+
+    if self.coll.mayViewOrig(request, p):
+        request.navigation.add_option(self.view_url(p, size='orig'),
+                                      link='Original',
+                                      title='For printing')
+
+    pre(request, 'View image %d' % id,
+        bodyid='view', trail=False)
+
+    request.navigation.render()
+    
     # Try to resize the window to a useful inner size.
     # - do the simple thing
     # - see if it worked
@@ -45,44 +65,6 @@ def view [html] (self, request, p, size, default):
           window.resizeTo(%(w)d + bw, %(h)d + bh);
         }
 --></script>\n""" % { 'w': pw+(2*view_margin), 'h': ph+(2*view_margin) }
-
-    '<div class="nav">\n'
-
-    (prev,next) = request.session.get_results_neighbours(id)
-
-    if prev is not None:
-        prev = Picture.get(prev)
-        self.view_link(request, prev, size, arrow('left')+'&nbsp;Prev',
-                       extra={'title': 'Image %d' % prev.id,
-                              'class': 'prev'}) + '\n'
-        
-    '<span class="size">\n'
-
-    for s in sorted_sizes:
-        if sizes[s][0]*sizes[s][1] < (640*480):
-            continue
-        if s != 'full' and sizes[s][0] > p.width and sizes[s][1] > p.height:
-            continue
-        
-        sel=''
-        if s == size:
-            sel='selected'
-        self.view_link(request, p=p, size=s, link=s.capitalize(), preferred=True,
-                       extra={'title': '%dx%d' % transformed_size(id, s),
-                              'class': sel}) + '\n'
-    if self.coll.mayViewOrig(request, p):
-        self.view_link(request, p, 'orig', 'Original',
-                       extra={'title': 'For printing'}) + '\n'
-
-    '</span>\n'
-
-    if next is not None:
-        next = Picture.get(next)
-        self.view_link(request, next, size, 'Next&nbsp;'+arrow('right'),
-                       extra={'title': 'Image %d' % next.id,
-                              'class': 'next'}) + '\n'
-
-    '</div>\n'
 
     self.details_link(p, self.picture_img(p, size, default)) + '\n'
 

@@ -102,10 +102,13 @@ class KWSearchUI:
         r = TemplateIO(html=True)
 
         # Useless keywords are common to all images in this search
-        useless = Set([ k.word for k in pics[0].keywords ])
-        for p in pics[1:]:
-            useless &= Set([ k.word for k in p.keywords ])
-
+        if len(pics) > 0:
+            useless = Set([ k.word for k in pics[0].keywords ])
+            for p in pics[1:]:
+                useless &= Set([ k.word for k in p.keywords ])
+        else:
+            useless = Set()
+            
         kwset = Set([ k.word for p in pics for k in p.keywords ])
 
         groups = group_by_time(pics, int_day)

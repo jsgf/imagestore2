@@ -9,22 +9,24 @@ prefix = ImagestoreHandler.prefix
 def plural(n, s):
     return '%d %s%s' % (n, s, ['', 's'][n!=1])
 
-def pre [html] (request, title, bodyid, trail=True, brieftitle=None):
+def pre [html] (request, title, bodyid, trail=True, brieftitle=None):        
     if trail:
         request.session.add_breadcrumb(brieftitle or title,
                                        request.get_path(),
                                        brieftitle and title)
-        
     """\
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 EN">
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+        "http://www.w3.org/TR/html4/strict.dtd">
+<html>
 <head>
   <link type="text/css" rel="stylesheet" href="%(base)s/style.css">
   <title>%(title)s</title>
-</head>
+%(nav)s</head>
 <body id="%(id)s">\n""" % {
       'title': title,
       'base': prefix,
-      'id': bodyid
+      'id': bodyid,
+      'nav': request.navigation.render_links(depth=1),
       }
 
 def post [html] ():
@@ -65,7 +67,7 @@ def generate_extra [html] (extra, depth=0):
 
 # Generate a menu pane.  extra is a list of items to add to the list;
 # it's in the form of nested lists of tuples
-def menupane [html] (request, extra=None, nav=None):
+def menupane [html] (request, extra=None):
     from menu import Menu, SubMenu, Link, Heading
     from user import EditSwitchItem
     
@@ -103,11 +105,10 @@ def menupane [html] (request, extra=None, nav=None):
 
     '<div id="menu">\n'                 # DIV for whole menu pane
 
+    request.navigation.render()
+
     menu.render(depth=1)
     
-    if nav is not None:
-        nav
-
     '</div>\n'
         
 def error [html] (request, heading, body):

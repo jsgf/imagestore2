@@ -281,7 +281,8 @@ class Year:
 
     def _q_index(self, request):
         if self.year is None:
-            self.year = most_recent().year
+            self.year = most_recent(mayViewFilter(self.calui.collection.dbobj,
+                                                  request.session.getuser())).year
 
         y = self.calui.yearview(request, self.year)
 

@@ -75,6 +75,12 @@ class ImagestoreSession(Session):
             next = self.results[idx+1]
         return (prev, next)
 
+    def get_result_ends(self):
+        if self.results is None:
+            return (None,None)
+
+        return (self.results[0], self.results[-1])
+    
     def add_breadcrumb(self, title, url, desc):
         t = (str(title), str(url), desc and str(desc))
         try:

@@ -10,18 +10,13 @@ from db import Picture
 from dbfilters import mayViewFilter
 from image import ImageUI
 
-def most_recent():
+def most_recent(filter):
     " Return DateTime of most recent picture, or today "
     try:
-        return Picture.select(orderBy=Picture.q.record_time).reversed()[0].record_time
+        return Picture.select(filter,
+                              orderBy=Picture.q.record_time).reversed()[0].record_time
     except IndexError:
         return gmt()
-
-def prevlink [html] (url):
-    '<div class="nav nav-prev"><a href="%s">%s&nbsp;Prev</a></div>' % (url, arrow('left'))
-
-def nextlink [html] (url):
-    '<div class="nav nav-next"><a href="%s">Next&nbsp;%s</a></div>' % (url, arrow('right'))
 
 def freqlist(list):
     " Take a list of items, and return a list of unique (item, count) tuples. "
@@ -78,11 +73,11 @@ def picsbyday [html] (request, days, collection):
 def _q_index_ptl [html] (self, request):
     from calendarui import sorted_intervals, int_week
 
-    if self.date is None:
-        self.date = self.interval.rounddown(most_recent())
-
     filter = mayViewFilter(self.collection.dbobj, request.session.getuser())
     
+    if self.date is None:
+        self.date = self.interval.rounddown(most_recent(filter))
+
     days = self.build_calendar(self.date, self.interval, filter=filter)
 
     total = reduce(lambda a,b:a+b, [0,0]+[ p.count() for (d,p) in days ])
@@ -96,15 +91,15 @@ def _q_index_ptl [html] (self, request):
                           orderBy=Picture.q.record_time).reversed()
     if prev.count() > 0:
         prev = self.interval.rounddown(prev[0].record_time)
-        nav += prevlink(self.calendar_url(self.interval, prev))
+        request.navigation.set_prev(self.calendar_url(self.interval, prev))
 
     next = Picture.select(AND(Picture.q.record_time >= (self.date+self.interval.step), filter),
                           orderBy=Picture.q.record_time)
     if next.count() > 0:
         next = self.interval.rounddown(next[0].record_time)
-        nav += nextlink(self.calendar_url(self.interval, next))
+        request.navigation.set_next(self.calendar_url(self.interval, next))
 
-    menupane(request, nav=nav)
+    menupane(request)
 
     '<h1>%s - %s</h1>' % (self.interval.long_fmt(self.date), plural(total, 'picture'))
 
@@ -202,13 +197,14 @@ def formatyear [html] (self, request, year):
         r += '  <a class="%s" title="%s" href="%s">%d</a>\n' % \
              (selected, title,
               self.calui.calendar_url(int_year, d), d.year)
-    nav = ''
-    if prev is not None:
-        nav += prevlink(self.calui.calendar_url(int_year, prev))
-    if next is not None:
-        nav += nextlink(self.calui.calendar_url(int_year, next))
 
-    menupane(request, nav=nav)
+    if prev is not None:
+        request.navigation.set_prev(self.calendar_url(self.interval, prev))
+
+    if next is not None:
+        request.navigation.set_next(self.calendar_url(self.interval, next))
+
+    menupane(request)
 
     '<h1>Year: %d - %s</h1>\n' % (self.year, total)
 
