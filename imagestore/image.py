@@ -81,11 +81,16 @@ class EditUI:
     def editdetails(self, request, p):
         form = form2.Form('editdetails')
 
-        form.add(form2.StringWidget, name='title', value=p.title or '', title='Title')
-        form.add(form2.StringWidget, name='keywords',
+        form.add(form2.StringWidget, name='title', size=50,
+                 value=p.title or '', title='Title')
+        form.add(form2.StringWidget, name='keywords', size=40,
                  value=', '.join([ k.word for k in p.keywords]),
                  title='Keywords')
-        form.add(form2.StringWidget, name='description', value=p.description, title='Description')
+        form.add(form2.StringWidget, name='description', size=50,
+                 value=p.description, title='Description')
+# FIXME form layout
+#        form.add(form2.TextWidget, name='description', cols=50, rows=10,
+#                 value=p.description, title='Description')
 
         form.add(form2.SingleSelectWidget, name='owner', value=p.ownerID, title='Picture owner',
                  options=userOptList())

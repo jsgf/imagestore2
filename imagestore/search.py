@@ -78,7 +78,7 @@ class KWSearchUI:
     _q_exports = []
 
     #RESULTLIMIT=200
-    RESULTLIMIT=20
+    RESULTLIMIT=50
     
     def __init__(self, search, collection):
         self.col = collection
