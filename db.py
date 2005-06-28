@@ -1,5 +1,6 @@
 from sqlobject import *
 from EXIF import Ratio
+from array import array
 import sha
 import mx.DateTime
 import os.path
@@ -265,11 +266,13 @@ def getmedia(id, verify=False):
     if verify:
         sha1 = sha.new()
 
-    data=[]
+    data=array('c')
     for d in getmediachunks(m.hash):
         if verify:
             sha1.update(d)
-        data.append(d)
+	if type(d) is StringType:
+	    d = array('c', d)
+        data.extend(d)
 
     if verify:
         myhash = sha1.digest().encode('hex')
@@ -277,7 +280,7 @@ def getmedia(id, verify=False):
             raise IOError, 'Media %d data is corrupt: expect SHA1 %s, got %s' % \
                   (id, m.hash, myhash)
     
-    return ''.join(data)
+    return data.tostring()
 
 class Keyword(SQLObject):
     "Picture keywords"
