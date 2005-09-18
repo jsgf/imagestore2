@@ -243,7 +243,7 @@ def getmediachunks(hash):
 
     for c in Media.select(Media.q.hash==hash, orderBy='sequence'):
         #print "chunk id=%d, seq=%d, len=%d" % (c.id, c.sequence, len(c.data))
-        yield c.data
+        yield c.data.tostring()
 
 def verifymedia(id):
     """Verify that all the media chunks are there; returns nothing on
@@ -266,13 +266,11 @@ def getmedia(id, verify=False):
     if verify:
         sha1 = sha.new()
 
-    data=array('c')
+    data=[]
     for d in getmediachunks(m.hash):
         if verify:
             sha1.update(d)
-	if type(d) is StringType:
-	    d = array('c', d)
-        data.extend(d)
+	data.append(d)
 
     if verify:
         myhash = sha1.digest().encode('hex')
@@ -280,7 +278,7 @@ def getmedia(id, verify=False):
             raise IOError, 'Media %d data is corrupt: expect SHA1 %s, got %s' % \
                   (id, m.hash, myhash)
     
-    return data.tostring()
+    return ''.join(data)
 
 class Keyword(SQLObject):
     "Picture keywords"
