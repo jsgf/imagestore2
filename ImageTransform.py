@@ -35,21 +35,23 @@ sizes = { 'thumb':      (160, 160),
 # map types to extensions
 extmap = { 'image/jpeg':    'jpg',
            'image/tiff':    'tif',
+           'video/mpeg':    'mpg',
            }
 # map extensions to types
 typemap = { 'jpg':          'image/jpeg',
             'jpeg':         'image/jpeg',
             'tiff':         'image/tiff',
             'tif':          'image/tiff',
+            'mpg':          'video/mpeg',
+            'mpeg':         'video/mpeg',
             }
 
 # Given an image ID and size, return a file handle to a stream
 # containing the transformed image.  The image will always be
 # 'image/jpeg'
-def transform(id, size = 'medium'):
+def transform(p, size = 'medium'):
     debug=False
 
-    p = db.Picture.get(id)
     (tw, th) = sizes[size]
 
     if size == 'thumb' and p.th_width <= tw and p.th_height <= th:
@@ -93,7 +95,7 @@ def transform(id, size = 'medium'):
     cvtargs += '-box "#00000070" -fill white -pointsize %(size)d -font %(font)s -encoding Unicode -draw "gravity SouthWest text 10,20 \\"%(brand)s#%(id)d %(copy)s\\"" -quality %(qual)d' % {
         'font': font,
         'size': our_fontsize,
-        'id': id,
+        'id': p.id,
         'qual': 70,
         'copy': copyright,
 	'brand': brand
@@ -123,11 +125,14 @@ def transform(id, size = 'medium'):
     
     return ret
 
+def transformed_type(p, size):
+    if size == 'thumb' or p.mimetype.startswith('image/'):
+        return 'image/jpeg'
+    return p.mimetype
+
 # Assumes pixel aspect ratio is 1:1 (ie, square pixels)
-def transformed_size(id, size):
+def transformed_size(p, size):
     debug=False
-    
-    p = db.Picture.get(id)
 
     (pw,ph) = (p.width, p.height)
 

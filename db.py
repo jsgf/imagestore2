@@ -4,6 +4,7 @@ from array import array
 import sha
 import mx.DateTime
 import os.path
+from mime import getMimeType
 
 lazycol=True
 
@@ -302,6 +303,14 @@ def strToKeyword(word, collection, create):
 class Picture(SQLObject):
     "Pictures - including movies and other media"
 
+    def __getattr__(self, name):
+        if not hasattr(self, 'mimeproxy'):
+            self.mimeproxy = getMimeType(self.mimetype)
+        m = getattr(self.mimeproxy, name)
+        m = lambda s=self, px=self.mimeproxy, m=m, *args: m(m, self, *args)
+        setattr(self.__class__, name, m)
+        return m
+    
     def getimage(self, verify=False):
         return getmedia(self.mediaid, verify)
 

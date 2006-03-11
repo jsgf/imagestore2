@@ -7,7 +7,7 @@ import quixote.form2 as form2
 from quixote.http_response import Stream
 
 from sqlobject import SQLObjectNotFound
-from ImageTransform import sizes, transform, transformed_size, thumb_size, extmap
+from ImageTransform import sizes, transform, transformed_size, transformed_type, thumb_size, extmap
 from db import Picture, Keyword
 from pages import join_extra, prefix, pre, post, menupane
 from form import userOptList, splitKeywords
@@ -179,7 +179,7 @@ class ImageUI:
             set_preferred_size(request, size)
         
         etag = '%s.%s.%s' % (p.hash, p.orientation, size)
-        request.response.set_content_type('image/jpeg')
+        request.response.set_content_type(transformed_type(p, size))
         request.response.set_header('ETag', etag)
         #request.response.set_header('Last-Modified', formatdate(p.modified_time))
         request.response.cache=2
@@ -189,7 +189,7 @@ class ImageUI:
             request.response.set_status(304)
             return ''
         
-        file = transform(p.id, size)
+        file = transform(p, size)
         
         if True or size == 'thumb':     # XXX streaming seems to cause a deadlock
             return ''.join(file)        # so we have a size
@@ -291,7 +291,7 @@ class ImageUI:
     def picture_img(self, p, size, preferred=False, extra={}):
         e = join_extra(extra)
 
-        (pw,ph) = transformed_size(p.id, size)
+        (pw,ph) = transformed_size(p, size)
 
         r = TemplateIO(html=True)
 
@@ -363,7 +363,7 @@ class ImageUI:
         extra['target'] = str(p.id)
 
         if size is not None:
-            (tw,th) = transformed_size(p.id, size)
+            (tw,th) = transformed_size(p, size)
         else:
             (tw,th) = (640,480)
 

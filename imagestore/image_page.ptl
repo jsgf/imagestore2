@@ -23,7 +23,7 @@ def view [html] (self, request, p, size, default):
     elif default:
         set_preferred_size(request, size)
 
-    (pw,ph) = transformed_size(id, size)
+    (pw,ph) = transformed_size(p, size)
 
     self.set_prevnext(request, id, size)
         
@@ -35,7 +35,7 @@ def view [html] (self, request, p, size, default):
         
         request.navigation.add_option(self.view_url(p, size=s, preferred=True),
                                       link=s.capitalize(),
-                                      title='%dx%d' % transformed_size(id, s),
+                                      title='%dx%d' % transformed_size(p, s),
                                       selected= s==size)
 
     if self.coll.mayViewOrig(request, p):
