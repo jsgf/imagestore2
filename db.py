@@ -166,9 +166,7 @@ class Media(SQLObject):
 
     idx = DatabaseIndex('hash', 'sequence', unique=True)
 
-    # XXX we need MEDIUMBLOB for MySQL, but not for SQLite and
-    # possibly something else for other DBs
-    data = StringCol(sqlType="MEDIUMBLOB")
+    data = BLOBCol(length=_chunksize)
     
     def _set_data(self, v):
         if _encode_media:
