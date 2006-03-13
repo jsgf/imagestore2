@@ -1,8 +1,5 @@
 # -*- python -*-
 
-from db import Collection
-from sqlobject.sqlbuilder import OR
-
 from imagestore import path
 prefix = path()
 

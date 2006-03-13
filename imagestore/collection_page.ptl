@@ -5,8 +5,9 @@ from sqlobject.sqlbuilder import *
 from quixote.util import Redirector
 import quixote.form as form2
 
+import imagestore.db as db
+
 from pages import pre, post, join_extra, menupane, prefix
-from db import Picture, User, CollectionPerms, Collection
 from dbfilters import mayViewFilter, userFilter
 from random import randrange
 from image import ImageUI
@@ -17,13 +18,13 @@ from calendarui import int_day
 def _q_index [html] (self, request):
     filter = mayViewFilter(self.dbobj, request.session.getuser())
 
-    npics = Picture.select(AND(filter, Picture.q.collectionID == self.dbobj.id)).count()
+    npics = db.Picture.select(AND(filter, db.Picture.q.collectionID == self.dbobj.id)).count()
 
     # set we draw the sampler from
-    pics = Picture.select(AND(filter,
-                              Picture.q.rating >= 0,
-                              STARTSWITH(Picture.q.mimetype, str('image/'))),
-                          orderBy=Picture.q.record_time).reversed()[:400]
+    pics = db.Picture.select(AND(filter,
+                                 db.Picture.q.rating >= 0,
+                                 STARTSWITH(db.Picture.q.mimetype, str('image/'))),
+                             orderBy=db.Picture.q.record_time).reversed()[:400]
     count = pics.count()
     pics = list(pics)
 
@@ -92,7 +93,7 @@ def admin_page [html] (self, request):
     props.add(form2.SingleSelectWidget, name='owner', value=col.ownerID, title='Owner',
               options=userOptList())
 
-    nopics = (Picture.select(Picture.q.collectionID == col.id).count() == 0)
+    nopics = (db.Picture.select(db.Picture.q.collectionID == col.id).count() == 0)
 
     props.add_submit('submit', 'Change collection settings')
     props.add_reset('Reset form')
@@ -113,7 +114,7 @@ def admin_page [html] (self, request):
         '</div>'
     else:
         if props['name'] != col.name and \
-               Collection.select(Collection.q.name == props['name']).count() != 0:
+               db.Collection.select(db.Collection.q.name == props['name']).count() != 0:
             props.get_widget('name').set_error('name already taken')
         else:
             col.name = str(props['name'])
@@ -127,12 +128,12 @@ def admin_page [html] (self, request):
 
     '<div class="title-box user-perms">\n'
     '<h2>Per-user permissions</h2>\n'
-    users = CollectionPerms.select(CollectionPerms.q.collectionID == col.id,
-                                   orderBy=CollectionPerms.q.userID)
+    users = db.CollectionPerms.select(db.CollectionPerms.q.collectionID == col.id,
+                                      orderBy=db.CollectionPerms.q.userID)
     if users.count() != 0:
         '<table>\n'
         for up in users:
-            u = User.get(up.userID)
+            u = db.User.get(up.userID)
             
             '<tr>\n'
             '<td>%d<td>' % u.id

@@ -4,7 +4,8 @@ from quixote.errors import TraversalError, QueryError
 from quixote.html import htmltext
 from sqlobject.sqlbuilder import AND, OR
 
-from db import Picture
+import imagestore.db as db
+
 from dbfilters import mayViewFilter
 from pages import pre, post, menupane, error, prefix
 from calendar_page import _q_index_ptl, most_recent
@@ -129,10 +130,10 @@ def pics_in_range(start, end=None, delta=None, filter=None):
     if end is None:
         end = start + delta
         
-    q = [ Picture.q.record_time >= start, Picture.q.record_time < end ]
+    q = [ db.Picture.q.record_time >= start, db.Picture.q.record_time < end ]
     if filter is not None:
         q.append(filter)
-    return Picture.select(AND(*q), orderBy=Picture.q.record_time).distinct()
+    return db.Picture.select(AND(*q), orderBy=db.Picture.q.record_time).distinct()
 
 def pics_grouped(group, first=None, last=None, round=False, filter=None):
     ''' return a list of (DateTime, select-result) tuples counting the number
@@ -142,9 +143,9 @@ def pics_grouped(group, first=None, last=None, round=False, filter=None):
 
     try:
         if first is None:
-            first = Picture.select(filter, orderBy=Picture.q.record_time)[0].record_time
+            first = db.Picture.select(filter, orderBy=db.Picture.q.record_time)[0].record_time
         if last is None:
-            last = Picture.select(filter, orderBy=Picture.q.record_time).reversed()[0].record_time
+            last = db.Picture.select(filter, orderBy=db.Picture.q.record_time).reversed()[0].record_time
     except IndexError:
         # If there are no pictures, then return an empty list
         return []

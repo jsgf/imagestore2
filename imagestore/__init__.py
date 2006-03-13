@@ -13,7 +13,7 @@ from quixote.util import Redirector
 from quixote.errors import TraversalError
 from quixote.util import StaticDirectory
 
-from db import Collection
+import imagestore.db as db
 
 from collection import CollectionUI
 from pages import pre, post, html, menupane
@@ -35,7 +35,7 @@ def _q_index(request):
 
 def _q_lookup(request, component):
     try:
-        return CollectionUI(Collection.byName(component))
+        return CollectionUI(db.Collection.byName(component))
     except SQLObjectNotFound, x:
         raise TraversalError(str(x))
 
@@ -46,7 +46,7 @@ def _q_access(request):
     user = request.session.getuser()
 
     # Add collection list
-    collections = Collection.select(mayViewCollectionFilter(user), orderBy=Collection.q.id)
+    collections = db.Collection.select(mayViewCollectionFilter(user), orderBy=db.Collection.q.id)
     request.context_menu += [ menu.Separator(),
                               menu.SubMenu(heading='Collections:',
                                            items=[ menu.Link(link=c.name,

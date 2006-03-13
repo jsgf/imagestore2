@@ -12,7 +12,7 @@ from cStringIO import StringIO
 import sqlobject as SQLObject
 import EXIF
 
-from db import *
+import imagestore.db as db
 
 from ImageTransform import data_from_Image, Image_from_data
 
@@ -96,7 +96,7 @@ class StillImageImporter(Importer):
         sha1 = sha.new(imgdata)
         hash=sha1.digest().encode('hex')
 
-        s = Picture.select(Picture.q.hash==hash)
+        s = db.Picture.select(db.Picture.q.hash==hash)
         if s.count() != 0:
             raise AlreadyPresentException('%d' % s[0].id)
 
@@ -134,19 +134,19 @@ class StillImageImporter(Importer):
             width,height = img.size
             th_width,th_height = th_img.size
 
-            pic = Picture(owner=owner,
-                          visibility=public,
-                          collection=collection,
-                          hash=m.hash,
-                          media=m,
-                          datasize=len(imgdata),
-                          mimetype=mimetype or Image.MIME[img.format],
-                          width=width,
-                          height=height,
-                          thumb=thumb,
-                          th_width=th_width,
-                          th_height=th_height,
-                          **imgattr)
+            pic = db.Picture(owner=owner,
+                             visibility=public,
+                             collection=collection,
+                             hash=m.hash,
+                             media=m,
+                             datasize=len(imgdata),
+                             mimetype=mimetype or Image.MIME[img.format],
+                             width=width,
+                             height=height,
+                             thumb=thumb,
+                             th_width=th_width,
+                             th_height=th_height,
+                             **imgattr)
 
             add_keywords(collection, pic, keywords)
         except Exception, x:
@@ -171,7 +171,7 @@ class MPEGImporter(Importer):
         sha1 = sha.new(imgdata)
         hash = sha1.digest().encode('hex')
 
-        s = Picture.select(Picture.q.hash == hash)
+        s = db.Picture.select(db.Picture.q.hash == hash)
         if s.count() != 0:
             raise AlreadyPresentException('%d' % s[0].id)
 
@@ -185,19 +185,19 @@ class MPEGImporter(Importer):
             width, height = (320, 240)  # XXX FIXME
             th_width, th_height = th_img.size
 
-            pic = Picture(owner=owner,
-                          visibility=public,
-                          collection=collection,
-                          hash=m.hash,
-                          media=m,
-                          datasize=len(imgdata),
-                          mimetype=mimetype or 'video/mpeg',
-                          width=width,
-                          height=height,
-                          thumb=thumb,
-                          th_width=th_width,
-                          th_height=th_height,
-                          **imgattr)
+            pic = db.Picture(owner=owner,
+                             visibility=public,
+                             collection=collection,
+                             hash=m.hash,
+                             media=m,
+                             datasize=len(imgdata),
+                             mimetype=mimetype or 'video/mpeg',
+                             width=width,
+                             height=height,
+                             thumb=thumb,
+                             th_width=th_width,
+                             th_height=th_height,
+                             **imgattr)
             add_keywords(collection, pic, keywords)
         except Exception, x:
             print 'exception '% x
@@ -208,6 +208,7 @@ class MPEGImporter(Importer):
     
 update_maps({
     'video/mpeg':   [ 'mpg', 'mpeg' ],
+    'video/quicktime':   [ 'mov' ],
     }, MPEGImporter)
 
 
@@ -334,18 +335,18 @@ def add_keywords(coll, image, keywords=None):
     keywords = keywords or []
     for k in keywords:
         try:
-            kw = Keyword.byWord(k)
+            kw = db.Keyword.byWord(k)
         except SQLObjectNotFound, x:
-            kw = Keyword(word=k, collection=coll)
+            kw = db.Keyword(word=k, collection=coll)
 
         image.addKeyword(kw)
         coll.addKeyword(kw)
         
 def get_user(username, email, fullname):
-    u=User.select(User.q.username==username)
+    u=db.User.select(db.User.q.username==username)
     if u.count() != 0:
         return u[0]
-    return User(username=username, fullname=fullname, email=email)
+    return db.User(username=username, fullname=fullname, email=email)
 
 def import_image(data, owner, orig_filename, public, collection, keywords, mimetype=None, **attr):
     #print 'import_image(orig_filename=%s, mimetype=%s)' % (orig_filename,mimetype)
@@ -361,7 +362,7 @@ def import_image(data, owner, orig_filename, public, collection, keywords, mimet
 if __name__ == '__main__':
     optlist, args = getopt.getopt(argv[1:], 'o:p:qh')
     owner = get_user(username='jeremy', email='jeremy@goop.org', fullname='Jeremy Fitzhardinge')
-    collection = defaultCollection()
+    collection = db.defaultCollection()
     public='public'
 
     for opt in optlist:
@@ -375,7 +376,7 @@ if __name__ == '__main__':
 	if o == '-h':
 	    printhash=1
         if o == '-c':
-            collection = Collection.byName(v)
+            collection = db.Collection.byName(v)
             
     for arg in args:
         handle_dir(arg, owner, public, collection)

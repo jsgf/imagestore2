@@ -6,9 +6,10 @@ from sqlobject import SQLObjectNotFound
 
 from calendarui import int_day
 
+import imagestore.db as db
+
 from image import ImageUI
 from pages import pre, post, menupane, prefix, plural, join_extra
-from db import Picture, Keyword
 from dbfilters import mayViewFilter
 from calendar_page import picsbyday
 from menu import SubMenu, Heading, Link, Separator
@@ -112,7 +113,7 @@ class KWSearchUI:
         # unknown, then by definition we can't find any images tagged
         # with it
         try:
-            kw = [ Keyword.byWord(k) for k in self.kw ]
+            kw = [ db.Keyword.byWord(k) for k in self.kw ]
         except SQLObjectNotFound:
             kw = []
 
@@ -261,8 +262,8 @@ class SearchUI:
     def _q_index(self, request):
         r = TemplateIO(html=True)
 
-        kw = Keyword.select(Keyword.q.collectionID == self.col.dbobj.id,
-                            orderBy=Keyword.q.word)
+        kw = db.Keyword.select(db.Keyword.q.collectionID == self.col.dbobj.id,
+                               orderBy=db.Keyword.q.word)
 
         r += pre(request, 'Keyword search', 'search', brieftitle='keywords')
         r += menupane(request)

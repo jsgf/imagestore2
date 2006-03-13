@@ -7,7 +7,7 @@ from quixote.session import SessionManager
 import imagestore
 from imagestore.session import ImagestoreSession, ImagestoreSessionMapping
 
-import db
+import imagestore.db as db
 
 config = Config()
 config.read_file('imagestore/config.conf')

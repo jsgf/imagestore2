@@ -1,3 +1,6 @@
+
+from sqlobject.sqlbuilder import AND
+
 from quixote.errors import AccessError
 from quixote.html import htmltext as H
 
@@ -8,8 +11,6 @@ from calendarui import CalendarUI
 from search import SearchUI
 from upload import UploadUI
 
-from sqlobject.sqlbuilder import AND
-from db import User, CollectionPerms
 import menu
 
 class CollectionUI:

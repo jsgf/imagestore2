@@ -26,6 +26,7 @@ import quixote.form as form2
 
 from sqlobject.sqlbuilder import AND
 
+import imagestore.db as db
 from db import Picture, Camera, Upload
 from insert import import_image, ImportException, AlreadyPresentException
 
@@ -149,7 +150,7 @@ class UploadUI:
                                   record_time=date)
                 imageui = ImageUI(self.collection)
                 r = H('OK, Picture #%s</dt><dd>%s</dd>\n') % \
-                    (id, imageui.thumb_img(Picture.get(id), False))
+                    (id, imageui.thumb_img(db.Picture.get(id), False))
             except AlreadyPresentException, msg:
                 r = H('</dt><dd>Already present (#%s)</dd>\n') % msg
             except ImportException, msg:
@@ -200,10 +201,10 @@ class UploadUI:
             user = request.session.getuser()
             start = int_day.rounddown(gmt())
             end = int_day.roundup(gmt())
-            upload = Upload.select(AND(Upload.q.import_time >= start,
-                                       Upload.q.import_time < end,
-                                       Upload.q.userID == user.id,
-                                       Upload.q.collectionID == self.collection.dbobj.id))
+            upload = db.Upload.select(AND(db.Upload.q.import_time >= start,
+                                          db.Upload.q.import_time < end,
+                                          db.Upload.q.userID == user.id,
+                                          db.Upload.q.collectionID == self.collection.dbobj.id))
 
             assert upload.count() == 0 or upload.count() == 1, \
                    'Should be only one Upload per day per user'
@@ -211,7 +212,7 @@ class UploadUI:
             if upload.count() == 1:
                 u = upload[0]
             else:
-                u = Upload(user=user, collection=self.collection.dbobj)
+                u = db.Upload(user=user, collection=self.collection.dbobj)
             
             c = int(form['camera'])
 
@@ -220,7 +221,7 @@ class UploadUI:
             elif c == -1:
                 camera = None                    # guess
             else:
-                camera = Camera.get(c)
+                camera = db.Camera.get(c)
                 
             numfiles = int(form['numfiles'])
 
@@ -247,9 +248,9 @@ class UploadUI:
 
         results=[]
 
-        for u in Upload.select(AND(Upload.q.collectionID == self.collection.dbobj.id,
-                                   Upload.q.userID == user.id),
-                               orderBy=Upload.q.import_time):
+        for u in db.Upload.select(AND(db.Upload.q.collectionID == self.collection.dbobj.id,
+                                      db.Upload.q.userID == user.id),
+                                  orderBy=db.Upload.q.import_time):
             pics = u.pictures
             if not pics:
                 continue
@@ -313,10 +314,10 @@ class UploadUI:
     def have_pending(self, user):
         if not user:
             return False
-        return Picture.select(AND(Picture.q.collectionID == self.collection.dbobj.id,
-                                  Picture.q.uploadID == Upload.q.id,
-                                  Picture.q.ownerID == user.id,
-                                  Upload.q.userID == user.id)).count() != 0
+        return db.Picture.select(AND(db.Picture.q.collectionID == self.collection.dbobj.id,
+                                     db.Picture.q.uploadID == db.Upload.q.id,
+                                     db.Picture.q.ownerID == user.id,
+                                     db.Upload.q.userID == user.id)).count() != 0
     def pending_url(self):
         return '%s/%s/upload/pending' % (prefix, self.collection.dbobj.name)
 
@@ -334,7 +335,7 @@ class UploadUI:
 
         if request.form.has_key('commit'):
             for p in pics:
-                p = Picture.get(int(p))
+                p = db.Picture.get(int(p))
                 print 'p=%d p.upload=%s' % (p.id, p.upload)
                 if p.upload is None:
                     continue
@@ -351,7 +352,7 @@ class UploadUI:
             vis = request.form['visibility']
             
             for p in pics:
-                p = Picture.get(int(p))
+                p = db.Picture.get(int(p))
                 p.addKeywords(kw)
                 if vis != 'unchanged':
                     p.visibility = vis

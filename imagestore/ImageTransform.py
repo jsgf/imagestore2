@@ -1,4 +1,4 @@
-import db
+import imagestore.db as db
 import sha
 import tempfile
 from cStringIO import StringIO

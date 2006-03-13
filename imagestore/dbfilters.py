@@ -1,4 +1,5 @@
-from db import User, Picture, Collection, CollectionPerms
+import imagestore.db as db
+
 from sqlobject import SQLObjectNotFound
 from sqlobject.sqlbuilder import *
 
@@ -24,7 +25,7 @@ from sqlobject.sqlbuilder import *
 # collection permissions for the user before the main query
 
 def _inCollection(collection, filt):
-    return AND(Picture.q.collectionID == collection.id, filt)
+    return AND(db.Picture.q.collectionID == collection.id, filt)
 
 def mayViewFilter(collection, user = None):
     " Rules for which pictures a user may view - user==None for anonymous "
@@ -32,10 +33,10 @@ def mayViewFilter(collection, user = None):
     ok = [ False ]
 
     if collection.visibility == 'public':
-        ok.append(Picture.q.visibility == 'public')
+        ok.append(db.Picture.q.visibility == 'public')
 
     if user is not None:
-        ok.append(Picture.q.ownerID == user.id)
+        ok.append(db.Picture.q.ownerID == user.id)
 
         perms = collection.permissions(user)
 
@@ -45,12 +46,12 @@ def mayViewFilter(collection, user = None):
 
             if collection.visibility != 'public' and perms and perms.mayView:
                 # if collection is public, we've already tested for this
-                ok.append(Picture.q.visibility == 'public')
+                ok.append(db.Picture.q.visibility == 'public')
 
             if perms and perms.mayViewRestricted:
-                ok.append(Picture.q.visibility == 'restricted')
+                ok.append(db.Picture.q.visibility == 'restricted')
 
-    return _inCollection(collection, AND(Picture.q.uploadID == None, OR(*ok)))
+    return _inCollection(collection, AND(db.Picture.q.uploadID == None, OR(*ok)))
 
 def mayEditFilter(collection, user):
     ok = False
@@ -60,7 +61,7 @@ def mayEditFilter(collection, user):
         if user.mayAdmin or (perms and perms.mayEdit):
             ok = True
         else:
-            ok = (Picture.q.ownerID == user.id)
+            ok = (db.Picture.q.ownerID == user.id)
 
     return _inCollection(collection, ok)
 
@@ -81,15 +82,15 @@ def userFilter(sql=True):
     return AND(sql, User.q.enabled)
 
 def mayViewCollectionFilter(user):
-    ok = [ Collection.q.visibility == 'public' ]
+    ok = [ db.Collection.q.visibility == 'public' ]
 
     if user is not None:
         if user.mayAdmin:
             ok = [ True ]
         else:
-            ok += [ Collection.q.ownerID == user.id ]
-#             ok += [ AND(CollectionPerms.q.collectionID == Collection.q.id,
-#                         CollectionPerms.q.userID == user.id,
-#                         CollectionPerms.q.mayView) ]
+            ok += [ db.Collection.q.ownerID == user.id ]
+#             ok += [ AND(db.CollectionPerms.q.collectionID == db.Collection.q.id,
+#                         db.CollectionPerms.q.userID == user.id,
+#                         db.CollectionPerms.q.mayView) ]
 
     return OR(*ok)

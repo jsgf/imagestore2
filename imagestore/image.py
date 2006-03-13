@@ -1,15 +1,17 @@
 import re
 from rfc822 import formatdate
 
+from sqlobject import SQLObjectNotFound
+
 from quixote.util import Redirector
 from quixote.errors import TraversalError, AccessError
 from quixote.html import htmltext as H, TemplateIO
 import quixote.form as form2
 from quixote.http_response import Stream
 
-from sqlobject import SQLObjectNotFound
+import imagestore.db as db
+
 from ImageTransform import sizes, transform, transformed_size, transformed_type, thumb_size, extmap
-from db import Picture, Keyword
 from pages import join_extra, prefix, pre, post, menupane
 from form import userOptList, splitKeywords
 
@@ -44,7 +46,7 @@ def split_image_name(name):
     id=m.group(1).lower()
     if id.startswith('sha1:'):
         try:
-            id = Picture.byHash(id[5:]).id
+            id = db.Picture.byHash(id[5:]).id
         except SQLObjectNotFound:
             raise QueryError('hash %s not found' % id)
 
@@ -62,7 +64,7 @@ class DetailsUI:
         (id, size, pref, ext) = split_image_name(component)
 
         try:
-            p = Picture.get(id)
+            p = db.Picture.get(id)
         except SQLObjectNotFound, x:
             raise TraversalError(str(x))
 
@@ -83,7 +85,7 @@ class EditUI:
         (id, size, pref, ext) = split_image_name(component)
 
         try:
-            p = Picture.get(id)
+            p = db.Picture.get(id)
         except SQLObjectNotFound, x:
             raise TraversalError(str(x))
 
@@ -142,7 +144,7 @@ class EditUI:
             p.visibility = form['visibility']
 
             if form.get_submit() == 'submit-next' and next:
-                Redirector(self.image.edit_url(Picture.get(next)))
+                Redirector(self.image.edit_url(db.Picture.get(next)))
             else:
                 Redirector(request.get_path())
             ret = ''
@@ -203,7 +205,7 @@ class ImageUI:
             angle = int(request.get_form_var('angle'))
             returnurl = request.get_form_var('fromurl')
 
-            p = Picture.get(id)
+            p = db.Picture.get(id)
 
             if not self.coll.mayEdit(request, p):
                 raise AccessError('may not edit image')
@@ -234,7 +236,7 @@ class ImageUI:
         (picid, size, default, ext) = split_image_name(component)
 
         try:
-            p = Picture.get(picid)
+            p = db.Picture.get(picid)
         except SQLObjectNotFound, x:
             raise TraversalError(str(x))
 
@@ -389,17 +391,17 @@ class ImageUI:
             urlfn = lambda pic, size: self.view_url(pic, size)
 
         if first is not None and first != id and first != prev:
-            first = Picture.get(first)
+            first = db.Picture.get(first)
             request.navigation.set_first(urlfn(first, size), title='Image %d' % first.id)
         if last is not None and last != id and last != next:
-            last = Picture.get(last)
+            last = db.Picture.get(last)
             request.navigation.set_last(urlfn(last, size), title='Image %d' % last.id)
 
         if prev is not None:
-            prev = Picture.get(prev)
+            prev = db.Picture.get(prev)
             request.navigation.set_prev(urlfn(prev, size), title='Image %d' % prev.id)
 
         if next is not None:
-            next = Picture.get(next)
+            next = db.Picture.get(next)
             request.navigation.set_next(urlfn(next, size), title='Image %d' % next.id)
 

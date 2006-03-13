@@ -7,16 +7,17 @@ from mx.DateTime import DateTime, RelativeDateTime, gmt
 
 from sqlobject.sqlbuilder import AND
 
+import imagestore.db as db
+
 from pages import pre, post, menupane, error, arrow, plural
-from db import Picture
 from dbfilters import mayViewFilter
 from image import ImageUI
 
 def most_recent(filter):
     " Return DateTime of most recent picture, or today "
     try:
-        return Picture.select(filter,
-                              orderBy=Picture.q.record_time).reversed()[0].record_time
+        return db.Picture.select(filter,
+                                 orderBy=db.Picture.q.record_time).reversed()[0].record_time
     except IndexError:
         return gmt()
 
@@ -89,14 +90,14 @@ def _q_index_ptl [html] (self, request):
         'calendar', brieftitle='%s: %s' % (self.interval.name, self.interval.num_fmt(self.date)))
 
     nav = ''
-    prev = Picture.select(AND(Picture.q.record_time < self.date, filter),
-                          orderBy=Picture.q.record_time).reversed()
+    prev = db.Picture.select(AND(db.Picture.q.record_time < self.date, filter),
+                             orderBy=db.Picture.q.record_time).reversed()
     if prev.count() > 0:
         prev = self.interval.rounddown(prev[0].record_time)
         request.navigation.set_prev(self.calendar_url(self.interval, prev))
 
-    next = Picture.select(AND(Picture.q.record_time >= (self.date+self.interval.step), filter),
-                          orderBy=Picture.q.record_time)
+    next = db.Picture.select(AND(db.Picture.q.record_time >= (self.date+self.interval.step), filter),
+                             orderBy=db.Picture.q.record_time)
     if next.count() > 0:
         next = self.interval.rounddown(next[0].record_time)
         request.navigation.set_next(self.calendar_url(self.interval, next))

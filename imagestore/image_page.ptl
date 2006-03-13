@@ -1,10 +1,10 @@
 # -*- python -*-
 
 import imagestore
+
 from imagestore.image import preferred_size, set_preferred_size
 from ImageTransform import transformed_size, sizes, thumb_size
 from pages import pre, post, join_extra, arrow
-from db import Picture, Keyword
 from style import view_margin, thiswayup_img_padding, table_twu, arrow_height
 
 prefix = imagestore.path()

@@ -8,10 +8,11 @@ from quixote.errors import AccessError, TraversalError, QueryError
 from quixote.html import htmltext as H, TemplateIO
 import quixote.form as form2
 
+import imagestore.db
+import imagestore.dbfilters as dbfilters
+
 from pages import pre, post, menupane, error, prefix
 from user_page import login_form, user_page as user_page_ptl, user_edit as user_edit_ptl
-from db import User, Picture
-from dbfilters import userFilter
 from menu import Link, Separator, MenuItem
 
 from config import users as userprefs
@@ -52,7 +53,7 @@ def login(request):
 
         failed = False
         try:
-            user = User.byUsername(username)
+            user = db.User.byUsername(username)
 
             if password == '':
                 password = None
@@ -104,7 +105,7 @@ def newuser(request):
     
     if form.is_submitted():
         username = form['username'].strip()
-        if User.select(User.q.username == username).count() != 0:
+        if db.User.select(db.User.q.username == username).count() != 0:
             form.get_widget('username').set_error(H("Username '%s' already in use") % username)
         if form['pass1'] != form['pass2']:
             form.get_widget('pass1').set_error('Passwords do not match')
@@ -116,14 +117,14 @@ def newuser(request):
             form.get_widget('email').set_error('Missing or bad email address')
             
         if not form.has_errors():
-            u = User(username=username, fullname=fullname,
-                     password=form['pass1'],
-                     email=email,
-                     mayAdmin=False,
-                     mayViewall=False,
-                     mayUpload=False,
-                     mayComment=userprefs.mayComment,
-                     mayRate=userprefs.mayRate)
+            u = db.User(username=username, fullname=fullname,
+                        password=form['pass1'],
+                        email=email,
+                        mayAdmin=False,
+                        mayViewall=False,
+                        mayUpload=False,
+                        mayComment=userprefs.mayComment,
+                        mayRate=userprefs.mayRate)
             Redirector(user_url(u))
         else:
             render=True
@@ -153,7 +154,7 @@ def logout(request):
 def _q_lookup(request, component):
     u = None
     try:
-        u = User.byUsername(component)
+        u = db.User.byUsername(component)
         if 0 and not u.enabled:
             u = None
     except SQLObjectNotFound, x:
@@ -236,13 +237,13 @@ class UserWidget(form2.CompositeWidget):
         form2.CompositeWidget._parse(self, request)
 
         if self['delete']:
-            count = Picture.select(Picture.q.ownerID == self.user.id).count()
+            count = db.Picture.select(db.Picture.q.ownerID == self.user.id).count()
             
             if count != 0 and self.get('replacement') == 0:
                 raise form2.WidgetValueError('Must set replacement')
 
         if self['username'] != self.user.username and \
-               User.select(User.q.username == self['username']).count() != 0:
+               db.User.select(db.User.q.username == self['username']).count() != 0:
             self.get_widget('username').set_error('New username must be unique')
 
     def has_changed(self):
@@ -307,11 +308,11 @@ class UserListWidget(form2.CompositeWidget):
                 deleted.append(w)
 
         if deleted:
-            replacements = User.select(userFilter(NOT(IN(User.q.id, [ w.user.id for w in deleted ]))),
-                                       orderBy=User.q.id)
+            replacements = db.User.select(dbfilters.userFilter(NOT(IN(db.User.q.id, [ w.user.id for w in deleted ]))),
+                                          orderBy=db.User.q.id)
 
             for w in deleted:
-                pics = Picture.select(Picture.q.ownerID == w.user.id).count()
+                pics = db.Picture.select(db.Picture.q.ownerID == w.user.id).count()
                 if pics != 0:
                     w.add_replacement(replacements, pics)
 
@@ -372,7 +373,7 @@ def editusers(request):
 
     userform.add(form2.HiddenWidget, 'state', value=0)
 
-    for u in User.select(userFilter(), orderBy=User.q.id):
+    for u in db.User.select(dbfilters.userFilter(), orderBy=db.User.q.id):
         userlist.adduser(u)
 
     state = int(userform['state'])

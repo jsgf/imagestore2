@@ -12,6 +12,7 @@ from stat import ST_MTIME
 from time import time
 from cStringIO import StringIO
 
+import imagestore.db as db
 from db import User, conn, Session as dbSession
 
 # class ImagestorePublisher(SessionPublisher):
@@ -74,7 +75,7 @@ class ImagestoreSession(Session):
 
         try:
             #print 'self.user=%s' % self.user
-            return User.get(self.user)
+            return db.User.get(self.user)
         except SQLObjectNotFound:
             self.user=None
             return None
@@ -225,7 +226,7 @@ class SQLMapping:
 
     def __getitem__(self, session_id):
         try:
-            s = dbSession.bySession(session_id)
+            s = db.Session.bySession(session_id)
             data = load(StringIO(s.data))
             s.expire()
             #print 'getitem(%s) -> %s' % (session_id, data)
@@ -240,7 +241,7 @@ class SQLMapping:
             return default
 
     def has_key(self, session_id):
-        return dbSession.select(dbSession.q.session == session_id).count() != 0
+        return db.Session.select(db.Session.q.session == session_id).count() != 0
 
     def __setitem__(self, session_id, session):
         #print 'set session_id=%s session=%s' % (session_id, session)
