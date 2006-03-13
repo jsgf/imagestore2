@@ -1,7 +1,8 @@
-import imagestore.db as db
-
 from sqlobject import SQLObjectNotFound
 from sqlobject.sqlbuilder import *
+
+import imagestore.db as db
+
 
 # A set of functions which return SQLBuilder query objects to filter
 # various DB requests
@@ -79,7 +80,7 @@ def mayCurateFilter(collection, user):
 
 
 def userFilter(sql=True):
-    return AND(sql, User.q.enabled)
+    return AND(sql, db.User.q.enabled)
 
 def mayViewCollectionFilter(user):
     ok = [ db.Collection.q.visibility == 'public' ]

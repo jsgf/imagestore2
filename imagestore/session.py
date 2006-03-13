@@ -13,7 +13,6 @@ from time import time
 from cStringIO import StringIO
 
 import imagestore.db as db
-from db import User, conn, Session as dbSession
 
 # class ImagestorePublisher(SessionPublisher):
 #     def __init__(self, *args, **kwargs):
@@ -251,10 +250,10 @@ class SQLMapping:
         dump(session, data)
         
         try:
-            s = dbSession.bySession(session_id)
+            s = db.Session.bySession(session_id)
             s.data = data.getvalue()
         except SQLObjectNotFound:
-            s = dbSession(session=session_id, data=data.getvalue())
+            s = db.Session(session=session_id, data=data.getvalue())
         s.expire()
 
     def __delitem__(self, session_id):
@@ -263,13 +262,13 @@ class SQLMapping:
             raise KeyError(session_id, 'no such session %s' % session_id)
 
     def keys(self):
-        return [ s.session for s in dbSession.select() ]
+        return [ s.session for s in db.Session.select() ]
 
     def values(self):
-        return [ s.data for s in dbSession.select() ]
+        return [ s.data for s in db.Session.select() ]
 
     def items(self):
-        return [ (s.session, s.data) for s in dbSession.select() ]
+        return [ (s.session, s.data) for s in db.Session.select() ]
         
 class ImagestoreSessionMapping(SQLMapping):
     def __init__(self):

@@ -18,7 +18,7 @@ view_margin = 15
 
 table_twu=True                          # Whether to use a TABLE for thiswayup
 
-from pages import prefix
+import imagestore
 
 def style_css [plain] (request):
     request.response.set_content_type('text/css')
@@ -48,7 +48,7 @@ def style_css [plain] (request):
 
         'view-margin': view_margin,
 
-        'staticdir':    '%s/static' % prefix,
+        'staticdir':    '%s/static' % imagestore.path(),
         }
 
     # First, some basic definitions

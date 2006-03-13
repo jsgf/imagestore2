@@ -1,25 +1,16 @@
 # -*- python -*-
 
-from quixote.html import htmltext as H, TemplateIO
+import mx.DateTime as mxdt
 
-from sets import Set
-from mx.DateTime import DateTime, RelativeDateTime, gmt
+from quixote.html import htmltext as H, TemplateIO
 
 from sqlobject.sqlbuilder import AND
 
 import imagestore.db as db
-
-from pages import pre, post, menupane, error, arrow, plural
-from dbfilters import mayViewFilter
-from image import ImageUI
-
-def most_recent(filter):
-    " Return DateTime of most recent picture, or today "
-    try:
-        return db.Picture.select(filter,
-                                 orderBy=db.Picture.q.record_time).reversed()[0].record_time
-    except IndexError:
-        return gmt()
+import imagestore.calendarui
+import imagestore.pages as page
+import imagestore.dbfilters as dbfilters
+import imagestore.image as image
 
 def freqlist(list):
     " Take a list of items, and return a list of unique (item, count) tuples. "
@@ -47,13 +38,11 @@ def picsbyday [html] (request, days, collection):
     # them grouped by day, along with a summary of the keywords used
     # for that day's pictures.
     maxkw = 10
-    
-    from calendarui import int_day
 
     for d,pl in days:
         keywords = freqlist([ k.word for p in pl for k in p.keywords if k.word != 'unclassified' ])
         ellip = len(keywords) > maxkw
-        keywords = [ collection.search.search_kw_link(k, d, { 'title': plural(c, 'occurrence')}) for k,c in keywords[:maxkw] ]
+        keywords = [ collection.search.search_kw_link(k, d, { 'title': page.plural(c, 'occurrence')}) for k,c in keywords[:maxkw] ]
         
         '<div id="%s" class="day">\n' % (int_day.num_fmt(d))
         '<h3>\n'
@@ -70,13 +59,13 @@ def picsbyday [html] (request, days, collection):
         '</h3>\n' 
         '<div class="day-pics">\n'
         for p in pl:
-            ImageUI(collection).view_rotate_link(request, p) + '\n'
+            image.ImageUI(collection).view_rotate_link(request, p) + '\n'
         '</div>\n</div>\n'
 
 def _q_index_ptl [html] (self, request):
-    from calendarui import sorted_intervals, int_week
+    from calendarui import sorted_intervals, int_week, most_recent
 
-    filter = mayViewFilter(self.collection.dbobj, request.session.getuser())
+    filter = dbfilters.mayViewFilter(self.collection.dbobj, request.session.getuser())
     
     if self.date is None:
         self.date = self.interval.rounddown(most_recent(filter))
@@ -85,9 +74,10 @@ def _q_index_ptl [html] (self, request):
 
     total = reduce(lambda a,b:a+b, [0,0]+[ p.count() for (d,p) in days ])
 
-    pre(request, 'Calendar: %s - %s' % (self.interval.long_fmt(self.date),
-                                        plural(total, 'picture')),
-        'calendar', brieftitle='%s: %s' % (self.interval.name, self.interval.num_fmt(self.date)))
+    page.pre(request, 'Calendar: %s - %s' % (self.interval.long_fmt(self.date),
+                                             page.plural(total, 'picture')),
+             'calendar', brieftitle='%s: %s' % (self.interval.name,
+                                                self.interval.num_fmt(self.date)))
 
     nav = ''
     prev = db.Picture.select(AND(db.Picture.q.record_time < self.date, filter),
@@ -102,12 +92,12 @@ def _q_index_ptl [html] (self, request):
         next = self.interval.rounddown(next[0].record_time)
         request.navigation.set_next(self.calendar_url(self.interval, next))
 
-    menupane(request)
+    page.menupane(request)
 
-    '<h1>%s - %s</h1>' % (self.interval.long_fmt(self.date), plural(total, 'picture'))
+    '<h1>%s - %s</h1>' % (self.interval.long_fmt(self.date), page.plural(total, 'picture'))
 
     if days is None or len(days) == 0:
-            error(request, 'No pictures in specified range', 'Please select another date range')
+        page.error(request, 'No pictures in specified range', 'Please select another date range')
 
     for i in sorted_intervals:
         sel=''
@@ -120,18 +110,18 @@ def _q_index_ptl [html] (self, request):
 
     request.session.set_query_results([ p for d, piclist in days for p in piclist ])
 
-    post()
+    page.post()
 
 
 def emitmonth [html](request, calui, year, m):
     from calendarui import int_month, int_day
 
-    title = plural(m.total, 'picture')
+    title = page.plural(m.total, 'picture')
     
     '\n<table class="month">\n'
     '  <thead>\n'
     '    <tr><td colspan="7"><a title="%s" href="%s">%s</a></td></tr>\n' % \
-      (title, calui.calendar_url(int_month, DateTime(year, m.month)), m.getname())
+      (title, calui.calendar_url(int_month, mxdt.DateTime(year, m.month)), m.getname())
     '  </thead>\n'
     '  <tbody>\n'
     mc = m.getcalendar()
@@ -154,9 +144,9 @@ def emitmonth [html](request, calui, year, m):
                 continue
             mark =  m.ismarked(d)
             if mark != 0:
-                title = plural(mark, 'picture')
+                title = page.plural(mark, 'picture')
                 '<td class="mark"><a href="%s" title="%s">%d</a></td>' % \
-                     (calui.calendar_url(int_day, DateTime(year, m.month, d)), title, d)
+                     (calui.calendar_url(int_day, mxdt.DateTime(year, m.month, d)), title, d)
             else:
                 '<td>%d</td>' % d
         '</tr>\n'
@@ -167,7 +157,7 @@ def emitmonth [html](request, calui, year, m):
 def formatyear [html] (self, request, year):
     from calendarui import pics_grouped, int_year, kw_summary
 
-    filter = mayViewFilter(self.calui.collection.dbobj, request.session.getuser())
+    filter = dbfilters.mayViewFilter(self.calui.collection.dbobj, request.session.getuser())
 
     pics = pics_grouped(int_year, round=True, filter=filter)
 
@@ -176,9 +166,9 @@ def formatyear [html] (self, request, year):
         if d.year == self.year:
             total = c.count()
 
-    total = plural(total, 'picture')
+    total = page.plural(total, 'picture')
 
-    pre(request, "Year %d: %s" % (self.year, total), 'calendar')
+    page.pre(request, "Year %d: %s" % (self.year, total), 'calendar')
 
     r = TemplateIO(html=True)
     
@@ -195,7 +185,7 @@ def formatyear [html] (self, request, year):
         if d.year == self.year:
             selected='selected'
 
-        title = plural(c.count(), 'picture')
+        title = page.plural(c.count(), 'picture')
         
         r += '  <a class="%s" title="%s" href="%s">%d</a>\n' % \
              (selected, title,
@@ -207,7 +197,7 @@ def formatyear [html] (self, request, year):
     if next is not None:
         request.navigation.set_next(self.calui.calendar_url(int_year, next))
 
-    menupane(request)
+    page.menupane(request)
 
     '<h1>Year: %d - %s</h1>\n' % (self.year, total)
 
@@ -239,4 +229,4 @@ def formatyear [html] (self, request, year):
         
     '</table>'
 
-    post()
+    page.post()

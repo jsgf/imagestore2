@@ -1,15 +1,14 @@
 # Navigation controls
 
 from quixote.html import htmltext as H, TemplateIO
-from pages import arrow
 
-from image import ImageUI
+import imagestore.pages as page
 
 _def_link = {
-    'first':    ('%(a)s%(a)s&nbsp;%%(link)s' % { 'a': arrow('left') }),
-    'prev':     ('%(a)s&nbsp;%%(link)s' % { 'a': arrow('left') }),
-    'next':     ('%%(link)s&nbsp;%(a)s' % { 'a': arrow('right') }),
-    'last':     ('%%(link)s&nbsp;%(a)s%(a)s' % { 'a': arrow('right') }),
+    'first':    ('%(a)s%(a)s&nbsp;%%(link)s' % { 'a': page.arrow('left') }),
+    'prev':     ('%(a)s&nbsp;%%(link)s' % { 'a': page.arrow('left') }),
+    'next':     ('%%(link)s&nbsp;%(a)s' % { 'a': page.arrow('right') }),
+    'last':     ('%%(link)s&nbsp;%(a)s%(a)s' % { 'a': page.arrow('right') }),
 }
 
 class _link:

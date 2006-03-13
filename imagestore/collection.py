@@ -4,14 +4,13 @@ from sqlobject.sqlbuilder import AND
 from quixote.errors import AccessError
 from quixote.html import htmltext as H
 
-from imagestore.image import ImageUI
-from pages import prefix
-import collection_page
-from calendarui import CalendarUI
-from search import SearchUI
-from upload import UploadUI
-
-import menu
+import imagestore
+import imagestore.image as image
+import imagestore.collection_page as collection_page
+import imagestore.calendarui as calendarui
+import imagestore.search as search
+import imagestore.upload as upload
+import imagestore.menu as menu
 
 class CollectionUI:
     _q_exports = [ 'image', 'calendar', 'search', 'admin', 'upload' ]
@@ -19,10 +18,10 @@ class CollectionUI:
     def __init__(self, dbobj):
         self.dbobj = dbobj  
 
-        self.image = ImageUI(self)
-        self.calendar = CalendarUI(self)
-        self.search = SearchUI(self)
-        self.upload = UploadUI(self)
+        self.image = image.ImageUI(self)
+        self.calendar = calendarui.CalendarUI(self)
+        self.search = search.SearchUI(self)
+        self.upload = upload.UploadUI(self)
         
     _q_index = collection_page._q_index
 
@@ -144,7 +143,7 @@ class CollectionUI:
         return collection_page.admin_page(self, request)
 
     def collection_url(self):
-        return '%s/%s/' % (prefix, self.dbobj.name)
+        return '%s/%s/' % (imagestore.path(), self.dbobj.name)
 
     def collection_admin_url(self):
         return self.collection_url() + 'admin'

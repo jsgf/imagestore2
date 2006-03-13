@@ -6,13 +6,11 @@ from sqlobject import SQLObjectNotFound
 
 from calendarui import int_day
 
+import imagestore
 import imagestore.db as db
-
-from image import ImageUI
-from pages import pre, post, menupane, prefix, plural, join_extra
-from dbfilters import mayViewFilter
-from calendar_page import picsbyday
-from menu import SubMenu, Heading, Link, Separator
+import imagestore.pages as page
+import imagestore.calendar_page as calendar_page
+import imagestore.menu as menu
 
 def commonKeywords(pics):
     " Returns a set of keywords which are common to all pics "
@@ -96,7 +94,7 @@ class KWSearchUI:
         if keywords is None:
             keywords = self.kw
         
-        base=H('%s/%s/search/kw/') % (prefix, self.col.dbobj.name)
+        base=H('%s/%s/search/kw/') % (imagestore.path(), self.col.dbobj.name)
         base += ''.join([ k+'/' for k in keywords])
 
         limit = limit or self.RESULTLIMIT
@@ -184,18 +182,18 @@ class KWSearchUI:
         extra = []
 
         if refining:
-            extra += [ Link('refine search', '#refine') ]
+            extra += [ menu.Link('refine search', '#refine') ]
         if kwset:
-            extra += [ Link('new search', '#replace') ]
+            extra += [ menu.Link('new search', '#replace') ]
         
         if len(groups) > 1:
-            skiplist = [ Link(int_day.num_fmt(day), '#' + int_day.num_fmt(day))
+            skiplist = [ menu.Link(int_day.num_fmt(day), '#' + int_day.num_fmt(day))
                          for (day, dp) in groups ]
             if len(skiplist) > 15:
                 factor = len(skiplist) / 15
                 skiplist = [ s for (n, s) in zip(range(len(skiplist)), skiplist)
                              if n % factor == 0 ]
-            extra += [ SubMenu(heading='Skip to:', items=skiplist) ]
+            extra += [ menu.SubMenu(heading='Skip to:', items=skiplist) ]
 
         if len(self.kw) > 1:
             searchstr = ' and '.join([ ', '.join(self.kw[:-1]), self.kw[-1] ])
@@ -206,19 +204,19 @@ class KWSearchUI:
 
         heading=H('Search for %s: ') % searchstr
         if start == 0 and end >= resultsize:
-            heading += H('%s') % plural(resultsize, 'picture')
+            heading += H('%s') % page.plural(resultsize, 'picture')
         elif start+1 == resultsize:
             heading += H('last of %d pictures') % (resultsize)
         else:
             heading += H('%d&ndash;%d of %d pictures') % (start+1, min(resultsize,end), resultsize)
             
-        r += pre(request, heading, 'kwsearch', brieftitle=searchstr, trail=start==0)
+        r += page.pre(request, heading, 'kwsearch', brieftitle=searchstr, trail=start==0)
 
-        r += menupane(request, extra)
+        r += page.menupane(request, extra)
 
         r += H('<h1>%s</h1>\n') % heading
 
-        r += picsbyday(request, groups, self.col)
+        r += calendar_page.picsbyday(request, groups, self.col)
 
         if refining:
             # Refine by ANDing more keywords in
@@ -247,7 +245,7 @@ class KWSearchUI:
             r += listkeywords(self.url(keywords=[]), list(kwset))
             r += H('</div>\n')
 
-        r += post()
+        r += page.post()
 
         return r.getvalue()
     
@@ -265,32 +263,33 @@ class SearchUI:
         kw = db.Keyword.select(db.Keyword.q.collectionID == self.col.dbobj.id,
                                orderBy=db.Keyword.q.word)
 
-        r += pre(request, 'Keyword search', 'search', brieftitle='keywords')
-        r += menupane(request)
+        r += page.pre(request, 'Keyword search', 'search', brieftitle='keywords')
+        r += page.menupane(request)
 
         r += H('<div class="title-box kwlist">\n')
-        r += H('<h2>%s</h2>\n') % plural(kw.count(), 'keyword')
+        r += H('<h2>%s</h2>\n') % page.plural(kw.count(), 'keyword')
 
         # XXX filter only keywords with (visible) pictures associated with them
         # (and perhaps weight by use)
         r += listkeywords('kw/', [ k.word for k in kw ], True)
         r += H('</div>\n')
 
-        r += post();
+        r += page.post();
 
         return r.getvalue()
 
     def menupane_extra(self):
-        return [ Separator(),
-                 SubMenu(heading='Search',
-                         items=[Link('by keyword', '%s/%s/search/' % (prefix, self.col.dbobj.name))]) ]
+        return [ menu.Separator(),
+                 menu.SubMenu(heading='Search',
+                              items=[menu.Link('by keyword', '%s/%s/search/' % (imagestore.path(),
+                                                                                self.col.dbobj.name))]) ]
 
     def search_kw_url(self, kw, d=None):
         return self.kw.url(keywords=[ kw ]) + (d and '#' + int_day.num_fmt(d) or '')
 
     def search_kw_link(self, kw, d=None, extra=None):
         if extra:
-            extra = join_extra(extra)
+            extra = page.join_extra(extra)
 
         return H('<a %s href="%s">%s</a>') % (extra or '',
                                               self.search_kw_url(kw, d), kw)

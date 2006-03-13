@@ -8,14 +8,13 @@ from quixote.errors import AccessError, TraversalError, QueryError
 from quixote.html import htmltext as H, TemplateIO
 import quixote.form as form2
 
-import imagestore.db
+import imagestore
+import imagestore.db as db
 import imagestore.dbfilters as dbfilters
-
-from pages import pre, post, menupane, error, prefix
-from user_page import login_form, user_page as user_page_ptl, user_edit as user_edit_ptl
-from menu import Link, Separator, MenuItem
-
-from config import users as userprefs
+import imagestore.pages as page
+import imagestore.user_page as user_page
+import imagestore.menu as menu
+import imagestore.config as config
 
 _q_exports = [ 'login', 'logout', 'editmode', 'editusers', 'newuser' ]
 
@@ -23,15 +22,15 @@ def _q_access(request):
     sess_user = request.session.getuser()
     
     if sess_user and sess_user.mayAdmin:
-        request.context_menu += [ Separator(),
-                                  Link('User admin', '%s/user/editusers' % prefix) ]
+        request.context_menu += [ menu.Separator(),
+                                  menu.Link('User admin', '%s/user/editusers' % imagestore.path()) ]
 
 
 def user_url(user):
     if user is None:
-        return '%s/user/login' % prefix
+        return '%s/user/login' % imagestore.path()
     else:
-        return '%s/user/%s/' % (prefix, user.username)
+        return '%s/user/%s/' % (imagestore.path(), user.username)
 
 perms = [ ('mayAdmin', 'May administer'),
           ('mayViewall', 'May view everything'),
@@ -64,8 +63,8 @@ def login(request):
             failed = True
 
         if failed:
-            body += error(request, 'User unknown or password incorrect', 'Please try again.')
-            body += login_form(request, username=username)
+            body += page.error(request, 'User unknown or password incorrect', 'Please try again.')
+            body += user_page.login_form(request, username=username)
         else:
             body += H('<p>Hi, %s, you\'ve logged in' % user.fullname)
             session.setuser(user.id)
@@ -74,22 +73,22 @@ def login(request):
             else:
                 Redirector(user_url(user))
     else:
-        body += login_form(request, referer=request.get_environ('HTTP_REFERER'))
+        body += user_page.login_form(request, referer=request.get_environ('HTTP_REFERER'))
 
 
-    page = TemplateIO(html=True)
+    p = TemplateIO(html=True)
 
-    page += pre(request, 'Imagestore Login', 'login', trail=False)
-    page += menupane(request)
-    page += H(body)
-    page += post()
+    p += page.pre(request, 'Imagestore Login', 'login', trail=False)
+    p += page.menupane(request)
+    p += H(body)
+    p += page.post()
 
-    return page.getvalue()
+    return p.getvalue()
 
 def newuser(request):
     user = request.session.getuser()
 
-    if not ((user and user.mayAdmin) or userprefs.unpriv_newuser):
+    if not ((user and user.mayAdmin) or config.users.unpriv_newuser):
         raise AccessError('You may not create a new user')
 
     form = form2.Form()
@@ -123,8 +122,8 @@ def newuser(request):
                         mayAdmin=False,
                         mayViewall=False,
                         mayUpload=False,
-                        mayComment=userprefs.mayComment,
-                        mayRate=userprefs.mayRate)
+                        mayComment=config.users.mayComment,
+                        mayRate=config.users.mayRate)
             Redirector(user_url(u))
         else:
             render=True
@@ -134,10 +133,10 @@ def newuser(request):
     if render:
         r = TemplateIO(html=True)
         
-        r += pre(request, 'New User', 'newuser')
-        r += menupane(request)
+        r += page.pre(request, 'New User', 'newuser')
+        r += page.menupane(request)
         r += form.render()
-        r += post()
+        r += page.post()
 
         return r.getvalue()
     else:
@@ -408,11 +407,11 @@ def editusers(request):
     def render():
         ret = TemplateIO(html=True)
 
-        ret += pre(request, 'User administration', 'editusers')
-        ret += menupane(request)
+        ret += page.pre(request, 'User administration', 'editusers')
+        ret += page.menupane(request)
         ret += H('<h1>User administration</h1>\n')
         ret += userform.render()
-        ret += post()
+        ret += page.post()
 
         return ret.getvalue()
 
@@ -444,11 +443,11 @@ def editmode(request):
     return ''
 
 def editmode_url(onoff):
-    return '%s/user/editmode?wantedit=%d' % (prefix, onoff)
+    return '%s/user/editmode?wantedit=%d' % (imagestore.path(), onoff)
 
-class EditSwitchItem(MenuItem):
+class EditSwitchItem(menu.MenuItem):
     def __init__(self, session, classes=None, extra=None):
-        MenuItem.__init__(self, classes=classes, extra=extra)
+        menu.MenuItem.__init__(self, classes=classes, extra=extra)
 
         self.classes.append('editswitch')
 
@@ -485,8 +484,6 @@ class UserUI:
             Redirector(user_url(sess_user))
             return ''
 
-        return self.user_page(request)
+        return user_page.user_page(request)
 
-    user_page = user_page_ptl
-
-    edit = user_edit_ptl
+    edit = user_page.user_edit

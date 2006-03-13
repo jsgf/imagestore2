@@ -9,21 +9,22 @@ from quixote.html import htmltext as H, TemplateIO
 import quixote.form as form2
 from quixote.http_response import Stream
 
+import imagestore
 import imagestore.db as db
-
-from ImageTransform import sizes, transform, transformed_size, transformed_type, thumb_size, extmap
-from pages import join_extra, prefix, pre, post, menupane
-from form import userOptList, splitKeywords
+import imagestore.pages as page
+import imagestore.form
+import imagestore.ImageTransform as ImageTransform
+import imagestore.style as style
 
 def sizere():
-    return '|'.join(sizes.keys())
+    return '|'.join(ImageTransform.sizes.keys())
 
 # Save preferred size as a cookie rather than a user preference
 # since it's most likely to depend on whichever machine/browser
 # they're using.  (XXX Could also default from user preference)
 def preferred_size(request, default='small'):
     ret = request.get_cookie('imagestore-preferred-size', default)
-    if ret not in sizes.keys():
+    if ret not in ImageTransform.sizes.keys():
         ret = default
     return ret
 
@@ -106,7 +107,7 @@ class EditUI:
 #                 value=p.description, title='Description')
 
         form.add(form2.SingleSelectWidget, name='owner', value=p.ownerID, title='Picture owner',
-                 options=userOptList())
+                 options=imagestore.form.userOptList())
         form.add(form2.SingleSelectWidget, name='visibility',
                  value=p.visibility, title='Visibility',
                  options=[ s for s in ['public', 'restricted', 'private']])
@@ -127,17 +128,17 @@ class EditUI:
             
             ret = TemplateIO(html=True)
             
-            ret += pre(request, 'Edit details', 'editdetails', trail=False)
-            ret += menupane(request)
+            ret += page.pre(request, 'Edit details', 'editdetails', trail=False)
+            ret += page.menupane(request)
             ret += self.image.view_rotate_link(request, p, wantedit=True)
             ret += detail_table(p)
             ret += form.render()
-            ret += post()
+            ret += page.post()
 
             ret = ret.getvalue()
         else:
             keywords = form['keywords']
-            keywords = splitKeywords(keywords)
+            keywords = imagestore.form.splitKeywords(keywords)
 
             p.setKeywords(keywords)
 
@@ -182,7 +183,7 @@ class ImageUI:
             set_preferred_size(request, size)
         
         etag = '%s.%s.%s' % (p.hash, p.orientation, size)
-        request.response.set_content_type(transformed_type(p, size))
+        request.response.set_content_type(ImageTransform.transformed_type(p, size))
         request.response.set_header('ETag', etag)
         #request.response.set_header('Last-Modified', formatdate(p.modified_time))
         request.response.cache=2
@@ -192,7 +193,7 @@ class ImageUI:
             request.response.set_status(304)
             return ''
         
-        file = transform(p, size)
+        file = ImageTransform.transform(p, size)
         
         if True or size == 'thumb':     # XXX streaming seems to cause a deadlock
             return ''.join(file)        # so we have a size
@@ -266,16 +267,16 @@ class ImageUI:
         else:
             size = ''
 
-        return '%s/%s/image/%d%s.html' % (prefix, self.dbcoll.name, p.id, size)
+        return '%s/%s/image/%d%s.html' % (imagestore.path(), self.dbcoll.name, p.id, size)
 
     def thumb_url(self, p):
-        return '%s/%s/image/%d-thumb.jpg' % (prefix, self.dbcoll.name, p.id)
+        return '%s/%s/image/%d-thumb.jpg' % (imagestore.path(), self.dbcoll.name, p.id)
 
     def details_url(self, p):
-        return '%s/%s/image/details/%d.html' % (prefix, self.dbcoll.name, p.id)
+        return '%s/%s/image/details/%d.html' % (imagestore.path(), self.dbcoll.name, p.id)
 
     def edit_url(self, p):
-        return '%s/%s/image/edit/%d.html' % (prefix, self.dbcoll.name, p.id)
+        return '%s/%s/image/edit/%d.html' % (imagestore.path(), self.dbcoll.name, p.id)
 
     def picture_url(self, p, size, preferred=False):
         if size is not None:
@@ -284,17 +285,18 @@ class ImageUI:
                 size += '!'
         else:
             size = ''
-        return "%s/%s/image/%d%s.%s" % (prefix, self.dbcoll.name, p.id, size, extmap[p.mimetype])
+        return "%s/%s/image/%d%s.%s" % (imagestore.path(), self.dbcoll.name, p.id, size,
+                                        ImageTransform.extmap[p.mimetype])
 
     def rotate_url(self, p, angle, frompage):
         angle = int(angle)
         return '%s/%s/image/rotate?id=%d&angle=%d&fromurl=%s' % \
-               (prefix, self.dbcoll.name, p.id, angle, frompage)
+               (imagestore.path(), self.dbcoll.name, p.id, angle, frompage)
 
     def picture_img(self, p, size, preferred=False, extra={}):
-        e = join_extra(extra)
+        e = page.join_extra(extra)
 
-        (pw,ph) = transformed_size(p, size)
+        (pw,ph) = ImageTransform.transformed_size(p, size)
 
         r = TemplateIO(html=True)
 
@@ -310,8 +312,8 @@ class ImageUI:
         return r.getvalue()
 
     def thumb_img(self, p, showvis, extra={}):
-        e = join_extra(extra)
-        (tw,th) = thumb_size(p.id)
+        e = page.join_extra(extra)
+        (tw,th) = ImageTransform.thumb_size(p.id)
 
         r = TemplateIO(html=True)
 
@@ -327,7 +329,7 @@ class ImageUI:
 
         if showvis:
             r += H('<img class="visibility" title="%(v)s" alt="%(v)s" src="%(p)s/static/%(v)s.png">') % {
-                'v': p.visibility, 'p': prefix
+                'v': p.visibility, 'p': imagestore.path()
                 }
 
         r += H('</span>')
@@ -341,7 +343,7 @@ class ImageUI:
 
         url = url or self.view_url(p=p, size=size, preferred=preferred)
 
-        e = join_extra(extra)
+        e = page.join_extra(extra)
 
         return H('<a id="pic%(id)d" %(extra)s href="%(url)s">%(link)s</a>' % {
             'id': p.id,
@@ -357,8 +359,6 @@ class ImageUI:
         return self.view_link(request, p, url=self.edit_url(p))
         
     def view_newwin_link(self, request, p, size=None, link=None, preferred=False, extra=None):
-        from style import view_margin
-
         extra = extra or {}
         
         if size is None:
@@ -366,14 +366,14 @@ class ImageUI:
         extra['target'] = str(p.id)
 
         if size is not None:
-            (tw,th) = transformed_size(p, size)
+            (tw,th) = ImageTransform.transformed_size(p, size)
         else:
             (tw,th) = (640,480)
 
         extra['onClick'] = "newwin = window.open('', '%(id)d', 'width=%(w)d,height=%(h)d,resizable=1,scrollbars=0');" % {
             'id': p.id,
-            'w': tw + (2*view_margin),
-            'h': th + (2*view_margin),
+            'w': tw + (2*style.view_margin),
+            'h': th + (2*style.view_margin),
             }
         return self.view_link(request, p=p, size=size, link=link, preferred=preferred, extra=extra)
 

@@ -1,16 +1,13 @@
 # -*- python -*-
 
 from quixote.util import Redirector
-
-from pages import pre, post, menupane, prefix
-
-from db import User, Picture, Collection, CollectionPerms
-
-import imagestore
-
-from collection import CollectionUI
 from quixote.errors import AccessError
 import quixote.form as form2
+
+import imagestore
+import imagestore.pages as page
+import imagestore.db as db
+import imagestore.collection as collection
 
 prefix = imagestore.path()
 
@@ -44,9 +41,10 @@ def user_edit [html] (self, request):
     if user != sess_user and not sess_user.mayAdmin:
         raise AccessError("You may not see this user's private parts")
     
-    pre(request, 'Edit details for %s' % user.fullname, 'useredit', brieftitle='edit user details')
+    page.pre(request, 'Edit details for %s' % user.fullname,
+             'useredit', brieftitle='edit user details')
 
-    menupane(request)
+    page.menupane(request)
     
     '<H1>Edit details for %s</H1>\n' % user.fullname
 
@@ -77,7 +75,7 @@ def user_edit [html] (self, request):
             if not sess_user.mayAdmin and form['password'] != user.password:
                 form.get_widget('password').set_error('Enter your current password')
         if form['username'] != user.username and \
-           User.select(User.q.username == form['username']).count() != 0:
+               db.User.select(db.User.q.username == form['username']).count() != 0:
             form.get_widget('username').set_error('Username already taken')
 
         if form.has_errors():
@@ -96,14 +94,14 @@ def user_edit [html] (self, request):
 
 def user_page [html] (self, request):
     u = self.user
-    pre(request, u.fullname, 'user-page', brieftitle='user page')
+    page.pre(request, u.fullname, 'user-page', brieftitle='user page')
 
-    menupane(request)
+    page.menupane(request)
 
     user_details(u, request)
     user_collections(u, request)
 
-    post()
+    page.post()
 
 def user_details [html] (u, request):
     
@@ -123,14 +121,15 @@ def user_details [html] (u, request):
             'fullname': u.fullname,
             'email':    u.email,
             'id':       u.id,
-            'npics':    Picture.select(Picture.q.ownerID == u.id).count(),
+            'npics':    db.Picture.select(db.Picture.q.ownerID == u.id).count(),
             'editlink': '%s/user/%s/edit' % (prefix, u.username),
             }
 
 
 def user_collections [html] (u, request):
-    mycols = Collection.select(Collection.q.ownerID == u.id, orderBy=Collection.q.id)
-    cols = CollectionPerms.select(CollectionPerms.q.userID == u.id)
+    mycols = db.Collection.select(db.Collection.q.ownerID == u.id,
+                                  orderBy=db.Collection.q.id)
+    cols = db.CollectionPerms.select(db.CollectionPerms.q.userID == u.id)
     
     if mycols.count() != 0 or cols.count() != 0:
         '<div class="title-box collection-summary">\n'
@@ -140,13 +139,13 @@ def user_collections [html] (u, request):
             '<ul class="collection-list">\n'
             for c in mycols:
                 '<li>%(admin)s - %(d)s (%(v)s, %(np)d pics)\n' % {
-                    'admin': CollectionUI(c).collection_admin_link(c.name),
+                    'admin': collection.CollectionUI(c).collection_admin_link(c.name),
                     'd': c.description,
                     'v': c.visibility,
-                    'np': Picture.select(Picture.q.collectionID == c.id).count(),
+                    'np': db.Picture.select(db.Picture.q.collectionID == c.id).count(),
                     }
             '</ul>\n'
-    for c in Collection.select(Collection.q.ownerID == u.id, orderBy=Collection.q.id):
+    for c in db.Collection.select(db.Collection.q.ownerID == u.id, orderBy=db.Collection.q.id):
         pass
 
     if u.mayCreateCat:
@@ -164,11 +163,11 @@ def user_collections [html] (u, request):
             form.render()
             '</div>\n'
         else:
-            if Collection.select(Collection.q.name == form['newcolname']).count() != 0:
+            if db.Collection.select(db.Collection.q.name == form['newcolname']).count() != 0:
                 form.get_widget('newcolname').set_error('Collection already exists')
             else:
-                nc = Collection(name=str(form['newcolname']),
-                                description=str(form['newcoldesc']),
-                                visibility=str(form['newcolvis']), ownerID = u.id)
+                nc = db.Collection(name=str(form['newcolname']),
+                                   description=str(form['newcoldesc']),
+                                   visibility=str(form['newcolvis']), ownerID = u.id)
                 #Redirector('%s/%s' % (prefix, nc.name))
                 Redirector(request.get_path())

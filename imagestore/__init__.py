@@ -14,28 +14,27 @@ from quixote.errors import TraversalError
 from quixote.util import StaticDirectory
 
 import imagestore.db as db
-
-from collection import CollectionUI
-from pages import pre, post, html, menupane
-from style import style_css
-from dbfilters import mayViewCollectionFilter
-
-import menu
-
-from nav import Nav
+import imagestore.collection as collection
+import imagestore.pages as page
+import imagestore.dbfilters as dbfilters
+import imagestore.style
+import imagestore.menu as menu
+import imagestore.nav as nav
 
 _q_exports = [ 'collections', 'user', 'admin', 'rss', 'static', ('style.css', 'style_css') ]
 
+style_css = imagestore.style.style_css
+
 def _q_index(request):
-    ret = menupane(request)
+    ret = page.menupane(request)
 
     Redirector('%s/default/' % path())
     
-    return html(request, 'Imagestore', ret)
+    return page.html(request, 'Imagestore', ret)
 
 def _q_lookup(request, component):
     try:
-        return CollectionUI(db.Collection.byName(component))
+        return collection.CollectionUI(db.Collection.byName(component))
     except SQLObjectNotFound, x:
         raise TraversalError(str(x))
 
@@ -46,19 +45,20 @@ def _q_access(request):
     user = request.session.getuser()
 
     # Add collection list
-    collections = db.Collection.select(mayViewCollectionFilter(user), orderBy=db.Collection.q.id)
+    collections = db.Collection.select(dbfilters.mayViewCollectionFilter(user),
+                                       orderBy=db.Collection.q.id)
     request.context_menu += [ menu.Separator(),
                               menu.SubMenu(heading='Collections:',
                                            items=[ menu.Link(link=c.name,
-                                                             url=CollectionUI(c).collection_url(),
+                                                             url=collection.CollectionUI(c).collection_url(),
                                                              extra={ 'title': c.description })
                                                    for c in collections ]) ]
 
     # add navigation
-    request.navigation = Nav(request)
+    request.navigation = nav.Nav(request)
     
 def collections(request):
-    return html(request, 'Collections', 'collections')
+    return page.html(request, 'Collections', 'collections')
 
 def admin(request):
     return 'admin'

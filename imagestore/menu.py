@@ -1,10 +1,10 @@
 # Menu stuff
 
-from copy import copy
+import copy
 
 from quixote.html import TemplateIO, htmltext as H
 
-from pages import join_extra
+import imagestore.pages
 
 def _p(d):
     return ' '*d
@@ -22,7 +22,7 @@ class MenuItem:
 
     def tags(self):
         c = ' '.join(self.classes)
-        e = join_extra(self.extra)
+        e = imagestore.pages.join_extra(self.extra)
         i=''
         if self.id:
             i = H('id="%s" ') % self.id
@@ -85,7 +85,7 @@ class SubMenu(MenuItem):
         return self.items.__iter__()
 
     def __add__(self, other):
-        m = copy(self)
+        m = copy.copy(self)
         m.items = self.items[:]
 
         m += other

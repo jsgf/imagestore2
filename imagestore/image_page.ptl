@@ -1,42 +1,41 @@
 # -*- python -*-
 
 import imagestore
+import imagestore.pages as page
+import imagestore.style as style
+import imagestore.ImageTransform as ImageTransform
 
-from imagestore.image import preferred_size, set_preferred_size
-from ImageTransform import transformed_size, sizes, thumb_size
-from pages import pre, post, join_extra, arrow
-from style import view_margin, thiswayup_img_padding, table_twu, arrow_height
-
-prefix = imagestore.path()
-
-sorted_sizes=sizes.items()
+sorted_sizes=ImageTransform.sizes.items()
 sorted_sizes.sort(lambda a,b: cmp(a[1][0]*a[1][1], b[1][0]*b[1][1]))
 sorted_sizes=[ a for (a,b) in sorted_sizes ]
 
 
-
 def view [html] (self, request, p, size, default):
+    import imagestore.image as image
+
     id = p.id
     if size is None:
-        size = preferred_size(request)
+        size = image.preferred_size(request)
     elif size == 'orig':
         return self.image_orig(request, p)
     elif default:
-        set_preferred_size(request, size)
+        image.set_preferred_size(request, size)
 
-    (pw,ph) = transformed_size(p, size)
+    (pw,ph) = ImageTransform.transformed_size(p, size)
 
     self.set_prevnext(request, id, size)
         
     for s in sorted_sizes:
-        if sizes[s][0]*sizes[s][1] < (640*480):
+        if ImageTransform.sizes[s][0]*ImageTransform.sizes[s][1] < (640*480):
             continue
-        if s != 'full' and sizes[s][0] > p.width and sizes[s][1] > p.height:
+        if s != 'full' and \
+               ImageTransform.sizes[s][0] > p.width and \
+               ImageTransform.sizes[s][1] > p.height:
             continue
         
         request.navigation.add_option(self.view_url(p, size=s, preferred=True),
                                       link=s.capitalize(),
-                                      title='%dx%d' % transformed_size(p, s),
+                                      title='%dx%d' % ImageTransform.transformed_size(p, s),
                                       selected= s==size)
 
     if self.coll.mayViewOrig(request, p):
@@ -44,8 +43,8 @@ def view [html] (self, request, p, size, default):
                                       link='Original',
                                       title='For printing')
 
-    pre(request, 'View image %d' % id,
-        bodyid='view', trail=False)
+    page.pre(request, 'View image %d' % id,
+             bodyid='view', trail=False)
 
     request.navigation.render()
     
@@ -65,11 +64,11 @@ def view [html] (self, request, p, size, default):
         if (bw != 0 || bh != 0) {
           window.resizeTo(%(w)d + bw, %(h)d + bh);
         }
---></script>\n""" % { 'w': pw+(2*view_margin), 'h': ph+(2*view_margin) }
+--></script>\n""" % { 'w': pw+(2*style.view_margin), 'h': ph+(2*style.view_margin) }
 
     self.details_link(p, self.picture_img(p, size, default)) + '\n'
 
-    post()
+    page.post()
 
 def view_rotate_link [html] (self, request, p, size=None, extra=None, wantedit=False):
     if not (self.coll.mayEdit(request, p) and (wantedit or request.session.wantedit)):
@@ -77,13 +76,13 @@ def view_rotate_link [html] (self, request, p, size=None, extra=None, wantedit=F
 
     url='%s#thumb:%d' % (request.get_url(), p.id)
 
-    thsz = thumb_size(p.id)
+    thsz = ImageTransform.thumb_size(p.id)
 
     extra = extra or {}
     extra[str('style')] = str('width:%dpx; height:%dpx;' % thsz)
     extra[str('class')] = str(' thumb')
 
-    if table_twu:
+    if style.table_twu:
         # Table version should work everywhere
         twu = """\
         <table class="thiswayup" style="width:%(tablewidth)dpx; height:%(tableheight)dpx;" cellspacing=0 cellpadding=0 border=0>
@@ -114,16 +113,16 @@ def view_rotate_link [html] (self, request, p, size=None, extra=None, wantedit=F
 
         'thumb':  self.edit_newwin_link(request, p, extra=extra),
 
-        'up':     arrow('up', extra={'title': 'Up is up'}),
-        'down':   arrow('down'),
-        'left':   arrow('left'),
-        'right':  arrow('right'),
+        'up':     page.arrow('up', extra={'title': 'Up is up'}),
+        'down':   page.arrow('down'),
+        'left':   page.arrow('left'),
+        'right':  page.arrow('right'),
         
-        'totwidth': thsz[0] + (2*thiswayup_img_padding),
-        'totheight': thsz[1] + (2*thiswayup_img_padding),
+        'totwidth': thsz[0] + (2*style.thiswayup_img_padding),
+        'totheight': thsz[1] + (2*style.thiswayup_img_padding),
 
-        'tablewidth': thsz[0] + (2*arrow_height),
-        'tableheight': thsz[1] + (2*arrow_height),
+        'tablewidth': thsz[0] + (2*style.arrow_height),
+        'tableheight': thsz[1] + (2*style.arrow_height),
         }
 
 def detail_table [html] (p):
@@ -154,7 +153,7 @@ def detail_table [html] (p):
         }
     
 def details [html] (self, request, p):
-    pre(request, 'Details for picture %d' % p.id, 'details', trail=False)
+    page.pre(request, 'Details for picture %d' % p.id, 'details', trail=False)
 
     title = p.title or ''
 
@@ -185,7 +184,8 @@ def details [html] (self, request, p):
 
     user = request.session.getuser()
     if user and p.mayEdit(user):
-        '<a href="%s/%s/image/edit/%d.html">Edit</a>' % (prefix, self.coll.dbobj.name, p.id)
+        '<a href="%s/%s/image/edit/%d.html">Edit</a>' % (imagestore.path(), self.coll.dbobj.name,
+                                                         p.id)
 
-    post()
+    page.post()
 

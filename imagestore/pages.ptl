@@ -1,7 +1,7 @@
 # -*- python -*-
 
-from imagestore import path
-prefix = path()
+import imagestore
+prefix = imagestore.path()
 
 def plural(n, word):
     n=int(n)

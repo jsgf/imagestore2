@@ -1,16 +1,18 @@
 
-from mx.DateTime import RelativeDateTime, DateTime, strptime, Error as DTError, oneDay, oneSecond, Monday
+import calendar
+
+import mx.DateTime as mxdt
+
 from quixote.errors import TraversalError, QueryError
 from quixote.html import htmltext
-from sqlobject.sqlbuilder import AND, OR
 
+from sqlobject.sqlbuilder import AND
+
+import imagestore
 import imagestore.db as db
-
-from dbfilters import mayViewFilter
-from pages import pre, post, menupane, error, prefix
-from calendar_page import _q_index_ptl, most_recent
-from calendar import monthrange, monthcalendar
-from menu import SubMenu, Heading, Link
+import imagestore.calendar_page as calendar_page
+import imagestore.dbfilters as dbfilter
+import imagestore.menu as menu
 
 def kw_summary(pics):
     count = {}
@@ -32,6 +34,15 @@ def ordinal(n):
 
     return '%d%s' % (n,o)
 
+def most_recent(filter):
+    " Return DateTime of most recent picture, or today "
+    try:
+        return db.Picture.select(filter,
+                                 orderBy=db.Picture.q.record_time).reversed()[0].record_time
+    except IndexError:
+        return mxdt.gmt()
+
+
 class Interval:
     def __init__(self, name, step, round):
         self.name = name
@@ -41,7 +52,7 @@ class Interval:
         self.round = round
 
     def roundup(self, time):
-        return time + self.step - oneSecond + self.round
+        return time + self.step - mxdt.oneSecond + self.round
 
     def rounddown(self, time):
         return time + self.round
@@ -54,8 +65,8 @@ class Interval:
 
 class DayInterval(Interval):
     def __init__(self):
-        Interval.__init__(self, 'day', RelativeDateTime(days=+1),
-                          RelativeDateTime(hour=0, minute=0, second=0))
+        Interval.__init__(self, 'day', mxdt.RelativeDateTime(days=+1),
+                          mxdt.RelativeDateTime(hour=0, minute=0, second=0))
 
     def long_fmt(self, time):
         return time.strftime('%%A, %%B %s, %%Y' % ordinal(time.day))
@@ -63,16 +74,16 @@ class DayInterval(Interval):
 
 class WeekInterval(Interval):
     def __init__(self):
-        Interval.__init__(self, 'week', RelativeDateTime(days=+7),
-                          RelativeDateTime(weekday=(Monday,0)))
+        Interval.__init__(self, 'week', mxdt.RelativeDateTime(days=+7),
+                          mxdt.RelativeDateTime(weekday=(mxdt.Monday,0)))
 
     def long_fmt(self, time):
         return time.strftime('Week of %%B %s, %%Y' % ordinal(time.day))
 
 class MonthInterval(Interval):
     def __init__(self):
-        Interval.__init__(self, 'month', RelativeDateTime(months=+1),
-                          RelativeDateTime(day=1, hour=0, minute=0, second=0))
+        Interval.__init__(self, 'month', mxdt.RelativeDateTime(months=+1),
+                          mxdt.RelativeDateTime(day=1, hour=0, minute=0, second=0))
 
     def num_fmt(self, time):
         return time.strftime('%Y-%m')
@@ -82,8 +93,8 @@ class MonthInterval(Interval):
 
 class YearInterval(Interval):
     def __init__(self):
-        Interval.__init__(self, 'year', RelativeDateTime(years=+1),
-                          RelativeDateTime(month=1, day=1, hour=0, minute=0, second=0))
+        Interval.__init__(self, 'year', mxdt.RelativeDateTime(years=+1),
+                          mxdt.RelativeDateTime(month=1, day=1, hour=0, minute=0, second=0))
 
     def num_fmt(self, time):
         return time.strftime('%Y')
@@ -99,7 +110,7 @@ int_month=MonthInterval()
 int_year =YearInterval()
 
 # A base for RelativeDateTime comparisons
-zeroDate = DateTime(0,1,1,0,0,0)
+zeroDate = mxdt.DateTime(0,1,1,0,0,0)
 
 sorted_intervals = intervals.values()
 sorted_intervals.sort(lambda a,b: cmp(zeroDate + a.step, zeroDate + b.step))
@@ -107,14 +118,14 @@ sorted_intervals.sort(lambda a,b: cmp(zeroDate + a.step, zeroDate + b.step))
 def parse(s):
     " Try parsing several different forms of date "
     try:
-        return strptime(s, '%Y-%m-%d')
-    except DTError, x:
+        return mxdt.strptime(s, '%Y-%m-%d')
+    except mxdt.Error, x:
         pass
     try:
-        return strptime(s, '%Y-%m')
-    except DTError, x:
+        return mxdt.strptime(s, '%Y-%m')
+    except mxdt.Error, x:
         pass
-    return strptime(s, '%Y')
+    return mxdt.strptime(s, '%Y')
 
 
 def yrange(start, stop, inc):
@@ -192,23 +203,23 @@ class CalendarUI:
         else:
             try:
                 self.date = parse(component)
-            except DTError, x:
+            except mxdt.Error, x:
                 raise TraversalError("Badly formatted date")
 
         return self
 
-    _q_index = _q_index_ptl
+    _q_index = calendar_page._q_index_ptl
 
     def menupane_extra(self):
-        return SubMenu(heading='Calendar',
-                       items=[ Link(link='summary', url=self.calendar_url()),
-                               SubMenu(heading='Recent...',
-                                       items=[Link('week', self.calendar_url(int_week)),
-                                              Link('month', self.calendar_url(int_month)),
-                                              Link('year', self.calendar_url(int_year))])])
+        return menu.SubMenu(heading='Calendar',
+                            items=[ menu.Link(link='summary', url=self.calendar_url()),
+                                    menu.SubMenu(heading='Recent...',
+                                                 items=[menu.Link('week', self.calendar_url(int_week)),
+                                                        menu.Link('month', self.calendar_url(int_month)),
+                                                        menu.Link('year', self.calendar_url(int_year))])])
     
     def calendar_url(self, interval=None, date=None):
-        ret = '%s/%s/calendar/' % (prefix, self.collection.dbobj.name)
+        ret = '%s/%s/calendar/' % (imagestore.path(), self.collection.dbobj.name)
         if interval is not None:
             if isinstance(interval, str):
                 interval = intervals[interval]
@@ -246,10 +257,10 @@ class CalendarUI:
         to the list). """
 
         # Get pics grouped into months
-        filter = mayViewFilter(self.collection.dbobj, request.session.getuser())
+        filter = dbfilter.mayViewFilter(self.collection.dbobj, request.session.getuser())
         months = [ (Month(year, m.month), res) for (m, res) in pics_grouped(int_month,
-                                                                            DateTime(year  ,1,1),
-                                                                            DateTime(year+1,1,1),
+                                                                            mxdt.DateTime(year  ,1,1),
+                                                                            mxdt.DateTime(year+1,1,1),
                                                                             round=True,
                                                                             filter=filter)
                    if res.count() > 0 ]
@@ -276,14 +287,15 @@ class Year:
     def _q_lookup(self, request, component):
         try:
             self.year = parse(component).year
-        except DTError:
+        except mxdt.Error:
             raise QueryError('Bad year format')
         return self
 
     def _q_index(self, request):
         if self.year is None:
-            self.year = most_recent(mayViewFilter(self.calui.collection.dbobj,
-                                                  request.session.getuser())).year
+            filter = dbfilter.mayViewFilter(self.calui.collection.dbobj,
+                                            request.session.getuser())
+            self.year = most_recent(filter).year
 
         y = self.calui.yearview(request, self.year)
 
@@ -293,13 +305,13 @@ class Month:
     def __init__(self, year, month):
         self.year = year
         self.month = month
-        self.days = monthrange(year, month)
+        self.days = calendar.monthrange(year, month)
 
         self.marked = {}
         self.total = 0
 
     def getname(self):
-        return DateTime(self.year, self.month).strftime('%B')
+        return mxdt.DateTime(self.year, self.month).strftime('%B')
 
     def markday(self, day, number):
         self.total += number
@@ -309,4 +321,4 @@ class Month:
         return self.marked.get(day, 0)
 
     def getcalendar(self):
-        return monthcalendar(self.year, self.month)
+        return calendar.monthcalendar(self.year, self.month)

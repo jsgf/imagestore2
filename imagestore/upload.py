@@ -21,19 +21,19 @@ from mx.DateTime import DateTime, gmt, gmtime
 from quixote.util import Redirector
 from quixote.errors import AccessError, QueryError
 from quixote.html import htmltext as H, TemplateIO
-from quixote.http_response import Stream
+import quixote.http_response
 import quixote.form as form2
 
 from sqlobject.sqlbuilder import AND
 
+import imagestore
 import imagestore.db as db
-from db import Picture, Camera, Upload
-from insert import import_image, ImportException, AlreadyPresentException
+import imagestore.insert as insert
+import imagestore.search as search
+import imagestore.image as image
+import imagestore.calendarui as calendarui
+import imagestore.pages as page
 
-from search import group_by_time, commonKeywords
-from image import ImageUI
-from calendarui import int_day
-from pages import pre, post, menupane, prefix, plural
 from form import userOptList, visibilityOptList, cameraOptList, splitKeywords
 
 class UploadWorker:
@@ -138,22 +138,22 @@ class UploadUI:
             yield '</dd>\n'
         else:
             try:
-                id = import_image(data=data,
-                                  orig_filename=orig_file,
-                                  owner=user,
-                                  photographer=user,
-                                  public=visibility,
-                                  collection=self.collection.dbobj,
-                                  keywords=keywords,
-                                  camera=camera,
-                                  upload=upload,
-                                  record_time=date)
-                imageui = ImageUI(self.collection)
+                id = insert.import_image(data=data,
+                                         orig_filename=orig_file,
+                                         owner=user,
+                                         photographer=user,
+                                         public=visibility,
+                                         collection=self.collection.dbobj,
+                                         keywords=keywords,
+                                         camera=camera,
+                                         upload=upload,
+                                         record_time=date)
+                imageui = image.ImageUI(self.collection)
                 r = H('OK, Picture #%s</dt><dd>%s</dd>\n') % \
                     (id, imageui.thumb_img(db.Picture.get(id), False))
-            except AlreadyPresentException, msg:
+            except insert.AlreadyPresentException, msg:
                 r = H('</dt><dd>Already present (#%s)</dd>\n') % msg
-            except ImportException, msg:
+            except insert.ImportException, msg:
                 r = H('</dt><dd class="error">failed: %s</dd>\n') % msg
             except:
                 (t,v,tb) = sys.exc_info()
@@ -166,7 +166,7 @@ class UploadUI:
             os.remove(tmpfile)
 
     def do_upload(self, request, files, user, camera, keywords, visibility, upload):
-        r = pre(request, 'Uploading pictures', 'uploading', trail=False)
+        r = page.pre(request, 'Uploading pictures', 'uploading', trail=False)
         r += H('<H1>Uploading pictures...</h1>\n')
 
         yield str(r)
@@ -178,7 +178,7 @@ class UploadUI:
 
         r = H('<p id="bottom"><a href="pending">Edit pending pictures</a>\n')
         r += H('<p><a href="%s">Upload more pictures</a>\n') % request.get_path()
-        r += post()
+        r += page.post()
         
         yield str(r)
 
@@ -188,19 +188,19 @@ class UploadUI:
         if form.get_submit() != 'upload':
             r = TemplateIO(html=True)
 
-            r += pre(request, 'Upload pictures', 'upload')
-            r += menupane(request)
+            r += page.pre(request, 'Upload pictures', 'upload')
+            r += page.menupane(request)
             r += form.render()
 
             #r += H(request.dump_html())
             
-            r += post()
+            r += page.post()
 
             return r.getvalue()
         else:
             user = request.session.getuser()
-            start = int_day.rounddown(gmt())
-            end = int_day.roundup(gmt())
+            start = calendarui.int_day.rounddown(gmt())
+            end = calendarui.int_day.roundup(gmt())
             upload = db.Upload.select(AND(db.Upload.q.import_time >= start,
                                           db.Upload.q.import_time < end,
                                           db.Upload.q.userID == user.id,
@@ -232,14 +232,15 @@ class UploadUI:
             print 'self.collection.dbobj=%s' % self.collection.dbobj
 
             request.response.unbuffered=True
-            return Stream(self.do_upload(request,
-                                         [ (open(f.tmp_filename, 'rb'),
-                                            f.tmp_filename,
-                                            f.orig_filename)
-                                           for f in [ form['file.%d' % n]
-                                                      for n in range(numfiles) ]
-                                           if f is not None],
-                                         user, camera, keywords, form['visibility'], u))
+            upload = self.do_upload(request,
+                                    [ (open(f.tmp_filename, 'rb'),
+                                       f.tmp_filename,
+                                       f.orig_filename)
+                                      for f in [ form['file.%d' % n]
+                                                 for n in range(numfiles) ]
+                                      if f is not None],
+                                    user, camera, keywords, form['visibility'], u)
+            return quixote.http_response.Stream(upload)
 
     def pending(self, request):
         user = request.session.getuser()
@@ -261,14 +262,14 @@ class UploadUI:
             body += H('<h2>Import into "%s" on %s</h2>\n') % (u.collection.name,
                                                            u.import_time.strftime('%Y-%m-%d')) # XXX
 
-            for (d, pics) in group_by_time(pics, int_day):
-                body += H('<div id="%s" class="day">\n') % int_day.num_fmt(d)
-                body += H('<h3>%s</h3>\n') % int_day.num_fmt(d)
+            for (d, pics) in search.group_by_time(pics, calendarui.int_day):
+                body += H('<div id="%s" class="day">\n') % calendarui.int_day.num_fmt(d)
+                body += H('<h3>%s</h3>\n') % calendarui.int_day.num_fmt(d)
                 body += H('<div class="day-pics">\n')
 
                 body += H('<form method="POST" action="commit">\n')
 
-                kwset = [ k.word for k in commonKeywords(pics) ]
+                kwset = [ k.word for k in search.commonKeywords(pics) ]
                 kwset = ', '.join(list(kwset))
                 
                 body += H('<label>Default keywords: <input type="text" name="keywords" value="%s"></label>\n') % kwset
@@ -280,7 +281,7 @@ class UploadUI:
                 for p in pics:
                     results.append(p)
                     body += H('<div style="float: left">\n')
-                    body += ImageUI(self.collection).view_rotate_link(request, p, wantedit=True)
+                    body += image.ImageUI(self.collection).view_rotate_link(request, p, wantedit=True)
                     body += H('<br>\n')
                     body += H('<input title="Commit?" type="checkbox" name="pic" value="%d" checked>\n') % p.id
                     if p.keywords:
@@ -300,13 +301,13 @@ class UploadUI:
 
         request.session.set_query_results(results)
 
-        r += pre(request, 'Pending uploaded images for "%s"' % self.collection.dbobj.name,
-                 'pending', brieftitle='pending uploads')
-        r += menupane(request)
+        r += page.pre(request, 'Pending uploaded images for "%s"' % self.collection.dbobj.name,
+                      'pending', brieftitle='pending uploads')
+        r += page.menupane(request)
 
         r += body.getvalue()
 
-        r += post()
+        r += page.post()
 
         return r.getvalue()
                     
@@ -319,7 +320,7 @@ class UploadUI:
                                      db.Picture.q.ownerID == user.id,
                                      db.Upload.q.userID == user.id)).count() != 0
     def pending_url(self):
-        return '%s/%s/upload/pending' % (prefix, self.collection.dbobj.name)
+        return '%s/%s/upload/pending' % (imagestore.path(), self.collection.dbobj.name)
 
     def commit(self, request):
         user = request.session.getuser()
