@@ -35,7 +35,7 @@ def db_connect():
     uri=dbinfo[db]['conn']
 
     # disable caching
-    uri += '?cache=0'
+    #uri += '?cache=0'
     
     conn = connectionForURI(uri)
     conn.debug = 0
@@ -158,12 +158,13 @@ class Media(SQLObject):
     will have the SHA1 hash of the combined data, and a sequence
     number starting from 0."""
 
-    _cacheValues = False
+    class sqlmeta:
+        cacheValues = False
 
     hash = StringCol(length=40, varchar=False, notNone=True)
     sequence = IntCol(notNone=True)
 
-    idx = Index((hash,sequence), unique=True)
+    idx = DatabaseIndex('hash', 'sequence', unique=True)
 
     # XXX we need MEDIUMBLOB for MySQL, but not for SQLite and
     # possibly something else for other DBs
@@ -427,12 +428,12 @@ class Picture(SQLObject):
     # This is present on imaged imported from Imagestore1
     md5hash = StringCol(length=32, varchar=False, default=None)
 
-    owner_idx = Index(owner)
-    date_idx = Index(record_time)
-    mod_idx = Index(modified_time)
-    vis_idx = Index(visibility)
-    md5_idx = Index(md5hash)
-    rating_idx = Index(rating)
+    owner_idx = DatabaseIndex('owner')
+    date_idx = DatabaseIndex('record_time')
+    mod_idx = DatabaseIndex('modified_time')
+    vis_idx = DatabaseIndex('visibility')
+    md5_idx = DatabaseIndex('md5hash')
+    rating_idx = DatabaseIndex('rating')
 
 class Comment(SQLObject):
     user = ForeignKey('User')
@@ -448,8 +449,8 @@ class Upload(SQLObject):
 
     import_time = DateTimeCol(default=mx.DateTime.gmt, notNone=True)
 
-    time_idx = Index(import_time)
-    user_idx = Index(user)
+    time_idx = DatabaseIndex('import_time')
+    user_idx = DatabaseIndex('user')
 
 class Session(SQLObject):
     session = StringCol(length=16, unique=True, alternateID=True, varchar=False, notNone=True)
