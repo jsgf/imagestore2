@@ -1,5 +1,5 @@
 import re
-from quixote.form2 import Form, SingleSelectWidget
+from quixote.form import Form, SingleSelectWidget
 
 from db import *
 from dbfilters import userFilter

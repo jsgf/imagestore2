@@ -2,16 +2,21 @@
 from quixote import enable_ptl
 enable_ptl()
 
+def path():
+    return '/imagestore'
+
 import os.path
 
 from sqlobject import SQLObjectNotFound
+
+from quixote.util import Redirector
 from quixote.errors import TraversalError
 from quixote.util import StaticDirectory
 
 from db import Collection
 
 from collection import CollectionUI
-from pages import pre, post, html, menupane, prefix
+from pages import pre, post, html, menupane
 from style import style_css
 from dbfilters import mayViewCollectionFilter
 
@@ -24,7 +29,7 @@ _q_exports = [ 'collections', 'user', 'admin', 'rss', 'static', ('style.css', 's
 def _q_index(request):
     ret = menupane(request)
 
-    request.redirect('%s/default/' % prefix)
+    Redirector('%s/default/' % path())
     
     return html(request, 'Imagestore', ret)
 

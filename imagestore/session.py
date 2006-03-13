@@ -1,7 +1,8 @@
 import gc
 
+from quixote import get_request, get_path
 from quixote.session import Session
-from quixote.publish import SessionPublisher
+#from quixote.publish import SessionPublisher
 
 from sqlobject import SQLObjectNotFound
 
@@ -13,19 +14,19 @@ from cStringIO import StringIO
 
 from db import User, conn, Session as dbSession
 
-class ImagestorePublisher(SessionPublisher):
-    def __init__(self, *args, **kwargs):
-        SessionPublisher.__init__(self, *args, **kwargs)
-
-        # (Optional step) Read a configuration file
-        self.read_config("imagestore/config.conf")
-
-        # Open the configured log files
-        self.setup_logs()
+# class ImagestorePublisher(SessionPublisher):
+#     def __init__(self, *args, **kwargs):
+#         SessionPublisher.__init__(self, *args, **kwargs)
+#
+#         # (Optional step) Read a configuration file
+#         self.read_config("imagestore/config.conf")
+#
+#         # Open the configured log files
+#         self.setup_logs()
 
 class ImagestoreSession(Session):
-    def __init__(self, request, id):
-        Session.__init__(self, request, id)
+    def __init__(self, id):
+        Session.__init__(self, id)
         self.dirty = False
         
         self.user = None
@@ -34,18 +35,17 @@ class ImagestoreSession(Session):
         
         self.wantedit = False               # true if the user wants to edit things
         
-    def start_request(self, request):
-        Session.start_request(self, request)
+    def start_request(self):
+        Session.start_request(self)
 
-    def finish_request(self, request):
+    def finish_request(self):
         # clean up after request, to make sure
         # nothing is cached too long
         gc.collect()
 
     def set_dirty(self):
         if False:
-            from quixote import get_request
-            print 'set_dirty %s' % get_request().get_path()
+            print 'set_dirty %s' % get_path()
         self.dirty = True
         
     def has_info(self):
@@ -56,8 +56,7 @@ class ImagestoreSession(Session):
 
     def is_dirty(self):
         if False:
-            from quixote import get_request
-            print 'is_dirty %s: has_info=%s dirty=%s' % (get_request().get_path(),
+            print 'is_dirty %s: has_info=%s dirty=%s' % (get_path(),
                                                          self.has_info(), self.dirty)
         r = (self.has_info() and self.dirty)
         self.dirty = False
@@ -259,9 +258,7 @@ class SQLMapping:
 
     def __delitem__(self, session_id):
         s = self.get(session_id)
-        if s is not None:
-            s.destroySelf()
-        else:
+        if s is None:
             raise KeyError(session_id, 'no such session %s' % session_id)
 
     def keys(self):

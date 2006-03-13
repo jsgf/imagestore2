@@ -18,10 +18,11 @@ from zipfile import is_zipfile, ZipFile
 
 from mx.DateTime import DateTime, gmt, gmtime
 
+from quixote.util import Redirector
 from quixote.errors import AccessError, QueryError
 from quixote.html import htmltext as H, TemplateIO
 from quixote.http_response import Stream
-import quixote.form2 as form2
+import quixote.form as form2
 
 from sqlobject.sqlbuilder import AND
 
@@ -343,7 +344,7 @@ class UploadUI:
                 p.upload = None
 
             if not self.have_pending(user):
-                request.redirect(self.collection.collection_url())
+                Redirector(self.collection.collection_url())
 
         elif request.form.has_key('defaults'):
             kw = splitKeywords(request.form['keywords'])
@@ -355,5 +356,5 @@ class UploadUI:
                 if vis != 'unchanged':
                     p.visibility = vis
                 
-        request.redirect(self.pending_url())
+        Redirector(self.pending_url())
         return ''

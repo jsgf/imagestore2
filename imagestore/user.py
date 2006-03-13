@@ -3,9 +3,10 @@
 from sqlobject import SQLObjectNotFound
 from sqlobject.sqlbuilder import AND, NOT, IN
 
+from quixote.util import Redirector
 from quixote.errors import AccessError, TraversalError, QueryError
 from quixote.html import htmltext as H, TemplateIO
-import quixote.form2 as form2
+import quixote.form as form2
 
 from pages import pre, post, menupane, error, prefix
 from user_page import login_form, user_page as user_page_ptl, user_edit as user_edit_ptl
@@ -65,12 +66,12 @@ def login(request):
             body += error(request, 'User unknown or password incorrect', 'Please try again.')
             body += login_form(request, username=username)
         else:
-            body += ('<p>Hi, %s, you\'ve logged in' % user.fullname)
+            body += H('<p>Hi, %s, you\'ve logged in' % user.fullname)
             session.setuser(user.id)
             if referer is not None and referer != '':
-                request.redirect(referer)
+                Redirector(referer)
             else:
-                request.redirect(user_url(user))
+                Redirector(user_url(user))
     else:
         body += login_form(request, referer=request.get_environ('HTTP_REFERER'))
 
@@ -79,7 +80,7 @@ def login(request):
 
     page += pre(request, 'Imagestore Login', 'login', trail=False)
     page += menupane(request)
-    page += body
+    page += H(body)
     page += post()
 
     return page.getvalue()
@@ -123,7 +124,7 @@ def newuser(request):
                      mayUpload=False,
                      mayComment=userprefs.mayComment,
                      mayRate=userprefs.mayRate)
-            request.redirect(user_url(u))
+            Redirector(user_url(u))
         else:
             render=True
     else:
@@ -145,7 +146,7 @@ def newuser(request):
 def logout(request):
     request.session.setuser(None)
 
-    request.redirect(request.get_environ('HTTP_REFERER'))
+    Redirector(request.get_environ('HTTP_REFERER'))
 
     return 'logged out'
 
@@ -168,7 +169,7 @@ def _q_index(request):
 
     user = session.getuser()
 
-    request.redirect(user_url(user))
+    Redirector(user_url(user))
 
     return ''
 
@@ -394,7 +395,7 @@ def editusers(request):
 
     if userform.get_submit() == 'cancel' or (state > 0 and not userlist.changed()):
         print 'CANCEL'
-        request.redirect(request.get_path())
+        Redirector(request.get_path())
         return ''
 
     if state > 0:
@@ -421,7 +422,7 @@ def editusers(request):
     
     userlist.commit()
 
-    request.redirect(request.get_path()) # reload with the new details
+    Redirector(request.get_path()) # reload with the new details
     return ''
     
 
@@ -437,7 +438,7 @@ def editmode(request):
     if session.user and request.form:
         session.wantedit = bool(int(request.form.get('wantedit')))
 
-    request.redirect(request.get_environ('HTTP_REFERER'))
+    Redirector(request.get_environ('HTTP_REFERER'))
 
     return ''
 
@@ -480,7 +481,7 @@ class UserUI:
         sess_user = request.session.getuser()
 
         if sess_user is None:
-            request.redirect(user_url(sess_user))
+            Redirector(user_url(sess_user))
             return ''
 
         return self.user_page(request)

@@ -1,7 +1,9 @@
 # -*- python -*-
 
 from sqlobject.sqlbuilder import *
-import quixote.form2 as form2
+
+from quixote.util import Redirector
+import quixote.form as form2
 
 from pages import pre, post, join_extra, menupane, prefix
 from db import Picture, User, CollectionPerms, Collection
@@ -101,7 +103,7 @@ def admin_page [html] (self, request):
     if props.get_submit() == 'delete' and nopics:
         col.destroySelf()
         request.session.del_breadcrumb()
-        request.redirect(str('%s/user/') % prefix)
+        Redirector(str('%s/user/') % prefix)
         return ''
 
     if not props.is_submitted() or props.has_errors():
@@ -120,7 +122,7 @@ def admin_page [html] (self, request):
             col.showOriginal = str(props['showOriginal'])
 
             request.session.del_breadcrumb()
-            request.redirect(self.collection_admin_url())
+            Redirector(self.collection_admin_url())
 
 
     '<div class="title-box user-perms">\n'

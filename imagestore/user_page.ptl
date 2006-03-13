@@ -1,14 +1,18 @@
 # -*- python -*-
 
+from quixote.util import Redirector
+
 from pages import pre, post, menupane, prefix
 
 from db import User, Picture, Collection, CollectionPerms
-from go_scgi import ImagestoreHandler
-prefix = ImagestoreHandler.prefix
+
+import imagestore
 
 from collection import CollectionUI
 from quixote.errors import AccessError
-import quixote.form2 as form2
+import quixote.form as form2
+
+prefix = imagestore.path()
 
 def login_form [html] (request, username='', referer=None):
     """
@@ -61,7 +65,7 @@ def user_edit [html] (self, request):
     form.add_reset('reset', 'Revert to original')
 
     if form.get_submit() == 'cancel':
-        request.redirect(request.get_path(1) + str('/'))
+        Redirector(request.get_path(1) + str('/'))
         return ''
 
     if not form.is_submitted() or form.has_errors():
@@ -85,7 +89,7 @@ def user_edit [html] (self, request):
                 user.password = form['newpassword']
 
             user.username = form['username']
-            request.redirect(request.get_path())
+            Redirector(request.get_path())
 
     post()
 
@@ -166,5 +170,5 @@ def user_collections [html] (u, request):
                 nc = Collection(name=str(form['newcolname']),
                                 description=str(form['newcoldesc']),
                                 visibility=str(form['newcolvis']), ownerID = u.id)
-                #request.redirect('%s/%s' % (prefix, nc.name))
-                request.redirect(request.get_path())
+                #Redirector('%s/%s' % (prefix, nc.name))
+                Redirector(request.get_path())

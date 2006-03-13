@@ -3,8 +3,8 @@
 from db import Collection
 from sqlobject.sqlbuilder import OR
 
-from go_scgi import ImagestoreHandler
-prefix = ImagestoreHandler.prefix
+from imagestore import path
+prefix = path()
 
 def plural(n, word):
     n=int(n)

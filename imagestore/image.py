@@ -1,9 +1,10 @@
 import re
 from rfc822 import formatdate
 
+from quixote.util import Redirector
 from quixote.errors import TraversalError, AccessError
 from quixote.html import htmltext as H, TemplateIO
-import quixote.form2 as form2
+import quixote.form as form2
 from quixote.http_response import Stream
 
 from sqlobject import SQLObjectNotFound
@@ -141,9 +142,9 @@ class EditUI:
             p.visibility = form['visibility']
 
             if form.get_submit() == 'submit-next' and next:
-                request.redirect(self.image.edit_url(Picture.get(next)))
+                Redirector(self.image.edit_url(Picture.get(next)))
             else:
-                request.redirect(request.get_path())
+                Redirector(request.get_path())
             ret = ''
 
         return ret
@@ -217,7 +218,7 @@ class ImageUI:
         p.orientation = angle
 
         if returnurl is not None:
-            request.redirect(returnurl)
+            Redirector(returnurl)
         
         return 'rotate done, I guess'
 

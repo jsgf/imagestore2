@@ -1,5 +1,7 @@
 # -*- python -*-
 
+from quixote.html import htmltext as H, TemplateIO
+
 from sets import Set
 from mx.DateTime import DateTime, RelativeDateTime, gmt
 
