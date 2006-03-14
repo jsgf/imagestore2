@@ -1,16 +1,13 @@
 import getopt
-from dircache import listdir
-from os.path import isfile, isdir, splitext
-from os import stat
-import os.path
-from sys import argv
-from string import split
+import dircache
+import os
+import sys
 import Image
-from mx.DateTime import DateTime, localtime
+import mx.DateTime
+import sha
 from cStringIO import StringIO
 
-import sqlobject as SQLObject
-import EXIF
+import imagestore.EXIF
 
 import imagestore.db as db
 
@@ -30,7 +27,7 @@ _ext_map = {}
 _type_map = {}
 
 def find_importer_ext(file):
-    ext = splitext(file)[1]
+    ext = os.path.splitext(file)[1]
 
     if not ext:
         return None
@@ -66,12 +63,12 @@ class Importer:
     def import_file(self, filename, owner, public, collection, mimetype=None, keywords=[], **imgattr):
         # If we have no better information, assume the record time is the
         # earliest timestamp on the file itself
-        st = stat(filename)
-        record_time = localtime(min(st.st_mtime, st.st_ctime))
+        st = os.stat.stat(filename)
+        record_time = mx.DateTime.localtime(min(st.st_mtime, st.st_ctime))
         imgattr['record_time'] = record_time
         
-        data = open(filename).read()
-        return self.import_image(data, owner, public, collection, mimetype=mimetype, keywords=[], **imgattr)
+        datafp = open(filename)
+        return self.import_image(datafp, owner, public, collection, mimetype=mimetype, keywords=[], **imgattr)
 
 class StillImageImporter(Importer):
 
@@ -81,27 +78,28 @@ class StillImageImporter(Importer):
         'MPEG': 1,
         }
 
-    def import_image(self, imgdata, owner, public, collection, mimetype=None, keywords=None, **imgattr):
-        imgfile = StringIO(imgdata)
-
+    def import_image(self, imgfile, imgdata, owner, public, collection,
+                     mimetype=None, keywords=None, **imgattr):
         keywords = keywords or None
+
+        imgfile.seek(0)
         try:
             img = Image.open(imgfile)
-        except IOError:
-            raise ImportException('Unsupported file type')
+        except IOError, x:
+            raise ImportException('Unsupported file type: %s' % x)
 
         if self.image_ignore.has_key(img.format):
             return -1
 
         sha1 = sha.new(imgdata)
         hash=sha1.digest().encode('hex')
-
+        
         s = db.Picture.select(db.Picture.q.hash==hash)
         if s.count() != 0:
             raise AlreadyPresentException('%d' % s[0].id)
 
         try:
-            m = setmedia(imgdata)
+            m = db.setmedia(imgdata)
 
             if False:
                 data = getmedia(m.id, True)
@@ -124,7 +122,7 @@ class StillImageImporter(Importer):
                 thumbdata = data_from_Image(thimg, 'JPEG', quality=70, optimize=1)
                 #open('thumb.jpg', 'wb').write(thumbdata)
 
-            thumb=setmedia(thumbdata)
+            thumb=db.setmedia(thumbdata)
             th_img=Image_from_data(thumbdata)
 
             if False:
@@ -134,6 +132,7 @@ class StillImageImporter(Importer):
             width,height = img.size
             th_width,th_height = th_img.size
 
+            #print 'imgattr: %s' % imgattr
             pic = db.Picture(owner=owner,
                              visibility=public,
                              collection=collection,
@@ -167,7 +166,8 @@ update_maps({
 
 
 class MPEGImporter(Importer):
-    def import_image(self, imgdata, owner, public, collection, mimetype=None, keywords=[], **imgattr):
+    def import_image(self, imgfile, imgdata, owner, public, collection,
+                     mimetype=None, keywords=[], **imgattr):
         sha1 = sha.new(imgdata)
         hash = sha1.digest().encode('hex')
 
@@ -176,11 +176,11 @@ class MPEGImporter(Importer):
             raise AlreadyPresentException('%d' % s[0].id)
 
         try:
-            m = setmedia(imgdata)
+            m = db.setmedia(imgdata)
 
             thumbdata = open('static/thumb-mpeg.jpg').read()
             th_img = Image_from_data(thumbdata)
-            thumb = setmedia(thumbdata)
+            thumb = db.setmedia(thumbdata)
 
             width, height = (320, 240)  # XXX FIXME
             th_width, th_height = th_img.size
@@ -228,7 +228,7 @@ def mkDateTime(s):
     return mx.DateTime.strptime(s, '%Y:%m:%d %H:%M:%S')
 
 def get_EXIF_metadata(file, imgattr):
-    exif = EXIF.process_file(file, 0)
+    exif = imagestore.EXIF.process_file(file, 0)
 
     #print 'exif=%s' % exif
     
@@ -315,20 +315,20 @@ def handle_file(file, owner, collection, public):
 	print ret
 
 def handle_dir(dir, owner, collection, public):
-    if isfile(dir):
+    if os.path.isfile(dir):
         handle_file(dir, owner, public, collection)
         return
 
     if not isdir(dir):
         return
 
-    for f in listdir(dir):
+    for f in dircache.listdir(dir):
         if f == '.' or f == '..':
             continue
         f = os.path.join(dir, f)
-        if isdir(f):
+        if os.path.isdir(f):
             handle_dir(f, owner, public, collection)
-        elif isfile(f):
+        elif os.path.isfile(f):
             handle_file(f, owner, public, collection)
 
 def add_keywords(coll, image, keywords=None):
@@ -348,7 +348,8 @@ def get_user(username, email, fullname):
         return u[0]
     return db.User(username=username, fullname=fullname, email=email)
 
-def import_image(data, owner, orig_filename, public, collection, keywords, mimetype=None, **attr):
+def import_image(datafp, owner, orig_filename, public,
+                 collection, keywords, mimetype=None, **attr):
     #print 'import_image(orig_filename=%s, mimetype=%s)' % (orig_filename,mimetype)
     if mimetype is not None:
         importer = find_importer_type(mimetype)
@@ -356,11 +357,25 @@ def import_image(data, owner, orig_filename, public, collection, keywords, mimet
         importer = find_importer_ext(orig_filename)
     if importer is None:
         raise ImportException('Unknown file type')
-    
-    return importer().import_image(data, owner, public, collection, mimetype=mimetype, keywords=keywords, **attr)
+
+    try:
+        # Avoid copying data again if this is a StringIO-like source
+        data = datafp.getvalue()
+    except AttributeError:
+        # Otherwise read data
+        data = datafp.read()
+        try:
+            # Seek back to start
+            datafp.seek(0)
+        except IOError:
+            # If unseekable, turn data into StringIO
+            datafp = StringIO(data)
+
+    return importer().import_image(datafp, data, owner, public, collection,
+                                   mimetype=mimetype, keywords=keywords, **attr)
     
 if __name__ == '__main__':
-    optlist, args = getopt.getopt(argv[1:], 'o:p:qh')
+    optlist, args = getopt.getopt(sys.argv[1:], 'o:p:qh')
     owner = get_user(username='jeremy', email='jeremy@goop.org', fullname='Jeremy Fitzhardinge')
     collection = db.defaultCollection()
     public='public'

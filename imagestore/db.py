@@ -243,7 +243,7 @@ def getmediachunks(hash):
 
     for c in Media.select(Media.q.hash==hash, orderBy='sequence'):
         #print "chunk id=%d, seq=%d, len=%d" % (c.id, c.sequence, len(c.data))
-        yield c.data.tostring()
+        yield c.data()
 
 def verifymedia(id):
     """Verify that all the media chunks are there; returns nothing on
@@ -419,9 +419,9 @@ class Picture(SQLObject):
     flash = BoolCol(default=False)
     f_number = StringCol(default=None, length=10)
     exposure_time = StringCol(default=None, length=10) # actually an EXIF.Ratio
-    exposure_bias = IntCol(default=0)
+    exposure_bias = StringCol(default=0)
     brightness = IntCol(default=None)
-    focal_length = IntCol(default=0)
+    focal_length = StringCol(default=0)
 
     # This is present on imaged imported from Imagestore1
     md5hash = StringCol(length=32, varchar=False, default=None)

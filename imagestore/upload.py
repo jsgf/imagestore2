@@ -16,6 +16,8 @@ from traceback import extract_tb, format_list
 from sets import Set
 from zipfile import is_zipfile, ZipFile
 
+from cStringIO import StringIO
+
 from mx.DateTime import DateTime, gmt, gmtime
 
 from quixote.util import Redirector
@@ -35,6 +37,15 @@ import imagestore.calendarui as calendarui
 import imagestore.pages as page
 
 from form import userOptList, visibilityOptList, cameraOptList, splitKeywords
+
+def is_zip_fp(fp):
+    from zipfile import _EndRecData
+
+    try:
+        return _EndRecData(fp)
+    except IOError:
+        pass
+    return False
 
 class UploadWorker:
     def __init__(self, files):
@@ -106,9 +117,9 @@ class UploadUI:
 
         return form
 
-    def do_upload_zip(self, zipfile,
+    def do_upload_zip(self, zipfp,
                       user, camera, keywords, visibility, upload):
-        zip = ZipFile(zipfile, 'r')
+        zip = ZipFile(zipfp, 'r')
         yield '<dl>\n'
 
         for f in zip.infolist():
@@ -118,28 +129,27 @@ class UploadUI:
             if orig_name[-1] == '/':
                 continue
 
-            for y in self.do_upload_file(zip.read(orig_name),
-                                         None, orig_name, mod_time,
+            for y in self.do_upload_file(StringIO(zip.read(orig_name)),
+                                         orig_name, mod_time,
                                          user, camera, keywords, visibility, upload):
                 yield y
 
         yield '</dl>\n'
         
 
-    def do_upload_file(self, data, tmpfile, orig_file, date,
+    def do_upload_file(self, fp, base_file, date,
                        user, camera, keywords, visibility, upload):
-        yield '<dt>Uploading <span class="filename">%s</span>&hellip;&nbsp;' % orig_file
-
-        if tmpfile and is_zipfile(tmpfile):
+        yield '<dt>Uploading <span class="filename">%s</span>&hellip;&nbsp;' % base_file
+        
+        if is_zip_fp(fp):
             yield '</dt>\n<dd>\n'
-            for y in self.do_upload_zip(tmpfile,
-                                        user, camera, keywords, visibility, upload):
+            for y in self.do_upload_zip(fp, user, camera, keywords, visibility, upload):
                 yield y
             yield '</dd>\n'
         else:
             try:
-                id = insert.import_image(data=data,
-                                         orig_filename=orig_file,
+                id = insert.import_image(datafp=fp,
+                                         orig_filename=base_file,
                                          owner=user,
                                          photographer=user,
                                          public=visibility,
@@ -162,17 +172,14 @@ class UploadUI:
                 return
             yield str(r)
 
-        if tmpfile:
-            os.remove(tmpfile)
-
     def do_upload(self, request, files, user, camera, keywords, visibility, upload):
         r = page.pre(request, 'Uploading pictures', 'uploading', trail=False)
-        r += H('<H1>Uploading pictures...</h1>\n')
+        r += H('<H1>Uploading pictures...</H1>\n')
 
         yield str(r)
 
-        for (handle, tmpfile, origfile) in files:
-            for y in self.do_upload_file(handle.read(), tmpfile, origfile, None,
+        for (fp, base_filename) in files:
+            for y in self.do_upload_file(fp, base_filename, None,
                                          user, camera, keywords, visibility, upload):
                 yield y
 
@@ -231,11 +238,9 @@ class UploadUI:
 
             print 'self.collection.dbobj=%s' % self.collection.dbobj
 
-            request.response.unbuffered=True
+            request.response.buffered=False
             upload = self.do_upload(request,
-                                    [ (open(f.tmp_filename, 'rb'),
-                                       f.tmp_filename,
-                                       f.orig_filename)
+                                    [ (f.fp, f.base_filename)
                                       for f in [ form['file.%d' % n]
                                                  for n in range(numfiles) ]
                                       if f is not None],
