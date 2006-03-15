@@ -12,7 +12,7 @@ import imagestore.pages as page
 import imagestore.dbfilters as dbfilters
 import imagestore.image as image
 import imagestore.form as form
-import imagestore.calendarui
+import imagestore.calendarui as calendarui
 
 # Actually a method of CollectionUI
 def _q_index [html] (self, request):
@@ -31,16 +31,14 @@ def _q_index [html] (self, request):
     sampler=[]
     days=[]
     
-    if count > 0:
-        for i in range(min(count, 16)):
-            while True:
-                p = pics[random.randrange(0, count)]
-                if p not in sampler:
-                    break
-            sampler.append(p)
-            if calendarui.int_day.rounddown(p.record_time) not in days:
-                days.append(calendarui.int_day.rounddown(p.record_time))
-
+    for i in range(min(count, 16)):
+        while True:
+            p = pics[random.randrange(0, count)]
+            if p not in sampler:
+                break
+        sampler.append(p)
+        if calendarui.int_day.rounddown(p.record_time) not in days:
+            days.append(calendarui.int_day.rounddown(p.record_time))
     
     page.pre(request, 'Collection %s: %d pictures' % (self.dbobj.name, npics),
              bodyid='collection', brieftitle='Collection: "%s"' % self.dbobj.name)
@@ -48,7 +46,8 @@ def _q_index [html] (self, request):
     extra=[]
     
     if days:
-        extra.append(['Days', [ (calendarui.int_day.num_fmt(d), self.calendar.calendar_url(calendarui.int_day, d))
+        extra.append(['Days', [ (calendarui.int_day.num_fmt(d),
+                                 self.calendar.calendar_url(calendarui.int_day, d))
                                 for d in days ] ])
 
     page.menupane(request)

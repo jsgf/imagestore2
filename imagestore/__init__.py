@@ -21,7 +21,7 @@ import imagestore.style
 import imagestore.menu as menu
 import imagestore.nav as nav
 
-_q_exports = [ 'collections', 'user', 'admin', 'rss', 'static', ('style.css', 'style_css') ]
+_q_exports = [ 'user', 'admin', 'rss', 'static', ('style.css', 'style_css') ]
 
 style_css = imagestore.style.style_css
 
@@ -57,14 +57,12 @@ def _q_access(request):
     # add navigation
     request.navigation = nav.Nav(request)
     
-def collections(request):
-    return page.html(request, 'Collections', 'collections')
-
 def admin(request):
     return 'admin'
 
 def rss(request):
     return 'rss'
+
 
 class Q1StaticFile(StaticFile):
     def __call__(self, req):

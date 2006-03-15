@@ -37,10 +37,6 @@ Basic ideas:
 URL layout:
 
 /imagestore/
-	collections/				# collection administration
-		new/
-		edit/NAME -> ../../NAME/edit
-
 	<collection-name>/			# collection root
 		image/
 			NNNN(-SIZE!?)?.html	# generate a viewer page for the image
