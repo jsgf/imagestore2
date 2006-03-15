@@ -210,8 +210,7 @@ def details [html] (self, request, p):
 
     user = request.session.getuser()
     if user and p.mayEdit(user):
-        '<a href="%s/%s/image/edit/%d.html">Edit</a>' % (imagestore.path(), self.coll.dbobj.name,
-                                                         p.id)
+        '<a href="%s">Edit</a>' % self.image.edit.path(p)
 
     page.post()
 

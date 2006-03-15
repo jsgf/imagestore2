@@ -1,7 +1,6 @@
 # -*- python -*-
 
-import imagestore
-prefix = imagestore.path()
+import imagestore.base_paths as paths
 
 def plural(n, word):
     n=int(n)
@@ -20,12 +19,12 @@ def pre [html] (request, title, bodyid, trail=True, brieftitle=None):
         "http://www.w3.org/TR/html4/strict.dtd">
 <html>
 <head>
-  <link type="text/css" rel="stylesheet" href="%(base)s/style.css">
+  <link type="text/css" rel="stylesheet" href="%(base)sstyle.css">
   <title>%(title)s</title>
 %(nav)s</head>
 <body id="%(id)s">\n""" % {
       'title': title,
-      'base': prefix,
+      'base': paths.path(),
       'id': bodyid,
       'nav': request.navigation.render_links(depth=1),
       }
@@ -52,10 +51,10 @@ def arrow [html] (dir, alt=None, extra={}):
                 'left': '&larr;',
                 'right':'&rarr;' }[dir]
 
-    '<img class="arrow %(dir)s-arrow" alt="%(alt)s" %(extra)s src="%(prefix)s/static/arrow-small-%(dir)s.png">' % {
+    '<img class="arrow %(dir)s-arrow" alt="%(alt)s" %(extra)s src="%(static)sarrow-small-%(dir)s.png">' % {
         'extra': join_extra(extra),
         'alt': alt,
-        'prefix': prefix,
+        'static': paths.static_path(),
         'dir': dir,
         }
 
@@ -76,7 +75,7 @@ def generate_extra [html] (extra, depth=0):
 # it's in the form of nested lists of tuples
 def menupane [html] (request, extra=None):
     from menu import Menu, SubMenu, Link, Heading
-    from user import EditSwitchItem
+    import user
     
     crumbs = request.session.breadcrumbs
     if crumbs:
@@ -90,18 +89,18 @@ def menupane [html] (request, extra=None):
     # Login info
 
     session = request.session
-    user = session.getuser()
+    sess_user = session.getuser()
 
     menu = Menu()
     
-    if user is None:
-        menu += [ Link('Log in', '%s/user/login' % prefix) ]
+    if sess_user is None:
+        menu += [ Link('Log in', user.login_path()) ]
     else:
         menu += [ SubMenu(heading='Logged in:',
-                          items=[Link('%s' % user.fullname,
-                                      '%s/user/%s/' % (prefix, user.username))]),
-                  Link('Log out', '%s/user/logout' % prefix),
-                  EditSwitchItem(request.session) ]
+                          items=[Link('%s' % sess_user.fullname,
+                                      user.user_path(sess_user))]),
+                  Link('Log out', user.logout_path()),
+                  user.EditSwitchItem(request.session) ]
 
     # Context menu
     menu += request.context_menu

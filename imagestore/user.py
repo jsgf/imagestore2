@@ -3,7 +3,7 @@
 from sqlobject import SQLObjectNotFound
 from sqlobject.sqlbuilder import AND, NOT, IN
 
-from quixote.util import Redirector
+import quixote
 from quixote.errors import AccessError, TraversalError, QueryError
 from quixote.html import htmltext as H, TemplateIO
 import quixote.form as form2
@@ -23,14 +23,20 @@ def _q_access(request):
     
     if sess_user and sess_user.mayAdmin:
         request.context_menu += [ menu.Separator(),
-                                  menu.Link('User admin', '%s/user/editusers' % imagestore.path()) ]
+                                  menu.Link('User admin', '%suser/editusers' % imagestore.path()) ]
 
+
+def user_path(user):
+    return '%s%s/' % (path(), user.username)
 
 def path(user=None):
-    if user is None:
-        return '%s/user/login' % imagestore.path()
-    else:
-        return '%s/user/%s/' % (imagestore.path(), user.username)
+    return imagestore.path() + 'user/'
+
+def login_path():
+    return path() + 'login'
+
+def logout_path():
+    return path() + 'logout'
 
 perms = [ ('mayAdmin', 'May administer'),
           ('mayViewall', 'May view everything'),
@@ -69,9 +75,9 @@ def login(request):
             body += H('<p>Hi, %s, you\'ve logged in' % user.fullname)
             session.setuser(user.id)
             if referer is not None and referer != '':
-                Redirector(referer)
+                quixote.redirect(referer)
             else:
-                Redirector(path(user))
+                quixote.redirect(path(user))
     else:
         body += user_page.login_form(request, referer=request.get_environ('HTTP_REFERER'))
 
@@ -124,7 +130,7 @@ def newuser(request):
                         mayUpload=False,
                         mayComment=config.users.mayComment,
                         mayRate=config.users.mayRate)
-            Redirector(path(u))
+            quixote.redirect(path(u))
         else:
             render=True
     else:
@@ -146,7 +152,7 @@ def newuser(request):
 def logout(request):
     request.session.setuser(None)
 
-    Redirector(request.get_environ('HTTP_REFERER'))
+    quixote.redirect(request.get_environ('HTTP_REFERER'))
 
     return 'logged out'
 
@@ -169,7 +175,7 @@ def _q_index(request):
 
     user = session.getuser()
 
-    Redirector(path(user))
+    quixote.redirect(path(user))
 
     return ''
 
@@ -395,7 +401,7 @@ def editusers(request):
 
     if userform.get_submit() == 'cancel' or (state > 0 and not userlist.changed()):
         print 'CANCEL'
-        Redirector(request.get_path())
+        quixote.redirect(request.get_path())
         return ''
 
     if state > 0:
@@ -422,7 +428,7 @@ def editusers(request):
     
     userlist.commit()
 
-    Redirector(request.get_path()) # reload with the new details
+    quixote.redirect(request.get_path()) # reload with the new details
     return ''
     
 
@@ -435,15 +441,16 @@ def editmode(request):
     
     session = request.session
 
-    if session.user and request.form:
-        session.wantedit = bool(int(request.form.get('wantedit')))
-
-    Redirector(request.get_environ('HTTP_REFERER'))
+    if session.user:
+        session.wantedit = bool(int(request.get_field('wantedit')))
+        session.set_dirty()
+        
+    quixote.redirect(request.get_environ('HTTP_REFERER'))
 
     return ''
 
 def editmode_url(onoff):
-    return '%s/user/editmode?wantedit=%d' % (imagestore.path(), onoff)
+    return '%suser/editmode?wantedit=%d' % (imagestore.path(), onoff)
 
 class EditSwitchItem(menu.MenuItem):
     def __init__(self, session, classes=None, extra=None):
@@ -481,7 +488,7 @@ class UserUI:
         sess_user = request.session.getuser()
 
         if sess_user is None:
-            Redirector(path(sess_user))
+            quixote.redirect(path(sess_user))
             return ''
 
         return user_page.user_page(request)

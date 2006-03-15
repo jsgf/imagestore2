@@ -4,7 +4,7 @@ import random
 
 from sqlobject.sqlbuilder import *
 
-from quixote.util import Redirector
+import quixote
 import quixote.form as form2
 
 import imagestore.db as db
@@ -103,7 +103,7 @@ def admin_page [html] (self, request):
     if props.get_submit() == 'delete' and nopics:
         col.destroySelf()
         request.session.del_breadcrumb()
-        Redirector(str('%s/user/') % prefix)
+        quixote.redirect(str('%s/user/') % prefix)
         return ''
 
     if not props.is_submitted() or props.has_errors():
@@ -122,7 +122,7 @@ def admin_page [html] (self, request):
             col.showOriginal = str(props['showOriginal'])
 
             request.session.del_breadcrumb()
-            Redirector(self.admin_path())
+            quixote.redirect(self.admin_path())
 
 
     '<div class="title-box user-perms">\n'

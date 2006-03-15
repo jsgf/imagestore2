@@ -1,17 +1,15 @@
 
-from quixote import enable_ptl
-enable_ptl()
-
-def path():
-    return '/imagestore'
+import quixote
+quixote.enable_ptl()
 
 import os.path
 
 from sqlobject import SQLObjectNotFound
 
-from quixote.util import Redirector
 from quixote.errors import TraversalError
 from quixote.util import StaticDirectory, StaticFile
+
+from imagestore.base_paths import *
 
 import imagestore.db as db
 import imagestore.collection as collection
@@ -28,7 +26,7 @@ style_css = imagestore.style.style_css
 def _q_index(request):
     ret = page.menupane(request)
 
-    Redirector('%s/default/' % path())
+    quixote.redirect('%s/default/' % path())
     
     return page.html(request, 'Imagestore', ret)
 
@@ -80,6 +78,3 @@ class Q1StaticDirectory(StaticDirectory):
     
 static = Q1StaticDirectory(os.path.abspath('./static'),
                            file_class=Q1StaticFile)
-
-def static_path():
-    return path() + '/static/'

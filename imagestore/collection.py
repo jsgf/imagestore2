@@ -142,7 +142,7 @@ class CollectionUI:
         return collection_page.admin_page(self, request)
 
     def path(self):
-        return '%s/%s/' % (self.parent.path(), self.dbobj.name)
+        return '%s%s/' % (self.parent.path(), self.dbobj.name)
 
     def admin_path(self):
         return self.path() + 'admin'

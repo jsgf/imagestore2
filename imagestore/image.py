@@ -3,7 +3,7 @@ from rfc822 import formatdate
 
 from sqlobject import SQLObjectNotFound
 
-from quixote.util import Redirector
+import quixote
 from quixote.errors import TraversalError, AccessError
 from quixote.html import htmltext as H, TemplateIO
 import quixote.form as form2
@@ -62,7 +62,7 @@ class DetailsUI:
         self.image = image
 
     def path(self, p):
-        return '%s/details/%d.html' % (self.image.path(), p.id)
+        return '%sdetails/%d.html' % (self.image.path(), p.id)
     
     def _q_lookup(self, request, component):
         (id, size, pref, ext) = split_image_name(component)
@@ -151,9 +151,9 @@ class EditUI:
             p.visibility = form['visibility']
 
             if form.get_submit() == 'submit-next' and next:
-                Redirector(self.image.edit.path(db.Picture.get(next)))
+                quixote.redirect(self.image.edit.path(db.Picture.get(next)))
             else:
-                Redirector(request.get_path())
+                quixote.redirect(request.get_path())
             ret = ''
 
         return ret
@@ -227,7 +227,7 @@ class ImageUI:
         p.orientation = angle
 
         if returnurl is not None:
-            Redirector(returnurl)
+            quixote.redirect(returnurl)
         
         return 'rotate done, I guess'
 

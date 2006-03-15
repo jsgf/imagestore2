@@ -48,7 +48,7 @@ def style_css [plain] (request):
 
         'view-margin': view_margin,
 
-        'staticdir':    '%s/static' % imagestore.path(),
+        'staticdir':    imagestore.static_path()
         }
 
     # First, some basic definitions

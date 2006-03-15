@@ -20,7 +20,7 @@ from cStringIO import StringIO
 
 from mx.DateTime import DateTime, gmt, gmtime
 
-from quixote.util import Redirector
+import quixote
 from quixote.errors import AccessError, QueryError
 from quixote.html import htmltext as H, TemplateIO
 import quixote.http_response
@@ -355,7 +355,7 @@ class UploadUI:
                 p.upload = None
 
             if not self.have_pending(user):
-                Redirector(self.collection.path())
+                quixote.redirect(self.collection.path())
 
         elif request.form.has_key('defaults'):
             kw = splitKeywords(request.form['keywords'])
@@ -367,5 +367,5 @@ class UploadUI:
                 if vis != 'unchanged':
                     p.visibility = vis
                 
-        Redirector(self.pending_path())
+        quixote.redirect(self.pending_path())
         return ''

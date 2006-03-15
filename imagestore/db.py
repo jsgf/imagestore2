@@ -35,10 +35,7 @@ def db_connect():
 
     print 'uri='+dbinfo[db]['conn']
 
-    # disable caching
-    #uri += '?cache=0'
-    
-    conn = connectionForURI(uri)
+    conn = connectionForURI(uri, cache=False)
     conn.debug = 0
     __connection__ = conn
 
