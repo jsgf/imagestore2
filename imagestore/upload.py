@@ -324,8 +324,12 @@ class UploadUI:
                                      db.Picture.q.uploadID == db.Upload.q.id,
                                      db.Picture.q.ownerID == user.id,
                                      db.Upload.q.userID == user.id)).count() != 0
-    def pending_url(self):
-        return '%s/%s/upload/pending' % (imagestore.path(), self.collection.dbobj.name)
+
+    def path(self):
+        return self.collection.path() + 'upload/'
+    
+    def pending_path(self):
+        return self.path() + 'pending'
 
     def commit(self, request):
         user = request.session.getuser()
@@ -351,7 +355,7 @@ class UploadUI:
                 p.upload = None
 
             if not self.have_pending(user):
-                Redirector(self.collection.collection_url())
+                Redirector(self.collection.path())
 
         elif request.form.has_key('defaults'):
             kw = splitKeywords(request.form['keywords'])
@@ -363,5 +367,5 @@ class UploadUI:
                 if vis != 'unchanged':
                     p.visibility = vis
                 
-        Redirector(self.pending_url())
+        Redirector(self.pending_path())
         return ''

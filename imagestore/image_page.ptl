@@ -33,13 +33,13 @@ def view [html] (self, request, p, size, default):
                ImageTransform.sizes[s][1] > p.height:
             continue
         
-        request.navigation.add_option(self.view_url(p, size=s, preferred=True),
+        request.navigation.add_option(self.view_path(p, size=s, preferred=True),
                                       link=s.capitalize(),
                                       title='%dx%d' % ImageTransform.transformed_size(p, s),
                                       selected= s==size)
 
     if self.coll.mayViewOrig(request, p):
-        request.navigation.add_option(self.view_url(p, size='orig'),
+        request.navigation.add_option(self.view_path(p, size='orig'),
                                       link='Original',
                                       title='For printing')
 
@@ -106,10 +106,10 @@ def view_rotate_link [html] (self, request, p, size=None, extra=None, wantedit=F
         </div>"""
 
     twu % {
-        'rot0':   self.rotate_url(p, (  0 + p.orientation) % 360, url),
-        'rot90':  self.rotate_url(p, ( 90 + p.orientation) % 360, url),
-        'rot180': self.rotate_url(p, (180 + p.orientation) % 360, url),
-        'rot270': self.rotate_url(p, (270 + p.orientation) % 360, url),
+        'rot0':   self.rotate_path(p, (  0 + p.orientation) % 360, url),
+        'rot90':  self.rotate_path(p, ( 90 + p.orientation) % 360, url),
+        'rot180': self.rotate_path(p, (180 + p.orientation) % 360, url),
+        'rot270': self.rotate_path(p, (270 + p.orientation) % 360, url),
 
         'thumb':  self.edit_newwin_link(request, p, extra=extra),
 

@@ -51,7 +51,7 @@ def listkeywords(base, kwlist, bigletter=False):
     if char:
         r += H('</%s>\n' % divide) 
 
-    return r
+    return r.getvalue()
 
 def group_by_time(pics, unit):
     curtime = None
@@ -94,7 +94,7 @@ class KWSearchUI:
         if keywords is None:
             keywords = self.kw
         
-        base=H('%s/%s/search/kw/') % (imagestore.path(), self.col.dbobj.name)
+        base=H(self.search.path() + 'kw/')
         base += ''.join([ k+'/' for k in keywords])
 
         limit = limit or self.RESULTLIMIT
@@ -103,8 +103,10 @@ class KWSearchUI:
             if limit != self.RESULTLIMIT:
                 base += H('&limit=%d') % limit
                 
-
         return base
+
+    def path(self, keywords, d=None):
+        return self.url(keywords=keywords) + (d and '#' + int_day.num_fmt(d) or '')
     
     def _q_index(self, request):
         # Map keyword strings into Keywords; if any keyword is
@@ -281,15 +283,14 @@ class SearchUI:
     def menupane_extra(self):
         return [ menu.Separator(),
                  menu.SubMenu(heading='Search',
-                              items=[menu.Link('by keyword', '%s/%s/search/' % (imagestore.path(),
-                                                                                self.col.dbobj.name))]) ]
+                              items=[menu.Link('by keyword', self.path()) ] ) ]
 
-    def search_kw_url(self, kw, d=None):
-        return self.kw.url(keywords=[ kw ]) + (d and '#' + int_day.num_fmt(d) or '')
-
+    def path(self):
+        return self.col.path() + 'search/'
+    
     def search_kw_link(self, kw, d=None, extra=None):
         if extra:
             extra = page.join_extra(extra)
 
         return H('<a %s href="%s">%s</a>') % (extra or '',
-                                              self.search_kw_url(kw, d), kw)
+                                              self.kw.path([ kw ], d), kw)

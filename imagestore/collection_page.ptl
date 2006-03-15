@@ -47,7 +47,7 @@ def _q_index [html] (self, request):
     
     if days:
         extra.append(['Days', [ (calendarui.int_day.num_fmt(d),
-                                 self.calendar.calendar_url(calendarui.int_day, d))
+                                 self.calendar.path(calendarui.int_day, d))
                                 for d in days ] ])
 
     page.menupane(request)
@@ -61,7 +61,7 @@ def _q_index [html] (self, request):
 
         for p in sampler:
             '<span class="image">\n'
-            '<a href="%s">%s</a>\n' % ('%s#pic%d' % (self.calendar.calendar_url(calendarui.int_day, p.record_time), p.id),
+            '<a href="%s">%s</a>\n' % ('%s#pic%d' % (self.calendar.path(calendarui.int_day, p.record_time), p.id),
                                        imageui.thumb_img(p, False))
             '</span>\n'
 
@@ -122,7 +122,7 @@ def admin_page [html] (self, request):
             col.showOriginal = str(props['showOriginal'])
 
             request.session.del_breadcrumb()
-            Redirector(self.collection_admin_url())
+            Redirector(self.admin_path())
 
 
     '<div class="title-box user-perms">\n'

@@ -34,7 +34,7 @@ def _q_index(request):
 
 def _q_lookup(request, component):
     try:
-        return collection.CollectionUI(db.Collection.byName(component))
+        return collection.CollectionUI(db.Collection.byName(component), imagestore)
     except SQLObjectNotFound, x:
         raise TraversalError(str(x))
 
@@ -50,7 +50,7 @@ def _q_access(request):
     request.context_menu += [ menu.Separator(),
                               menu.SubMenu(heading='Collections:',
                                            items=[ menu.Link(link=c.name,
-                                                             url=collection.CollectionUI(c).collection_url(),
+                                                             url=collection.CollectionUI(c, imagestore).path(),
                                                              extra={ 'title': c.description })
                                                    for c in collections ]) ]
 
@@ -80,3 +80,6 @@ class Q1StaticDirectory(StaticDirectory):
     
 static = Q1StaticDirectory(os.path.abspath('./static'),
                            file_class=Q1StaticFile)
+
+def static_path():
+    return path() + '/static/'

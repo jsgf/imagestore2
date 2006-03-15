@@ -15,7 +15,8 @@ import imagestore.menu as menu
 class CollectionUI:
     _q_exports = [ 'image', 'calendar', 'search', 'admin', 'upload' ]
 
-    def __init__(self, dbobj):
+    def __init__(self, dbobj, parent):
+        self.parent = parent
         self.dbobj = dbobj  
 
         self.image = image.ImageUI(self)
@@ -32,12 +33,12 @@ class CollectionUI:
         m = menu.SubMenu(heading='Collection: %s' % self.dbobj.name)
         if self.mayAdminCol(request):
             m += [ menu.Link(link='Administer',
-                             url=self.collection_admin_url()) ]
+                             url=self.admin_path()) ]
 
         if self.mayUpload(request):
-            um = menu.SubMenu(heading=menu.Link(link='Upload', url=self.collection_upload_url()))
+            um = menu.SubMenu(heading=menu.Link(link='Upload', url=self.upload.path()))
             if self.upload.have_pending(request.session.getuser()):
-                um += [ menu.Link(link='Pending', url=self.upload.pending_url()) ]
+                um += [ menu.Link(link='Pending', url=self.upload.pending_path()) ]
             m += [ um ]
 
         request.context_menu += [ menu.Separator(), m ]
@@ -135,30 +136,25 @@ class CollectionUI:
         return False
 
     def admin(self, request):
-        user = request.session.getuser()
-
         if not self.mayAdminCol(request):
             raise AccessError('You may not modify this collection')
         
         return collection_page.admin_page(self, request)
 
-    def collection_url(self):
-        return '%s/%s/' % (imagestore.path(), self.dbobj.name)
+    def path(self):
+        return '%s/%s/' % (self.parent.path(), self.dbobj.name)
 
-    def collection_admin_url(self):
-        return self.collection_url() + 'admin'
-
-    def collection_upload_url(self):
-        return self.collection_url() + 'upload/'
+    def admin_path(self):
+        return self.path() + 'admin'
 
     def collection_link(self, link, extra=None):
         if extra:
             extra = join_extra(extra)
 
-        return H('<a %s href="%s">%s</a>') % (extra or '', self.collection_url(), link)
+        return H('<a %s href="%s">%s</a>') % (extra or '', self.path(), link)
 
     def collection_admin_link(self, link, extra=None):
         if extra:
             extra = join_extra(extra)
 
-        return H('<a %s href="%s">%s</a>') % (extra or '', self.collection_admin_url(), link)
+        return H('<a %s href="%s">%s</a>') % (extra or '', self.admin_path(), link)

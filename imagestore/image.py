@@ -61,6 +61,9 @@ class DetailsUI:
         self.coll = coll
         self.image = image
 
+    def path(self, p):
+        return '%s/details/%d.html' % (self.image.path(), p.id)
+    
     def _q_lookup(self, request, component):
         (id, size, pref, ext) = split_image_name(component)
 
@@ -81,6 +84,9 @@ class EditUI:
     def __init__(self, image, coll):
         self.coll = coll
         self.image = image
+
+    def path(self, p):
+        return '%s/edit/%d.html' % (self.image.path(), p.id)
 
     def _q_lookup(self, request, component):
         (id, size, pref, ext) = split_image_name(component)
@@ -124,7 +130,7 @@ class EditUI:
             from image_page import detail_table
             
             self.image.set_prevnext(request, p.id,
-                                    urlfn=lambda pic, size, s=self.image: s.edit_url(pic))
+                                    urlfn=lambda pic, size, s=self.image: s.edit.path(pic))
             
             ret = TemplateIO(html=True)
             
@@ -145,7 +151,7 @@ class EditUI:
             p.visibility = form['visibility']
 
             if form.get_submit() == 'submit-next' and next:
-                Redirector(self.image.edit_url(db.Picture.get(next)))
+                Redirector(self.image.edit.path(db.Picture.get(next)))
             else:
                 Redirector(request.get_path())
             ret = ''
@@ -259,7 +265,10 @@ class ImageUI:
     view_rotate_link = view_rotate_link_ptl
 
     # Various URL generating functions
-    def view_url(self, p, size, preferred=False):
+    def path(self):
+        return self.coll.path() + 'image/'
+    
+    def view_path(self, p, size, preferred=False):
         if size is not None:
             size = '-'+size
             if preferred:
@@ -267,16 +276,10 @@ class ImageUI:
         else:
             size = ''
 
-        return '%s/%s/image/%d%s.html' % (imagestore.path(), self.dbcoll.name, p.id, size)
+        return '%s%d%s.html' % (self.path(), p.id, size)
 
-    def thumb_url(self, p):
-        return '%s/%s/image/%d-thumb.jpg' % (imagestore.path(), self.dbcoll.name, p.id)
-
-    def details_url(self, p):
-        return '%s/%s/image/details/%d.html' % (imagestore.path(), self.dbcoll.name, p.id)
-
-    def edit_url(self, p):
-        return '%s/%s/image/edit/%d.html' % (imagestore.path(), self.dbcoll.name, p.id)
+    def thumb_path(self, p):
+        return '%s%d-thumb.jpg' % (self.path(), p.id)
 
     def picture_url(self, p, size, preferred=False):
         if size is not None:
@@ -285,13 +288,12 @@ class ImageUI:
                 size += '!'
         else:
             size = ''
-        return "%s/%s/image/%d%s.%s" % (imagestore.path(), self.dbcoll.name, p.id, size,
-                                        ImageTransform.extmap[p.mimetype])
+        return "%s%d%s.%s" % (self.path(), p.id, size,
+                              ImageTransform.extmap[p.mimetype])
 
-    def rotate_url(self, p, angle, frompage):
+    def rotate_path(self, p, angle, frompage):
         angle = int(angle)
-        return '%s/%s/image/rotate?id=%d&angle=%d&fromurl=%s' % \
-               (imagestore.path(), self.dbcoll.name, p.id, angle, frompage)
+        return '%srotate?id=%d&angle=%d&fromurl=%s' % (self.path(), p.id, angle, frompage)
 
     def picture_img(self, p, size, preferred=False, extra={}):
         e = page.join_extra(extra)
@@ -325,11 +327,11 @@ class ImageUI:
             'alt': 'Thumbnail of %d' % p.id,
             'id': p.id,
             'extra': e,
-            'ref': self.thumb_url(p) }
+            'ref': self.thumb_path(p) }
 
         if showvis:
-            r += H('<img class="visibility" title="%(v)s" alt="%(v)s" src="%(p)s/static/%(v)s.png">') % {
-                'v': p.visibility, 'p': imagestore.path()
+            r += H('<img class="visibility" title="%(v)s" alt="%(v)s" src="%(p)s%(v)s.png">') % {
+                'v': p.visibility, 'p': imagestore.static_path()
                 }
 
         r += H('</span>')
@@ -341,7 +343,7 @@ class ImageUI:
             user = request.session.getuser()
             link = self.thumb_img(p=p, showvis=(user and p.ownerID == user.id))
 
-        url = url or self.view_url(p=p, size=size, preferred=preferred)
+        url = url or self.view_path(p=p, size=size, preferred=preferred)
 
         e = page.join_extra(extra)
 
@@ -356,7 +358,7 @@ class ImageUI:
 
         extra['target'] = str(p.id)
 
-        return self.view_link(request, p, url=self.edit_url(p))
+        return self.view_link(request, p, url=self.edit.path(p))
         
     def view_newwin_link(self, request, p, size=None, link=None, preferred=False, extra=None):
         extra = extra or {}
@@ -378,17 +380,17 @@ class ImageUI:
         return self.view_link(request, p=p, size=size, link=link, preferred=preferred, extra=extra)
 
     def details_link(self, p, link):
-        return H('<a href="%s">%s</a>' % (self.details_url(p), link))
+        return H('<a href="%s">%s</a>' % (self.details.path(p), link))
 
     def edit_link(self, p, link):
-        return H('<a href="%s">%s</a>' % (self.edit_url(p), link))
+        return H('<a href="%s">%s</a>' % (self.edit.path(p), link))
 
     def set_prevnext(self, request, id, size=None, urlfn=None):
         (first, last) = request.session.get_result_ends()
         (prev,next) = request.session.get_results_neighbours(id)
 
         if urlfn is None:
-            urlfn = lambda pic, size: self.view_url(pic, size)
+            urlfn = lambda pic, size: self.view_path(pic, size)
 
         if first is not None and first != id and first != prev:
             first = db.Picture.get(first)

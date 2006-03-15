@@ -26,7 +26,7 @@ def _q_access(request):
                                   menu.Link('User admin', '%s/user/editusers' % imagestore.path()) ]
 
 
-def user_url(user):
+def path(user=None):
     if user is None:
         return '%s/user/login' % imagestore.path()
     else:
@@ -71,7 +71,7 @@ def login(request):
             if referer is not None and referer != '':
                 Redirector(referer)
             else:
-                Redirector(user_url(user))
+                Redirector(path(user))
     else:
         body += user_page.login_form(request, referer=request.get_environ('HTTP_REFERER'))
 
@@ -80,7 +80,7 @@ def login(request):
 
     p += page.pre(request, 'Imagestore Login', 'login', trail=False)
     p += page.menupane(request)
-    p += H(body)
+    p += body.getvalue()
     p += page.post()
 
     return p.getvalue()
@@ -124,7 +124,7 @@ def newuser(request):
                         mayUpload=False,
                         mayComment=config.users.mayComment,
                         mayRate=config.users.mayRate)
-            Redirector(user_url(u))
+            Redirector(path(u))
         else:
             render=True
     else:
@@ -169,7 +169,7 @@ def _q_index(request):
 
     user = session.getuser()
 
-    Redirector(user_url(user))
+    Redirector(path(user))
 
     return ''
 
@@ -226,7 +226,7 @@ class UserWidget(form2.CompositeWidget):
         if self['delete']:
             classnames += ' deleted'
         r += H('<tr title="%s" class="%s">') % (self.get_hint(), classnames)
-        r += H('<td><a href="%s">%d</a></td>') % (user_url(self.user), self.user.id)
+        r += H('<td><a href="%s">%d</a></td>') % (path(self.user), self.user.id)
         r += self.render_content()
         r += H('</tr>\n')
             
@@ -481,7 +481,7 @@ class UserUI:
         sess_user = request.session.getuser()
 
         if sess_user is None:
-            Redirector(user_url(sess_user))
+            Redirector(path(sess_user))
             return ''
 
         return user_page.user_page(request)

@@ -226,14 +226,14 @@ class CalendarUI:
 
     def menupane_extra(self):
         return menu.SubMenu(heading='Calendar',
-                            items=[ menu.Link(link='summary', url=self.calendar_url()),
+                            items=[ menu.Link(link='summary', url=self.path()),
                                     menu.SubMenu(heading='Recent...',
-                                                 items=[menu.Link('week', self.calendar_url(int_week)),
-                                                        menu.Link('month', self.calendar_url(int_month)),
-                                                        menu.Link('year', self.calendar_url(int_year))])])
+                                                 items=[menu.Link('week', self.path(int_week)),
+                                                        menu.Link('month', self.path(int_month)),
+                                                        menu.Link('year', self.path(int_year))])])
     
-    def calendar_url(self, interval=None, date=None):
-        ret = '%s/%s/calendar/' % (imagestore.path(), self.collection.dbobj.name)
+    def path(self, interval=None, date=None):
+        ret = self.collection.path() + 'calendar/'
         if interval is not None:
             if isinstance(interval, str):
                 interval = intervals[interval]

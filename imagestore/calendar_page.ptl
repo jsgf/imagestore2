@@ -50,7 +50,7 @@ def picsbyday [html] (request, days, collection):
         '<h3>\n'
         '  <a class="day-link" id="day:%(date)s" href="%(url)s">%(date)s</a>\n' % {
             'date': d.strftime(str('%Y-%m-%d')),
-            'url': collection.calendar.calendar_url(int_day, d),
+            'url': collection.calendar.path(int_day, d),
             }
         '  <span class="day-keywords">\n'
         '%(keywords)s%(ellip)s\n' % {
@@ -86,13 +86,13 @@ def _q_index_ptl [html] (self, request):
                              orderBy=db.Picture.q.record_time).reversed()
     if prev.count() > 0:
         prev = self.interval.rounddown(prev[0].record_time)
-        request.navigation.set_prev(self.calendar_url(self.interval, prev))
+        request.navigation.set_prev(self.path(self.interval, prev))
 
     next = db.Picture.select(AND(db.Picture.q.record_time >= (self.date+self.interval.step), filter),
                              orderBy=db.Picture.q.record_time)
     if next.count() > 0:
         next = self.interval.rounddown(next[0].record_time)
-        request.navigation.set_next(self.calendar_url(self.interval, next))
+        request.navigation.set_next(self.path(self.interval, next))
 
     page.menupane(request)
 
@@ -105,7 +105,7 @@ def _q_index_ptl [html] (self, request):
         sel=''
         if i == self.interval:
             sel='selected'
-        '<a class="%s" href="%s">%s</a>\n' % (sel, self.calendar_url(i, self.date),
+        '<a class="%s" href="%s">%s</a>\n' % (sel, self.path(i, self.date),
                                               i.name.capitalize())
 
     picsbyday(request, days, self.collection)
@@ -123,7 +123,7 @@ def emitmonth [html](request, calui, year, m):
     '\n<table class="month">\n'
     '  <thead>\n'
     '    <tr><td colspan="7"><a title="%s" href="%s">%s</a></td></tr>\n' % \
-      (title, calui.calendar_url(int_month, mxdt.DateTime(year, m.month)), m.getname())
+      (title, calui.path(int_month, mxdt.DateTime(year, m.month)), m.getname())
     '  </thead>\n'
     '  <tbody>\n'
     mc = m.getcalendar()
@@ -148,7 +148,7 @@ def emitmonth [html](request, calui, year, m):
             if mark != 0:
                 title = page.plural(mark, 'picture')
                 '<td class="mark"><a href="%s" title="%s">%d</a></td>' % \
-                     (calui.calendar_url(int_day, mxdt.DateTime(year, m.month, d)), title, d)
+                     (calui.path(int_day, mxdt.DateTime(year, m.month, d)), title, d)
             else:
                 '<td>%d</td>' % d
         '</tr>\n'
@@ -191,13 +191,13 @@ def formatyear [html] (self, request, year):
         
         r += '  <a class="%s" title="%s" href="%s">%d</a>\n' % \
              (selected, title,
-              self.calui.calendar_url(int_year, d), d.year)
+              self.calui.path(int_year, d), d.year)
 
     if prev is not None:
-        request.navigation.set_prev(self.calui.calendar_url(int_year, prev))
+        request.navigation.set_prev(self.calui.path(int_year, prev))
 
     if next is not None:
-        request.navigation.set_next(self.calui.calendar_url(int_year, next))
+        request.navigation.set_next(self.calui.path(int_year, next))
 
     page.menupane(request)
 
