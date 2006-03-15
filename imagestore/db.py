@@ -31,8 +31,9 @@ conn = None
 
 def db_connect():
     global conn, __connection__
-    print 'path='+dbinfo[db]['conn']
     uri=dbinfo[db]['conn']
+
+    print 'uri='+dbinfo[db]['conn']
 
     # disable caching
     #uri += '?cache=0'
@@ -46,7 +47,7 @@ def db_connect():
                Media, Keyword, User, Camera, Upload, Session ]:
         #print 'c=%s' % c
         c.setConnection(conn)
-	if not conn.tableExists(c._table):
+	if not conn.tableExists(c.sqlmeta.table):
 	    c.createTable(ifNotExists=True)
             if c == Media and conn.dbName == 'mysql':
                 # allow media table to grow big
@@ -243,7 +244,7 @@ def getmediachunks(hash):
 
     for c in Media.select(Media.q.hash==hash, orderBy='sequence'):
         #print "chunk id=%d, seq=%d, len=%d" % (c.id, c.sequence, len(c.data))
-        yield c.data()
+        yield c.data
 
 def verifymedia(id):
     """Verify that all the media chunks are there; returns nothing on

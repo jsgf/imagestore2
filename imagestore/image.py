@@ -93,7 +93,7 @@ class EditUI:
         return self.editdetails(request, p)
 
     def editdetails(self, request, p):
-        form = form2.Form('editdetails')
+        form = form2.Form(name='editdetails')
 
         form.add(form2.StringWidget, name='title', size=50,
                  value=p.title or '', title='Title')
@@ -202,9 +202,9 @@ class ImageUI:
 
     def rotate(self, request):
         try:
-            id = int(request.get_form_var('id'))
-            angle = int(request.get_form_var('angle'))
-            returnurl = request.get_form_var('fromurl')
+            id = int(request.get_field('id'))
+            angle = int(request.get_field('angle'))
+            returnurl = request.get_field('fromurl')
 
             p = db.Picture.get(id)
 

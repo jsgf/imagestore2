@@ -14,6 +14,12 @@ import imagestore.calendar_page as calendar_page
 import imagestore.dbfilters as dbfilter
 import imagestore.menu as menu
 
+def to_mxDateTime(dt):
+    if type(dt) == mxdt.DateTime:
+        return dt
+    return mxdt.DateTime(dt.year, dt.month, dt.day,
+                         dt.hour, dt.minute, dt.second)
+
 def kw_summary(pics):
     count = {}
     for p in pics:
@@ -52,15 +58,18 @@ class Interval:
         self.round = round
 
     def roundup(self, time):
+        time = to_mxDateTime(time)
         return time + self.step - mxdt.oneSecond + self.round
 
     def rounddown(self, time):
+        time = to_mxDateTime(time)
         return time + self.round
 
     def __str__(self):
         return 'Interval(%s)' % self.name
 
     def num_fmt(self, time):
+        time = to_mxDateTime(time)
         return time.strftime('%F')
 
 class DayInterval(Interval):
@@ -69,6 +78,7 @@ class DayInterval(Interval):
                           mxdt.RelativeDateTime(hour=0, minute=0, second=0))
 
     def long_fmt(self, time):
+        time = to_mxDateTime(time)
         return time.strftime('%%A, %%B %s, %%Y' % ordinal(time.day))
 
 
@@ -78,6 +88,7 @@ class WeekInterval(Interval):
                           mxdt.RelativeDateTime(weekday=(mxdt.Monday,0)))
 
     def long_fmt(self, time):
+        time = to_mxDateTime(time)
         return time.strftime('Week of %%B %s, %%Y' % ordinal(time.day))
 
 class MonthInterval(Interval):
@@ -86,9 +97,11 @@ class MonthInterval(Interval):
                           mxdt.RelativeDateTime(day=1, hour=0, minute=0, second=0))
 
     def num_fmt(self, time):
+        time = to_mxDateTime(time)
         return time.strftime('%Y-%m')
 
     def long_fmt(self, time):
+        time = to_mxDateTime(time)
         return time.strftime('%B, %Y')
 
 class YearInterval(Interval):
@@ -97,9 +110,11 @@ class YearInterval(Interval):
                           mxdt.RelativeDateTime(month=1, day=1, hour=0, minute=0, second=0))
 
     def num_fmt(self, time):
+        time = to_mxDateTime(time)
         return time.strftime('%Y')
 
     def long_fmt(self, time):
+        time = to_mxDateTime(time)
         return time.strftime('%Y')
 
 intervals = {}
@@ -146,7 +161,7 @@ def pics_in_range(start, end=None, delta=None, filter=None):
         q.append(filter)
     return db.Picture.select(AND(*q), orderBy=db.Picture.q.record_time).distinct()
 
-def pics_grouped(group, first=None, last=None, round=False, filter=None):
+def pics_grouped(group, first=None, last=None, filter=None):
     ''' return a list of (DateTime, select-result) tuples counting the number
     of images in a particular time interval '''
 
@@ -160,10 +175,9 @@ def pics_grouped(group, first=None, last=None, round=False, filter=None):
     except IndexError:
         # If there are no pictures, then return an empty list
         return []
-    
-    if round:
-        first = group.rounddown(first)
-        last = group.roundup(last)
+
+    first = group.rounddown(first)
+    last = group.roundup(last)
         
     ret = []
 
@@ -239,11 +253,10 @@ class CalendarUI:
         tuples, where piclist is a list of Pictures in record_time
         order.
         """
-
         date_end = interval.roundup(date_start+interval.step)
         date_start = interval.rounddown(date_start)
 
-        pics = pics_grouped(int_day, date_start, date_end, round=True, filter=filter)
+        pics = pics_grouped(int_day, date_start, date_end, filter=filter)
 
         days = [ (date, sel) for date,sel in pics if sel.count() != 0 ]
 
@@ -261,7 +274,6 @@ class CalendarUI:
         months = [ (Month(year, m.month), res) for (m, res) in pics_grouped(int_month,
                                                                             mxdt.DateTime(year  ,1,1),
                                                                             mxdt.DateTime(year+1,1,1),
-                                                                            round=True,
                                                                             filter=filter)
                    if res.count() > 0 ]
 

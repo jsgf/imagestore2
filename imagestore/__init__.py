@@ -11,7 +11,7 @@ from sqlobject import SQLObjectNotFound
 
 from quixote.util import Redirector
 from quixote.errors import TraversalError
-from quixote.util import StaticDirectory
+from quixote.util import StaticDirectory, StaticFile
 
 import imagestore.db as db
 import imagestore.collection as collection
@@ -66,5 +66,19 @@ def admin(request):
 def rss(request):
     return 'rss'
 
-static = StaticDirectory(os.path.abspath('./static'))
+class Q1StaticFile(StaticFile):
+    def __call__(self, req):
+        return StaticFile.__call__(self)
     
+class Q1StaticDirectory(StaticDirectory):
+    def _q_index(self, req):
+        return StaticDirectory._q_index(self)
+
+    def _q_lookup(self, req, name):
+        return StaticDirectory._q_lookup(self, name)
+
+    def __call__(self, req):
+        return StaticDirectory.__call__(self)
+    
+static = Q1StaticDirectory(os.path.abspath('./static'),
+                           file_class=Q1StaticFile)

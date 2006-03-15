@@ -34,6 +34,8 @@ def freqlist(list):
     return ret    
 
 def picsbyday [html] (request, days, collection):
+    from calendarui import int_day
+
     # Days is list of (date, piclist) tuples.  This routine displays
     # them grouped by day, along with a summary of the keywords used
     # for that day's pictures.
@@ -159,7 +161,7 @@ def formatyear [html] (self, request, year):
 
     filter = dbfilters.mayViewFilter(self.calui.collection.dbobj, request.session.getuser())
 
-    pics = pics_grouped(int_year, round=True, filter=filter)
+    pics = pics_grouped(int_year, filter=filter)
 
     total = 0
     for d,c in pics:
