@@ -36,8 +36,14 @@ def post [html] ():
 def html(request, title, page, bodyid=''):
     return pre(request, title, bodyid) + page + post()
 
+def _emit_attrib [html] (a,v):
+    if v is None:
+        a
+    else:
+        '%s="%s"' % (a,v)
+
 def join_extra [html] (extra):
-    return ' '.join([ '%s="%s"' % i for i in extra.items() ])
+    return ' '.join([ _emit_attrib(a,v) for a,v in extra.items() ])
 
 def arrow [html] (dir, alt=None, extra={}):
     if alt is None:

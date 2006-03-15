@@ -70,13 +70,32 @@ def view [html] (self, request, p, size, default):
 
     page.post()
 
+def generate_twu_map [html] (self, p):
+    (w,h) = ImageTransform.thumb_size(p)
+    
+    """\
+    <map name="map:%(id)d">
+        <area href="%%(rot180)s" shape="circle" title="This way up" coords="%(midwidth)d,%(height)d,%(rad)d">
+        <area href="%%(rot270)s" shape="circle" title="This way up" coords="0,%(midheight)d,%(rad)d">
+        <area href="%%(rot90)s" shape="circle" title="This way up" coords="%(width)d,%(midwidth)d,%(rad)d">
+        <area href="%(default)s" shape="default">
+    </map>\n""" % {
+            'id': p.id,
+            'width': w-1,
+            'height': h-1,
+            'midwidth': w/2,
+            'midheight': h/2,
+            'rad': min(w,h)/3,
+            'default': self.edit.path(p)
+            }
+    
 def view_rotate_link [html] (self, request, p, size=None, extra=None, wantedit=False):
     if not (self.coll.mayEdit(request, p) and (wantedit or request.session.wantedit)):
         return self.view_newwin_link(request, p, size, extra=extra)
 
     url='%s#thumb:%d' % (request.get_url(), p.id)
 
-    thsz = ImageTransform.thumb_size(p.id)
+    thsz = ImageTransform.thumb_size(p)
 
     extra = extra or {}
     extra[str('style')] = str('width:%dpx; height:%dpx;' % thsz)
@@ -105,13 +124,20 @@ def view_rotate_link [html] (self, request, p, size=None, extra=None, wantedit=F
           <a title="This way up" class="right-arrow" href="%(rot90)s">%(right)s</a>
         </div>"""
 
+    twu = twu + generate_twu_map(self, p)
+
+    user = request.session.getuser()
+    link = self.thumb_img(p=p, showvis=(user and p.ownerID == user.id),
+                          extra={ 'ismap': None, 'usemap': '#map:%d' % p.id })
+
+    print twu
     twu % {
         'rot0':   self.rotate_path(p, (  0 + p.orientation) % 360, url),
         'rot90':  self.rotate_path(p, ( 90 + p.orientation) % 360, url),
         'rot180': self.rotate_path(p, (180 + p.orientation) % 360, url),
         'rot270': self.rotate_path(p, (270 + p.orientation) % 360, url),
 
-        'thumb':  self.edit_newwin_link(request, p, extra=extra),
+        'thumb':  link,
 
         'up':     page.arrow('up', extra={'title': 'Up is up'}),
         'down':   page.arrow('down'),

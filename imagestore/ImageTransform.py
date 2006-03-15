@@ -170,9 +170,7 @@ def Image_from_data(data, *kw):
     data=StringIO(data)
     return Image.open(data, *kw)
 
-def thumb_size(id):
-    p = db.Picture.get(id)
-
+def thumb_size(p):
     tw = p.th_width
     th = p.th_height
 

@@ -86,7 +86,7 @@ class EditUI:
         self.image = image
 
     def path(self, p):
-        return '%s/edit/%d.html' % (self.image.path(), p.id)
+        return '%sedit/%d.html' % (self.image.path(), p.id)
 
     def _q_lookup(self, request, component):
         (id, size, pref, ext) = split_image_name(component)
@@ -315,7 +315,7 @@ class ImageUI:
 
     def thumb_img(self, p, showvis, extra={}):
         e = page.join_extra(extra)
-        (tw,th) = ImageTransform.thumb_size(p.id)
+        (tw,th) = ImageTransform.thumb_size(p)
 
         r = TemplateIO(html=True)
 
@@ -353,12 +353,12 @@ class ImageUI:
             'link': link,
             'extra': e })
 
-    def edit_newwin_link(self, request, p, extra=None):
+    def edit_newwin_link(self, request, p, link=None, extra=None):
         extra = extra or {}
 
         extra['target'] = str(p.id)
 
-        return self.view_link(request, p, url=self.edit.path(p))
+        return self.view_link(request, p, url=self.edit.path(p), link=link, extra=extra)
         
     def view_newwin_link(self, request, p, size=None, link=None, preferred=False, extra=None):
         extra = extra or {}
