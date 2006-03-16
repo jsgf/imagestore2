@@ -1,9 +1,16 @@
 Prerequisites:
 
-SQLObject 0.6 SVN + patch
+SQLObject 0.7			http://sqlobject.org/
 sqlite or MySQL
 MySQL-python/sqlite-python
 PIL
 mx.DateTime
 ImageMagick
-Quixote
+Quixote 2.4			http://www.mems-exchange.org/software/quixote/
+
+
+RPM packages:
+python-sqlobject
+python-formencode
+python-imaging
+python-quixote
