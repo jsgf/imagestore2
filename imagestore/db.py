@@ -1,10 +1,11 @@
 from sqlobject import *
-from EXIF import Ratio
-from array import array
+
 import sha
 import mx.DateTime
 import os.path
-from mime import getMimeType
+
+import imagestore.mime as mime
+import imagestore.config as config
 
 lazycol=True
 
@@ -31,9 +32,9 @@ conn = None
 
 def db_connect():
     global conn, __connection__
-    uri=dbinfo[db]['conn']
+    uri=config.db.connection
 
-    print 'uri='+dbinfo[db]['conn']
+    print 'uri='+uri
 
     conn = connectionForURI(uri, cache=False)
     conn.debug = 0
@@ -302,7 +303,7 @@ class Picture(SQLObject):
 
     def __getattr__(self, name):
         if not hasattr(self, 'mimeproxy'):
-            self.mimeproxy = getMimeType(self.mimetype)
+            self.mimeproxy = mime.getMimeType(self.mimetype)
         m = getattr(self.mimeproxy, name)
         m = lambda s=self, px=self.mimeproxy, m=m, *args: m(m, self, *args)
         setattr(self.__class__, name, m)

@@ -26,7 +26,7 @@ style_css = imagestore.style.style_css
 def _q_index(request):
     ret = page.menupane(request)
 
-    quixote.redirect('%s/default/' % path())
+    quixote.redirect('%sdefault/' % path())
     
     return page.html(request, 'Imagestore', ret)
 

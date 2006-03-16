@@ -6,8 +6,8 @@ import quixote.session
 from quixote.server.scgi_server import run
 from quixote.publish1 import Publisher
 
-import imagestore
 import imagestore.session
+import imagestore.config
 
 config = quixote.config.Config()
 config.read_file('imagestore/config.conf')
@@ -21,4 +21,6 @@ def create_my_publisher():
     return p
 
 if __name__ == '__main__':
-    run(create_my_publisher, port=4000, script_name=imagestore.base())
+    run(create_my_publisher,
+        port=imagestore.config.server.scgi_port,
+        script_name=imagestore.config.server.path)
