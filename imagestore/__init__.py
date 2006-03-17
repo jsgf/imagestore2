@@ -78,3 +78,7 @@ class Q1StaticDirectory(StaticDirectory):
     
 static = Q1StaticDirectory(os.path.abspath('./static'),
                            file_class=Q1StaticFile)
+
+import imagestore.auth
+auth = imagestore.auth.testauth()
+_q_exports.append('auth')
