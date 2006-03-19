@@ -2,41 +2,61 @@ import sha
 import md5
 import os
 import re
+import time
+import struct
+import binascii
 
 import quixote
 from quixote.errors import AccessError
 
 import imagestore
 
-# Store persistently if nonce needs to survive over server restarts
+# Store persistently if nonce needs to survive over server restarts.
+# Alternatively, change regularly to force digest renegotations.  We
+# return the 'stale' flag in these cases, so the browser should just
+# do it without pestering the user.
 _private = os.urandom(20)
-_nonce_random = 16
 
-def makenonce():
-    """Generate a unique nonce"""
+_nonce_random = 12
+_sha_len = 20
+_pack_hash = 'l%ds%ds' % (_nonce_random, len(_private))
+_pack_nonce = 'l%ds%ds' % (_nonce_random, _sha_len)
+
+def _hash_nonce(e, r):
+    return sha.sha(struct.pack(_pack_hash, e, r, _private)).digest()
+
+def makenonce(expire=0):
+    """Generate a unique nonce.  If expire is non-zero, it specifies
+    the number of seconds the nonce should be valid for."""
     def enc(s):
         """base64 ends with \n, which is just confusing"""
         s=s.encode('base64')
         while s.endswith('\n'):
             s = s[:-1]
         return s
-    
+
+    e = 0
+    if expire != 0:
+        e = expire + int(time.time())
+
     r = os.urandom(_nonce_random)
-    s = sha.sha(r + _private).digest()
-    return enc(r + s)
+    s = _hash_nonce(e, r)
+    return enc(struct.pack(_pack_nonce, e, r, s))
 
 def checknonce(n):
-    """Check that a string is a nonce we created"""
+    """Check that a string is a nonce we created,
+    and that it hasn't expired."""
     try:
-        n = n.decode('base64')
-        r = n[:_nonce_random]
-        s = n[_nonce_random:]
-    except TypeError:
+        e, r, s = struct.unpack(_pack_nonce, n.decode('base64'))
+    except struct.error:
         return False
-    except ValueError:
+    except binascii.Error:
         return False
     
-    return sha.sha(r + _private).digest() == s
+    if e != 0 and int(time.time()) > e:
+        return False
+    
+    return _hash_nonce(e, r) == s
 
 assert checknonce(makenonce())
 
@@ -50,7 +70,7 @@ class UnauthorizedError(AccessError):
     title = "Unauthorized"
     description = "You are not authorized to access this resource."
 
-    def __init__(self, realm='Protected', scheme='basic',
+    def __init__(self, realm='Protected', scheme='digest',
                  public_msg=None, private_msg=None, stale=None):
         self.realm = realm
         self.scheme = scheme
@@ -83,7 +103,7 @@ class UnauthorizedError(AccessError):
 
 re_ident=re.compile('[a-z_][a-z0-9_]+', re.I)
 re_string=re.compile(r'"((?:[^"\\]|\\[^0-9]|\\[0-9]{1,3})*)"')
-re_number=re.compile('[0-9a-f]+')       # hex number ambigious with ident
+re_number=re.compile('[0-9][0-9a-f]*')       # hex number ambigious with ident
 
 _tokens = {
     (lambda s: re_ident.match(s)):  ('ident',                   # type
@@ -104,7 +124,7 @@ def _gettok(s):
     (toktype, tokval, remains) triple.  Returns None if the next
     part of the string isn't tokenizable."""
     
-    s = s.lstrip()
+    s = s.lstrip()                      # skip whitespace
     ret = None
     chomp = 0
 
@@ -128,7 +148,7 @@ def _next(str):
         return p[0]
     
 def _expect(tok, str):
-    """Expect a particular token at the start of the string.
+    """Expect one of a set of tokens at the start of the string.
     Returns a (remains,value) pair if present; otherwise it raises
     TokException."""
     t = _gettok(str)
@@ -213,7 +233,7 @@ class testauth:
         def H(x):
             return md5.md5(x).digest().encode('hex')
 
-        if 'algorithm' in dict and dict['algorithm'] == 'sha':
+        if 'algorithm' in dict and dict['algorithm'].lower() == 'sha':
             def H(x):
                 return sha.sha(x).digest().encode('hex')
 
