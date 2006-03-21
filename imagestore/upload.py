@@ -42,7 +42,10 @@ def is_zip_fp(fp):
     from zipfile import _EndRecData
 
     try:
-        return _EndRecData(fp)
+        here = fp.tell()
+        ret = _EndRecData(fp)
+        fp.seek(here)
+        return ret
     except IOError:
         pass
     return False

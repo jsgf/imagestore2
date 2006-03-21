@@ -1,3 +1,36 @@
+Update:
+
+RESTifying + Ajaxificating
+
+- minimize the use of cookies
+  - authentication to avoid browser authentication
+  - preferred viewing size of images
+- minimize session info
+  - none?
+- use HTTP Digest authentication
+  - use cookies as well to avoid browser password UI?
+
+Image view:
+
+/COLLECTION/image/
+	POST/PUT to add new image
+	GET for list of images?
+
+/COLLECTION/image/NNNN/
+	GET to get original image
+
+/COLLECTION/image/NNNN/meta
+	GET metadata (JSON/XML/HTML)
+	POST/PUT update metadata
+/COLLECTION/image/NNNN/meta/META
+	GET/POST/PUT a specific metadata item
+
+/COLLECTION/image/NNNN/SIZE.FORMAT
+	GET only: SIZE is "default"/"thumb"/"tiny"/"small"/"medium"/"large"/"full"/NxM
+	    FORMAT is "html" (produce page), "jpg" jpeg version, mov/mpg
+backwards compat:
+redirect /COLLECTION/image/NNNN(-SIZE!?)?(.ext)? to new form URL
+
 Basic ideas:
 
 - archival system for photos, movies and other digital (or digitized) media

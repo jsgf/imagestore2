@@ -5,7 +5,10 @@ import sys
 import Image
 import mx.DateTime
 import sha
+import md5
 from cStringIO import StringIO
+
+from sqlobject import SQLObjectNotFound
 
 import imagestore.EXIF
 
@@ -93,14 +96,20 @@ class StillImageImporter(Importer):
 
         sha1 = sha.new(imgdata)
         hash=sha1.digest().encode('hex')
-        
-        s = db.Picture.select(db.Picture.q.hash==hash)
-        if s.count() != 0:
-            raise AlreadyPresentException('%d' % s[0].id)
 
         try:
-            m = db.setmedia(imgdata)
+            s = db.Picture.byHash(hash)
+            assert s.hash == hash
+            raise AlreadyPresentException(str(s.id))
+        except SQLObjectNotFound:
+            # OK, doesn't already exist
+            pass
 
+        try:
+            m = db.setmedia(imgdata, hash)
+
+            assert m is not None
+            
             if False:
                 data = getmedia(m.id, True)
                 file("t.jpg", 'wb').write(data)
@@ -132,11 +141,14 @@ class StillImageImporter(Importer):
             width,height = img.size
             th_width,th_height = th_img.size
 
+            md5hash = md5.new(imgdata).digest().encode('hex')
+
             #print 'imgattr: %s' % imgattr
             pic = db.Picture(owner=owner,
                              visibility=public,
                              collection=collection,
-                             hash=m.hash,
+                             hash=hash,
+                             md5hash=md5hash,
                              media=m,
                              datasize=len(imgdata),
                              mimetype=mimetype or Image.MIME[img.format],
@@ -149,7 +161,7 @@ class StillImageImporter(Importer):
 
             add_keywords(collection, pic, keywords)
         except Exception, x:
-            print 'exception '% x
+            print 'exception %r' % x
             print "(rollback)"
             raise
 

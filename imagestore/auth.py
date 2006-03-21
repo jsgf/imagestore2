@@ -5,11 +5,13 @@ import re
 import time
 import struct
 import binascii
+from sqlobject import SQLObjectNotFound
 
 import quixote
 from quixote.errors import AccessError
 
 import imagestore
+import imagestore.db as db
 
 # Store persistently if nonce needs to survive over server restarts.
 # Alternatively, change regularly to force digest renegotations.  We
@@ -211,85 +213,89 @@ def getpass(username):
 
 #def getpass(x):
 #    return { 'foo': 'bar' }[x]
-    
-class testauth:
-    def __init__(self):
-        self.scheme='digest'
 
-        self.schemes = { 'digest':      self.check_digest,
-                         'basic':       self.check_basic }
+def _check_basic(dict):
+    return getpass(dict['username']) == dict['password']
 
-    _q_exports = []
+def _check_digest(dict):
+    #print dict
 
-    def _q_index(self, request):
-        return 'Whoo, OK!'
+    def H(x):
+        return md5.md5(x).digest().encode('hex')
 
-    def check_basic(self, dict):
-        return getpass(dict['username']) == dict['password']
-
-    def check_digest(self, dict):
-        #print dict
-
+    if 'algorithm' in dict and dict['algorithm'].lower() == 'sha':
         def H(x):
-            return md5.md5(x).digest().encode('hex')
+            return sha.sha(x).digest().encode('hex')
 
-        if 'algorithm' in dict and dict['algorithm'].lower() == 'sha':
-            def H(x):
-                return sha.sha(x).digest().encode('hex')
+    def KD(secret, data):
+        #print 'KD(%s, %s)' % (secret, data)
+        return H('%s:%s' % (secret, data))
 
-        def KD(secret, data):
-            #print 'KD(%s, %s)' % (secret, data)
-            return H('%s:%s' % (secret, data))
+    def A1(user, realm, password):
+        #print 'A1(%s, %s, %s)' % (user, realm, password)
+        return '%s:%s:%s' % (user, realm, password)
 
-        def A1(user, realm, password):
-            #print 'A1(%s, %s, %s)' % (user, realm, password)
-            return '%s:%s:%s' % (user, realm, password)
+    def A2(method, uri):
+        #print 'A2(%s, %s)' % (method, uri)
+        return '%s:%s' % (method, uri)
 
-        def A2(method, uri):
-            #print 'A2(%s, %s)' % (method, uri)
-            return '%s:%s' % (method, uri)
+    request = quixote.get_request()
 
-        request = quixote.get_request()
+    pieces = [ dict['nonce'] ]
 
-        pieces = [ dict['nonce'] ]
+    if 'qop' in dict:
+        pieces += [ dict['nc'],
+                    dict['cnonce'],
+                    dict['qop'] ]
 
-        if 'qop' in dict:
-            pieces += [ dict['nc'],
-                        dict['cnonce'],
-                        dict['qop'] ]
+    pieces += [ H(A2(request.get_method(), dict['uri'])) ]
 
-        pieces += [ H(A2(request.get_method(), dict['uri'])) ]
+    digest = KD(H(A1(dict['username'],
+                     dict['realm'],
+                     getpass(dict['username']))),
+                ':'.join(pieces))
 
-        digest = KD(H(A1(dict['username'],
-                         dict['realm'],
-                         getpass(dict['username']))),
-                    ':'.join(pieces))
-        
-        #print 'digest=%s response=%s' % (digest, dict['response'])
+    #print 'digest=%s response=%s' % (digest, dict['response'])
 
-        if digest != dict['response']:
-            return False
-        
-        if not checknonce(dict['nonce']):
-            # stale nonce; the client knows the username/password,
-            # but passed a bad nonce
-            raise UnauthorizedError(scheme=self.scheme, stale=True)
-        
-        return digest == dict['response']
+    if digest != dict['response']:
+        return False
 
-    def _q_access(self, request):
-        #ha = request.get_environ('HTTP_AUTHORIZATION', None)
-        ha = request.get_header('Authorization')
+    if not checknonce(dict['nonce']):
+        # stale nonce; the client knows the username/password,
+        # but passed a bad nonce
+        raise UnauthorizedError(scheme='digest', stale=True)
 
-        #print ha
-        
-        if ha is not None:
-            scheme,dict = parse_auth_header(ha)
+    return digest == dict['response']
 
-            try:
-                if scheme == self.scheme and self.schemes[scheme](dict):
-                    return
-            except KeyError:
-                pass
 
-        raise UnauthorizedError(scheme=self.scheme)
+_schemes = { 'digest':      _check_digest,
+             'basic':       _check_basic }
+
+def login_user(scheme='digest'):
+    """ Return the currently logged-in user.  If the user has
+    logged in with a session cookie, use that, otherwise use
+    HTTP authentication. """
+    session = quixote.get_session()
+    user = session.getuser()
+    if user is not None:
+        return user
+
+    request = quixote.get_request()
+
+    auth_hdr = request.get_header('authorization')
+
+    if auth_hdr is not None:
+        ha_scheme,dict = parse_auth_header(auth_hdr)
+
+        try:
+            if scheme == ha_scheme and _schemes[scheme](dict):
+                username = dict['username']
+                user = db.User.byUsername(username)
+                session.setuser(user.id)
+                return session.getuser()
+        except KeyError:
+            pass
+        except SQLObjectNotFound:
+            pass
+
+    raise UnauthorizedError(scheme=scheme)

@@ -40,7 +40,7 @@ def _q_access(request):
     # Install context menu stuff into request
     request.context_menu = menu.SubMenu()
 
-    user = request.session.getuser()
+    user = quixote.get_session().getuser()
 
     # Add collection list
     collections = db.Collection.select(dbfilters.mayViewCollectionFilter(user),
@@ -79,6 +79,3 @@ class Q1StaticDirectory(StaticDirectory):
 static = Q1StaticDirectory(os.path.abspath('./static'),
                            file_class=Q1StaticFile)
 
-import imagestore.auth
-auth = imagestore.auth.testauth()
-_q_exports.append('auth')

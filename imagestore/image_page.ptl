@@ -56,7 +56,8 @@ def view [html] (self, request, p, size, default):
     # XXX FIXME: apparently IE doesn't support innerWidth/Height,
     # and you have to use something else.  See
     # http://webfx.eae.net/dhtml/wincontrols/wincontrols.html
-    """\
+    if False:
+        """\
 <script language="JavaScript"><!--
         window.resizeTo(%(w)d, %(h)d);
         bw = %(w)d - window.innerWidth;

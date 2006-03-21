@@ -207,14 +207,13 @@ def setmedia(data, hash=None):
 
         return m                        # OK, already here
     except:
+        # It didn't exist, or was corrupt
         if debug:
             if m is None:
                 print 'media missing for %s (adding)' % hash
             else:
                 print 'media corrupted for %d/%s (replacing)' % (m.id, hash)
             
-        # It didn't exist, or was corrupt
-        pass
 
     # Make sure we're not about to trash someone's image/thumbnail data
     if m is not None:
@@ -301,13 +300,13 @@ def strToKeyword(word, collection, create):
 class Picture(SQLObject):
     "Pictures - including movies and other media"
 
-    def __getattr__(self, name):
-        if not hasattr(self, 'mimeproxy'):
-            self.mimeproxy = mime.getMimeType(self.mimetype)
-        m = getattr(self.mimeproxy, name)
-        m = lambda s=self, px=self.mimeproxy, m=m, *args: m(m, self, *args)
-        setattr(self.__class__, name, m)
-        return m
+#     def __getattr__(self, name):
+#         if not hasattr(self, 'mimeproxy'):
+#             self.mimeproxy = mime.getMimeType(self.mimetype)
+#         m = getattr(self.mimeproxy, name)
+#         m = lambda s=self, px=self.mimeproxy, m=m, *args: m(m, self, *args)
+#         setattr(self.__class__, name, m)
+#         return m
     
     def getimage(self, verify=False):
         return getmedia(self.mediaid, verify)
@@ -376,7 +375,8 @@ class Picture(SQLObject):
             if k not in self.keywords:
                 self.addKeyword(k)
 
-    hash = StringCol(length=40, varchar=False, notNone=True, unique=True, alternateID=True)
+    hash = StringCol(length=40, varchar=False, notNone=True,
+                     unique=True, alternateID=True)
     mimetype = StringCol(notNone=True, length=40)
 
     datasize = IntCol(notNone=True)
@@ -422,8 +422,10 @@ class Picture(SQLObject):
     brightness = IntCol(default=None)
     focal_length = StringCol(default=0)
 
-    # This is present on imaged imported from Imagestore1
-    md5hash = StringCol(length=32, varchar=False, default=None)
+    # This is present on imaged imported from Imagestore1;
+    # also useful for HTTP content-md5 header
+    md5hash = StringCol(length=32, varchar=False, default=None,
+                        alternateID=True)
 
     owner_idx = DatabaseIndex('owner')
     date_idx = DatabaseIndex('record_time')
