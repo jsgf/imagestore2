@@ -9,6 +9,56 @@ sorted_sizes=ImageTransform.sizes.items()
 sorted_sizes.sort(lambda a,b: cmp(a[1][0]*a[1][1], b[1][0]*b[1][1]))
 sorted_sizes=[ a for (a,b) in sorted_sizes ]
 
+class DetailsUI:
+    " class for /COLLECTION/image/NNNN/details "
+    _q_exports = []
+    
+    def __init__(self, image):
+        self.collection = image.collection
+        self.image = image
+
+    def path(self, p):
+        return '%sdetails' % self.image.path()
+
+    def _q_index [html] (self, request):
+        p = self.image.pic()
+
+        page.pre(request, 'Details for picture %d' % p.id, 'details', trail=False)
+
+        title = p.title or ''
+
+        camera = p.camera
+
+        '<span class="detail-thumb">\n'
+        self.image.view_rotate_link(request, p) + '\n'
+        '</span>\n'
+
+        detail_table(p)
+
+        """
+        <dl>
+        <dt class="name">Title:</dt><dd class="val title">%(title)s</dd>
+        <dt class="name">Description:</dt><dd class="val description">%(description)s</dd>
+        <dt class="name">Owner:</dt><dd class="val owner">%(owner)s %(email)s</dd>
+        <dt class="name">Keywords:</dt><dd class="val keywords">%(keywords)s</dd>
+        </dl>
+        """ % {
+
+            'owner':            p.owner.fullname,
+            'email':            str('<%s>' % p.owner.email),
+
+            'keywords':         ', '.join([ k.word for k in p.keywords]),
+            'title':            title,
+            'description':      p.description,
+            }
+
+        user = request.session.getuser()
+        if user and p.mayEdit(user):
+            '<a href="%s">Edit</a>' % self.image.edit.path(p)
+
+        page.post()
+
+
 
 def view [html] (self, request, p, size, default):
     import imagestore.image as image
@@ -38,7 +88,7 @@ def view [html] (self, request, p, size, default):
                                       title='%dx%d' % ImageTransform.transformed_size(p, s),
                                       selected= s==size)
 
-    if self.coll.mayViewOrig(request, p):
+    if self.collection.mayViewOrig(request, p):
         request.navigation.add_option(self.view_path(p, size='orig'),
                                       link='Original',
                                       title='For printing')
@@ -91,7 +141,7 @@ def generate_twu_map [html] (self, p):
             }
     
 def view_rotate_link [html] (self, request, p, size=None, extra=None, wantedit=False):
-    if not (self.coll.mayEdit(request, p) and (wantedit or request.session.wantedit)):
+    if not (self.collection.mayEdit(request, p) and (wantedit or request.session.wantedit)):
         return self.view_newwin_link(request, p, size, extra=extra)
 
     url='%s#thumb:%d' % (request.get_url(), p.id)
@@ -178,40 +228,3 @@ def detail_table [html] (p):
                                                        camera.manufacturer,
                                                        camera.model)) or '?',
         }
-    
-def details [html] (self, request, p):
-    page.pre(request, 'Details for picture %d' % p.id, 'details', trail=False)
-
-    title = p.title or ''
-
-    camera = p.camera
-
-    '<span class="detail-thumb">\n'
-    self.image.view_rotate_link(request, p) + '\n'
-    '</span>\n'
-
-    detail_table(p)
-
-    """
-    <dl>
-    <dt class="name">Title:</dt><dd class="val title">%(title)s</dd>
-    <dt class="name">Description:</dt><dd class="val description">%(description)s</dd>
-    <dt class="name">Owner:</dt><dd class="val owner">%(owner)s %(email)s</dd>
-    <dt class="name">Keywords:</dt><dd class="val keywords">%(keywords)s</dd>
-    </dl>
-    """ % {
-
-        'owner':            p.owner.fullname,
-        'email':            str('<%s>' % p.owner.email),
-        
-        'keywords':         ', '.join([ k.word for k in p.keywords]),
-        'title':            title,
-        'description':      p.description,
-        }
-
-    user = request.session.getuser()
-    if user and p.mayEdit(user):
-        '<a href="%s">Edit</a>' % self.image.edit.path(p)
-
-    page.post()
-

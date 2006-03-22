@@ -14,142 +14,148 @@ import imagestore.image as image
 import imagestore.form as form
 import imagestore.calendarui as calendarui
 
-# Actually a method of CollectionUI
-def _q_index [html] (self, request):
-    filter = dbfilters.mayViewFilter(self.dbobj, request.session.getuser())
+class CollectionUI:
+    def __init__(self, collection):
+        self.collection = collection
+        self.db = collection.db
+        
+    def _q_index [html] (self):
+        request = quixote.get_request()
+        
+        filter = dbfilters.mayViewFilter(self.db, request.session.getuser())
 
-    npics = db.Picture.select(AND(filter, db.Picture.q.collectionID == self.dbobj.id)).count()
+        npics = db.Picture.select(AND(filter, db.Picture.q.collectionID == self.db.id)).count()
 
-    # set we draw the sampler from
-    pics = db.Picture.select(AND(filter,
-                                 db.Picture.q.rating >= 0,
-                                 STARTSWITH(db.Picture.q.mimetype, str('image/'))),
-                             orderBy=db.Picture.q.record_time).reversed()[:400]
-    count = pics.count()
-    pics = list(pics)
+        # set we draw the sampler from
+        pics = db.Picture.select(AND(filter,
+                                     db.Picture.q.rating >= 0,
+                                     STARTSWITH(db.Picture.q.mimetype, str('image/'))),
+                                 orderBy=db.Picture.q.record_time).reversed()[:400]
+        count = pics.count()
+        pics = list(pics)
 
-    sampler=[]
-    days=[]
-    
-    for i in range(min(count, 16)):
-        while True:
-            p = pics[random.randrange(0, count)]
-            if p not in sampler:
-                break
-        sampler.append(p)
-        if calendarui.int_day.rounddown(p.record_time) not in days:
-            days.append(calendarui.int_day.rounddown(p.record_time))
-    
-    page.pre(request, 'Collection %s: %d pictures' % (self.dbobj.name, npics),
-             bodyid='collection', brieftitle='Collection: "%s"' % self.dbobj.name)
+        sampler=[]
+        days=[]
 
-    extra=[]
-    
-    if days:
-        extra.append(['Days', [ (calendarui.int_day.num_fmt(d),
-                                 self.calendar.path(calendarui.int_day, d))
-                                for d in days ] ])
+        for i in range(min(count, 16)):
+            while True:
+                p = pics[random.randrange(0, count)]
+                if p not in sampler:
+                    break
+            sampler.append(p)
+            if calendarui.int_day.rounddown(p.record_time) not in days:
+                days.append(calendarui.int_day.rounddown(p.record_time))
 
-    page.menupane(request)
+        page.pre(request, 'Collection %s: %d pictures' % (self.db.name, npics),
+                 bodyid='collection', brieftitle='Collection: "%s"' % self.db.name)
 
-    '<h1>%s: %d pictures</h1>\n' % (self.dbobj.description, npics)
+        extra=[]
 
-    if sampler:
-        '<div class="sampler">\n'
+        if days:
+            extra.append(['Days', [ (calendarui.int_day.num_fmt(d),
+                                     self.collection.calendar.path(calendarui.int_day, d))
+                                    for d in days ] ])
 
-        imageui = image.ImageUI(self)
+        page.menupane(request)
 
-        for p in sampler:
-            '<span class="image">\n'
-            '<a href="%s">%s</a>\n' % ('%s#pic%d' % (self.calendar.path(calendarui.int_day, p.record_time), p.id),
-                                       imageui.thumb_img(p, False))
-            '</span>\n'
+        '<h1>%s: %d pictures</h1>\n' % (self.db.description, npics)
 
-        '</div>'
+        if sampler:
+            '<div class="sampler">\n'
 
-        request.session.set_query_results(sampler)
+            imageui = self.collection.image
 
-    page.post()
+            for p in sampler:
+                '<span class="image">\n'
+                '<a href="%s">%s</a>\n' % ('%s#pic%d' % (self.collection.calendar.path(calendarui.int_day, p.record_time), p.id),
+                                           imageui.thumb_img(p, False))
+                '</span>\n'
 
-def admin_page [html] (self, request):
-    col = self.dbobj
-    
-    page.pre(request, '%s admin' % col.name, 'collection-admin')
+            '</div>'
 
-    page.menupane(request)
+            request.session.set_query_results(sampler)
 
-    '<h1>Edit details for %s</h1>\n' % col.name
+        page.post()
 
-    props = form2.Form(name='collection-admin')
+    def admin_page [html] (self):
+        request = quixote.get_request()
+        
+        col = self.db
 
-    props.add(form2.StringWidget, 'name', value=col.name, title='Collection name')
-    props.add(form2.StringWidget, 'description', value=col.description, title='Collection name')
-    props.add(form2.SingleSelectWidget, 'visibility', value=col.visibility,
-             options=['public', 'private'])
-    props.add(form2.CheckboxWidget, 'showOriginal', value=col.showOriginal,
-             title='Allow anyone to download originals')
+        page.pre(request, '%s admin' % col.name, 'collection-admin')
 
-    props.add(form2.SingleSelectWidget, name='owner', value=col.ownerID, title='Owner',
-              options=form.userOptList())
+        page.menupane(request)
 
-    nopics = (db.Picture.select(db.Picture.q.collectionID == col.id).count() == 0)
+        '<h1>Edit details for %s</h1>\n' % col.name
 
-    props.add_submit('submit', 'Change collection settings')
-    props.add_reset('Reset form')
+        props = form2.Form(name='collection-admin')
 
-    if nopics:
-        props.add_submit('delete', 'Delete collection')
+        props.add(form2.StringWidget, 'name', value=col.name, title='Collection name')
+        props.add(form2.StringWidget, 'description', value=col.description, title='Collection name')
+        props.add(form2.SingleSelectWidget, 'visibility', value=col.visibility,
+                 options=['public', 'private'])
+        props.add(form2.CheckboxWidget, 'showOriginal', value=col.showOriginal,
+                 title='Allow anyone to download originals')
 
-    if props.get_submit() == 'delete' and nopics:
-        col.destroySelf()
-        request.session.del_breadcrumb()
-        quixote.redirect(str('%s/user/') % prefix)
-        return ''
+        props.add(form2.SingleSelectWidget, name='owner', value=col.ownerID, title='Owner',
+                  options=form.userOptList())
 
-    if not props.is_submitted() or props.has_errors():
-        '<div class="title-box collection-admin">\n'
-        '<h2>Collection properties</h2>\n'
-        props.render()
-        '</div>'
-    else:
-        if props['name'] != col.name and \
-               db.Collection.select(db.Collection.q.name == props['name']).count() != 0:
-            props.get_widget('name').set_error('name already taken')
-        else:
-            col.name = str(props['name'])
-            col.description = str(props['description'])
-            col.visibility = str(props['visibility'])
-            col.showOriginal = str(props['showOriginal'])
+        nopics = (db.Picture.select(db.Picture.q.collectionID == col.id).count() == 0)
 
+        props.add_submit('submit', 'Change collection settings')
+        props.add_reset('Reset form')
+
+        if nopics:
+            props.add_submit('delete', 'Delete collection')
+
+        if props.get_submit() == 'delete' and nopics:
+            col.destroySelf()
             request.session.del_breadcrumb()
-            quixote.redirect(self.admin_path())
+            quixote.redirect(str('%s/user/') % prefix)
+            return ''
+
+        if not props.is_submitted() or props.has_errors():
+            '<div class="title-box collection-admin">\n'
+            '<h2>Collection properties</h2>\n'
+            props.render()
+            '</div>'
+        else:
+            if props['name'] != col.name and \
+                   db.Collection.select(db.Collection.q.name == props['name']).count() != 0:
+                props.get_widget('name').set_error('name already taken')
+            else:
+                col.name = str(props['name'])
+                col.description = str(props['description'])
+                col.visibility = str(props['visibility'])
+                col.showOriginal = str(props['showOriginal'])
+
+                request.session.del_breadcrumb()
+                quixote.redirect(self.admin_path())
 
 
-    '<div class="title-box user-perms">\n'
-    '<h2>Per-user permissions</h2>\n'
-    users = db.CollectionPerms.select(db.CollectionPerms.q.collectionID == col.id,
-                                      orderBy=db.CollectionPerms.q.userID)
-    if users.count() != 0:
-        '<table>\n'
-        for up in users:
-            u = db.User.get(up.userID)
-            
-            '<tr>\n'
-            '<td>%d<td>' % u.id
-            '<td><a href="%s/user/%s/">%s</a><td>' % (prefix, u.username, u.username)
-            '<td>%s</td>' % (up.mayAdmin and 'admin' or '')
-            '<td>%s</td>' % (up.mayViewall and 'viewall' or '')
-            '<td>%s</td>' % (up.mayView and 'view' or '')
-            '<td>%s</td>' % (up.mayViewRestricted and 'restricted' or '')
-            '<td>%s</td>' % (up.mayUpload and 'upload' or '')
-            '<td>%s</td>' % (up.mayComment and 'comment' or '')
-            '<td>%s</td>' % (up.mayEdit and 'edit' or '')
-            '<td>%s</td>' % (up.mayCurate and 'curate' or '')
-            '</tr>\n'
-        '</table>\n'
-        
-    '</div>\n'
+        '<div class="title-box user-perms">\n'
+        '<h2>Per-user permissions</h2>\n'
+        users = db.CollectionPerms.select(db.CollectionPerms.q.collectionID == col.id,
+                                          orderBy=db.CollectionPerms.q.userID)
+        if users.count() != 0:
+            '<table>\n'
+            for up in users:
+                u = db.User.get(up.userID)
 
-    page.post()
+                '<tr>\n'
+                '<td>%d<td>' % u.id
+                '<td><a href="%s/user/%s/">%s</a><td>' % (prefix, u.username, u.username)
+                '<td>%s</td>' % (up.mayAdmin and 'admin' or '')
+                '<td>%s</td>' % (up.mayViewall and 'viewall' or '')
+                '<td>%s</td>' % (up.mayView and 'view' or '')
+                '<td>%s</td>' % (up.mayViewRestricted and 'restricted' or '')
+                '<td>%s</td>' % (up.mayUpload and 'upload' or '')
+                '<td>%s</td>' % (up.mayComment and 'comment' or '')
+                '<td>%s</td>' % (up.mayEdit and 'edit' or '')
+                '<td>%s</td>' % (up.mayCurate and 'curate' or '')
+                '</tr>\n'
+            '</table>\n'
 
-        
+        '</div>\n'
+
+        page.post()

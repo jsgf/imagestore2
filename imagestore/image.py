@@ -8,6 +8,7 @@ import quixote
 from quixote.errors import PublishError, TraversalError, AccessError, QueryError
 from quixote.html import htmltext as H, TemplateIO
 import quixote.form as form2
+import quixote.http_request
 from quixote.http_response import Stream
 
 import imagestore
@@ -18,6 +19,9 @@ import imagestore.ImageTransform as ImageTransform
 import imagestore.style as style
 import imagestore.auth as auth
 import imagestore.insert as insert
+import imagestore.image_page as image_page
+
+_json_type = 'text/javascript'
 
 class MethodError(PublishError):
     status_code = 405
@@ -66,30 +70,6 @@ def split_image_name(name):
             raise QueryError('hash %s not found' % id)
 
     return (int(id), m.group(3), m.group(4) is not None, m.group(5))
-
-class DetailsUI:
-    " class for /COLLECTION/image/details/NNNN "
-    _q_exports = []
-    
-    def __init__(self, image, coll):
-        self.coll = coll
-        self.image = image
-
-    def path(self, p):
-        return '%sdetails/%d.html' % (self.image.path(), p.id)
-    
-    def _q_lookup(self, request, component):
-        (id, size, pref, ext) = split_image_name(component)
-
-        try:
-            p = db.Picture.get(id)
-        except SQLObjectNotFound, x:
-            raise TraversalError(str(x))
-
-        return self.details(request, p)
-
-    from image_page import details as details_ptl
-    details = details_ptl
 
 class EditUI:
     " class for /COLLECTION/image/edit/NNNN "
@@ -249,6 +229,16 @@ class ImageMeta:
             raise ForbiddenError("can't change '%s' field" % name)
 
         return fn(p, value)
+
+    def get_meta(self):
+        p = self.image.pic()
+        meta = {}
+
+        for k,fn in self.fields.__dict__.items():
+            if k.startswith('get_'):
+                meta[k[4:]] = fn(p)
+
+        return meta
     
     def _q_access(self, request):
         request = quixote.get_request()
@@ -259,6 +249,8 @@ class ImageMeta:
         request = quixote.get_request()
         response = quixote.get_response()
         
+        response.set_content_type(_json_type, charset='utf-8')
+
         if request.get_method() in ('POST', 'PUT'):
             if '_json' in request.form:
                 ret = {}
@@ -267,6 +259,7 @@ class ImageMeta:
 
                     for n,v in changes.items():
                         ret[n] = self.set_meta(n, v)
+
                     return json.write(ret)
                 except json.ReadException:
                     raise QueryError('badly formatted JSON')
@@ -274,14 +267,7 @@ class ImageMeta:
             response.set_status(204) # no content
             return ''
             
-        p = self.image.pic()
-        meta={}
-        for k,fn in self.fields.__dict__.items():
-            if k.startswith('get_'):
-                meta[k[4:]] = fn(p)
-
-        response = quixote.get_response()
-        #response.set_content_type('application/x-json')
+        meta = self.get_meta()
 
         return json.write(meta)
 
@@ -294,6 +280,8 @@ class ImageMeta:
         except KeyError:
             raise TraversalError('No meta key "%s"' % component)
 
+        response.set_content_type(_json_type, charset='utf-8')
+
         if request.get_method() in ('POST', 'PUT'):
             if '_json' in request.form:
                 data = json.read(request.form['_json'])
@@ -303,8 +291,6 @@ class ImageMeta:
             respose.set_status(204)     # no content
             return ''
         
-        #response.set_content_type('application/x-json')
-
         p = self.image.pic()
         return json.write(fn(p))
 
@@ -315,17 +301,16 @@ _re_xform_image = re.compile('^([a-z]+|([0-9]+)x([0-9]+))\.([a-z]+)$')
 
 class Image:
     """ Class for a specific image, and its namespace. """
-    _q_exports = [ 'download', 'meta' ]
+    _q_exports = [ 'download', 'meta', 'details' ]
 
-    def __init__(self, parent, id):
-        self.collection = parent.coll
+    def __init__(self, collection, id):
+        self.collection = collection
         self.id = id
-        self.parent = parent
-
+        self.details = image_page.DetailsUI(self)
         self.meta = ImageMeta(self)
 
     def path(self):
-        return '%s%d/' % (self.parent.path(), self.id)
+        return '%s%d/' % (self.collection.path(), self.id)
 
     def thumb_path(self):
         return self.path() + 'thumb.jpg'
@@ -423,7 +408,7 @@ class Image:
 
         if not self.collection.mayView(request, p):
             raise AccessError('You may not view this image')
-        if p.collection != self.collection.dbobj:
+        if p.collection != self.collection.db:
             raise TraversalError('Image %d is not part of this collection' % p.id)
 
         request = quixote.get_request()
@@ -465,20 +450,17 @@ class Image:
 
         return self.display_image(size, ext)
 
-_re_number = re.compile('^[0-9]+$')
-_re_hash = re.compile('^(?:hash|sha1?):([0-9a-f]{40})$', re.I)
-_re_md5hash = re.compile('^md5:([0-9a-f]{32})$', re.I)
 _re_old_style_url = re.compile('^([0-9]+)(?:-([a-z]+)!?)?\.([a-z]+)$')
 
-class ImageUI:
-    " class for /COLLECTION/image namespace (not an individual image) "
-    _q_exports = [ 'details', 'edit', 'rotate' ]
+class ImageDir:
+    """ Class for /COLLECTION/image namespace (not an individual image).
+    This is soley for backwards compatibility. """
+    _q_exports = [ 'edit', 'rotate' ]
 
-    def __init__(self, coll):
-        self.coll = coll
+    def __init__(self, collection):
+        self.collection = collection
 
-        self.details = DetailsUI(self, coll)
-        self.edit = EditUI(self, coll)
+        self.edit = EditUI(self, collection)
 
     def rotate(self, request):
         try:
@@ -488,7 +470,7 @@ class ImageUI:
 
             p = db.Picture.get(id)
 
-            if not self.coll.mayEdit(request, p):
+            if not self.collection.mayEdit(request, p):
                 raise AccessError('may not edit image')
 
             if angle not in (0, 90, 180, 270):
@@ -505,89 +487,13 @@ class ImageUI:
         
         return 'rotate done, I guess'
 
-    def _q_index(self, request):
-        """ POSTing to images will upload new images. """
-        request = quixote.get_request()
-        response = quixote.get_response()
-        
-        method = request.get_method()
-
-        response.set_header('Allowed', 'POST')
-
-        if request.get_method() != 'POST':
-            raise MethodError()
-
-        user = auth.login_user()
-        perm = self.coll.dbobj.permissions(user)
-
-        mayupload = (user and user.mayUpload) or (perm and perm.mayUpload)
-
-        if not mayupload:
-            raise AccessError('You may not upload images')
-
-        print 'upload'
-        added=[]
-
-        if 'image' not in request.form:
-            response.set_status(204)    # no content
-            return ''
-
-        visibility=request.form.get('visibility', 'public')
-        keywords=request.form.get('keywords', [])
-        if not isinstance(keywords, list):
-            keywords = [ keywords ]
-            
-        if isinstance(request.form['image'], list):
-            for img in request.form['image']:
-                id=insert.import_image(img.fp,
-                                       orig_filename=img.orig_filename,
-                                       owner=user,
-                                       photographer=user,
-                                       public=visibility,
-                                       collection=self.coll.dbobj,
-                                       keywords=keywords)
-                added.append(id)
-        else:
-            img = request.form['image']
-            id=insert.import_image(img.fp,
-                                   orig_filename=img.orig_filename,
-                                   owner=user,
-                                   photographer=user,
-                                   public=visibility,
-                                   collection=self.coll.dbobj,
-                                   keywords=keywords)
-            added.append(id)
-
-        return json.write(added)
-
     def _q_lookup(self, request, component):
         """ Create an Image() instance for a requested image.  If the
         component is an old-style URL, then generate a redirect for it. """
 
-        # Check for plain ID number
-        m = _re_number.match(component)
-        if m is not None:
-            return Image(self, int(m.group(0)))
-
-        # Check for lookup by hash
-        m = _re_hash.match(component)
-        if m is not None:
-            hash = m.group(1)
-            try:
-                id = int(db.Picture.byHash(hash).id)
-                return lambda r: quixote.util.Redirector('%s%d' % (self.path(), id))()
-            except SQLObjectNotFound:
-                raise TraversalError('Bad image hash')
-
-        m = _re_md5hash.match(component)
-        if m is not None:
-            hash = m.group(1)
-            try:
-                id = int(db.Picture.byMd5hash(hash).id)
-                return lambda r: quixote.util.Redirector('%s%d' % (self.path(), id))()
-            except SQLObjectNotFound:
-                raise TraversalError('Bad image MD5 hash')
-                
+        if component == '':
+            quixote.redirect(self.collection.path())
+            return ''
             
         # Look for old-style URL, and generate a redirect
         m = _re_old_style_url.match(component)
@@ -596,10 +502,10 @@ class ImageUI:
             id,size,ext = m.groups()
             if size is None:
                 size = 'default'
-            p = '%s%s/%s.%s' % (self.path(), id, size, ext)
+            p = '%s%s/%s.%s' % (self.collection.path(), id, size, ext)
             return lambda r: quixote.util.Redirector(p)()
 
-        raise TraversalError('Bad image identifier %s' % component)
+        raise TraversalError('Bad image identifier "%s"' % component)
 
     # view is a PTL function
     from image_page import view as view_ptl, view_rotate_link as view_rotate_link_ptl
@@ -608,7 +514,7 @@ class ImageUI:
 
     # Various URL generating functions
     def path(self):
-        return self.coll.path() + 'image/'
+        return self.collection.path() + 'image/'
     
     def view_path(self, p, size, preferred=False):
         if size is not None:
@@ -621,7 +527,7 @@ class ImageUI:
         return '%s%d%s.html' % (self.path(), p.id, size)
 
     def thumb_path(self, p):
-        return '%s%d-thumb.jpg' % (self.path(), p.id)
+        return '%s%d/thumb.jpg' % (self.collection.path(), p.id)
 
     def picture_url(self, p, size, preferred=False):
         if size is not None:

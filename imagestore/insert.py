@@ -100,7 +100,7 @@ class StillImageImporter(Importer):
         try:
             s = db.Picture.byHash(hash)
             assert s.hash == hash
-            raise AlreadyPresentException(str(s.id))
+            raise AlreadyPresentException(str(s.id), s.id)
         except SQLObjectNotFound:
             # OK, doesn't already exist
             pass
@@ -185,7 +185,7 @@ class MPEGImporter(Importer):
 
         s = db.Picture.select(db.Picture.q.hash == hash)
         if s.count() != 0:
-            raise AlreadyPresentException('%d' % s[0].id)
+            raise AlreadyPresentException('%d' % s[0].id, s[0].id)
 
         try:
             m = db.setmedia(imgdata)
@@ -232,8 +232,9 @@ class ImportException(Exception):
         return self.value
 
 class AlreadyPresentException(ImportException):
-    def __init__(self, value):
+    def __init__(self, value, id):
         ImportException.__init__(self, value)
+        self.id = id
         
 def mkDateTime(s):
     s=str(s)

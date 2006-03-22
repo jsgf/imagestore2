@@ -62,7 +62,7 @@ class UploadUI:
 
     def _q_access(self, request):
         user = request.session.getuser()
-        perm = self.collection.dbobj.permissions(user)
+        perm = self.collection.db.permissions(user)
 
         mayupload = (user and user.mayUpload) or (perm and perm.mayUpload)
         
@@ -156,12 +156,12 @@ class UploadUI:
                                          owner=user,
                                          photographer=user,
                                          public=visibility,
-                                         collection=self.collection.dbobj,
+                                         collection=self.collection.db,
                                          keywords=keywords,
                                          camera=camera,
                                          upload=upload,
                                          record_time=date)
-                imageui = image.ImageUI(self.collection)
+                imageui = image.ImageDir(self.collection)
                 r = H('OK, Picture #%s</dt><dd>%s</dd>\n') % \
                     (id, imageui.thumb_img(db.Picture.get(id), False))
             except insert.AlreadyPresentException, msg:
@@ -214,7 +214,7 @@ class UploadUI:
             upload = db.Upload.select(AND(db.Upload.q.import_time >= start,
                                           db.Upload.q.import_time < end,
                                           db.Upload.q.userID == user.id,
-                                          db.Upload.q.collectionID == self.collection.dbobj.id))
+                                          db.Upload.q.collectionID == self.collection.db.id))
 
             assert upload.count() == 0 or upload.count() == 1, \
                    'Should be only one Upload per day per user'
@@ -222,7 +222,7 @@ class UploadUI:
             if upload.count() == 1:
                 u = upload[0]
             else:
-                u = db.Upload(user=user, collection=self.collection.dbobj)
+                u = db.Upload(user=user, collection=self.collection.db)
             
             c = int(form['camera'])
 
@@ -239,7 +239,7 @@ class UploadUI:
             if keywords is not None:
                 keywords = splitKeywords(keywords)
 
-            print 'self.collection.dbobj=%s' % self.collection.dbobj
+            print 'self.collection.db=%s' % self.collection.db
 
             request.response.buffered=False
             upload = self.do_upload(request,
@@ -257,7 +257,7 @@ class UploadUI:
 
         results=[]
 
-        for u in db.Upload.select(AND(db.Upload.q.collectionID == self.collection.dbobj.id,
+        for u in db.Upload.select(AND(db.Upload.q.collectionID == self.collection.db.id,
                                       db.Upload.q.userID == user.id),
                                   orderBy=db.Upload.q.import_time):
             pics = u.pictures
@@ -289,7 +289,7 @@ class UploadUI:
                 for p in pics:
                     results.append(p)
                     body += H('<div style="float: left">\n')
-                    body += image.ImageUI(self.collection).view_rotate_link(request, p, wantedit=True)
+                    body += image.ImageDir(self.collection).view_rotate_link(request, p, wantedit=True)
                     body += H('<br>\n')
                     body += H('<input title="Commit?" type="checkbox" name="pic" value="%d" checked>\n') % p.id
                     if p.keywords:
@@ -309,7 +309,7 @@ class UploadUI:
 
         request.session.set_query_results(results)
 
-        r += page.pre(request, 'Pending uploaded images for "%s"' % self.collection.dbobj.name,
+        r += page.pre(request, 'Pending uploaded images for "%s"' % self.collection.db.name,
                       'pending', brieftitle='pending uploads')
         r += page.menupane(request)
 
@@ -323,7 +323,7 @@ class UploadUI:
     def have_pending(self, user):
         if not user:
             return False
-        return db.Picture.select(AND(db.Picture.q.collectionID == self.collection.dbobj.id,
+        return db.Picture.select(AND(db.Picture.q.collectionID == self.collection.db.id,
                                      db.Picture.q.uploadID == db.Upload.q.id,
                                      db.Picture.q.ownerID == user.id,
                                      db.Upload.q.userID == user.id)).count() != 0

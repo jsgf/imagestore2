@@ -61,13 +61,13 @@ def picsbyday [html] (request, days, collection):
         '</h3>\n' 
         '<div class="day-pics">\n'
         for p in pl:
-            image.ImageUI(collection).view_rotate_link(request, p) + '\n'
+            image.ImageDir(collection).view_rotate_link(request, p) + '\n'
         '</div>\n</div>\n'
 
 def _q_index_ptl [html] (self, request):
     from calendarui import sorted_intervals, int_week, most_recent
 
-    filter = dbfilters.mayViewFilter(self.collection.dbobj, request.session.getuser())
+    filter = dbfilters.mayViewFilter(self.collection.db, request.session.getuser())
     
     if self.date is None:
         self.date = self.interval.rounddown(most_recent(filter))
@@ -159,7 +159,7 @@ def emitmonth [html](request, calui, year, m):
 def formatyear [html] (self, request, year):
     from calendarui import pics_grouped, int_year, kw_summary
 
-    filter = dbfilters.mayViewFilter(self.calui.collection.dbobj, request.session.getuser())
+    filter = dbfilters.mayViewFilter(self.calui.collection.db, request.session.getuser())
 
     pics = pics_grouped(int_year, filter=filter)
 

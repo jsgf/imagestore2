@@ -32,7 +32,7 @@ def _q_index(request):
 
 def _q_lookup(request, component):
     try:
-        return collection.CollectionUI(db.Collection.byName(component), imagestore)
+        return collection.Collection(db.Collection.byName(component), imagestore)
     except SQLObjectNotFound, x:
         raise TraversalError(str(x))
 
@@ -48,7 +48,7 @@ def _q_access(request):
     request.context_menu += [ menu.Separator(),
                               menu.SubMenu(heading='Collections:',
                                            items=[ menu.Link(link=c.name,
-                                                             url=collection.CollectionUI(c, imagestore).path(),
+                                                             url=collection.Collection(c, imagestore).path(),
                                                              extra={ 'title': c.description })
                                                    for c in collections ]) ]
 

@@ -217,12 +217,14 @@ def setmedia(data, hash=None):
 
     # Make sure we're not about to trash someone's image/thumbnail data
     if m is not None:
-        pics = Picture.select((Picture.q.mediaid == m.id) | (Picture.q.thumbid == m.id))
+        pics = Picture.select((Picture.q.mediaid == m.id) | \
+                              (Picture.q.thumbid == m.id))
         if pics.count() != 0:
             raise IOError('CONSISTENCY PROBLEM: Found pictures using corrupt media (hash=%s, images: %s)' % (hash, ', '.join([ str(p.id) for p in pics])))
     
     # Just make sure there were no left-overs
-    for m in Media.select(Media.q.hash == hash, orderBy='sequence', lazyColumns=lazycol):
+    for m in Media.select(Media.q.hash == hash, orderBy='sequence',
+                          lazyColumns=lazycol):
         #print 'deleting hash id (%d,%s,%d)' % (m.id, m.hash, m.sequence)
         m.destroySelf()
     
