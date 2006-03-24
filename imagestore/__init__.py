@@ -13,34 +13,37 @@ from imagestore.base_paths import *
 
 import imagestore.db as db
 import imagestore.collection as collection
-import imagestore.pages as page
 import imagestore.dbfilters as dbfilters
 import imagestore.style
 import imagestore.menu as menu
 import imagestore.nav as nav
+import imagestore.auth as auth
 
-_q_exports = [ 'user', 'admin', 'rss', 'static', ('style.css', 'style_css') ]
+#import imagestore.user as user
+
+_q_exports = [ 'user', 'auth', 'admin', 'rss', 'static', ('style.css', 'style_css') ]
 
 style_css = imagestore.style.style_css
 
 def _q_index(request):
-    ret = page.menupane(request)
-
-    quixote.redirect('%sdefault/' % path())
-    
-    return page.html(request, 'Imagestore', ret)
+    return quixote.redirect('%sdefault/' % path())
 
 def _q_lookup(request, component):
+    """ Look up a collection by name.
+    XXX TODO: make inaccessible collections invisible. """
     try:
         return collection.Collection(db.Collection.byName(component), imagestore)
     except SQLObjectNotFound, x:
-        raise TraversalError(str(x))
+        raise TraversalError('Collection "%s" does not exist' % component)
 
 def _q_access(request):
-    # Install context menu stuff into request
+    """ This _q_access is not really used for access checking, but as
+    a hook which is always called when the path is traversed.  It installs
+    the state needed for the context menu, which is hung off the request. """
+    request = quixote.get_request()
     request.context_menu = menu.SubMenu()
 
-    user = quixote.get_session().getuser()
+    user = auth.login_user(quiet=True)
 
     # Add collection list
     collections = db.Collection.select(dbfilters.mayViewCollectionFilter(user),
@@ -61,7 +64,7 @@ def admin(request):
 def rss(request):
     return 'rss'
 
-
+# Some glue to make static files work with quixote.publisher1
 class Q1StaticFile(StaticFile):
     def __call__(self, req):
         return StaticFile.__call__(self)

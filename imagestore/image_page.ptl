@@ -88,7 +88,7 @@ def view [html] (self, request, p, size, default):
                                       title='%dx%d' % ImageTransform.transformed_size(p, s),
                                       selected= s==size)
 
-    if self.collection.mayViewOrig(request, p):
+    if self.collection.mayViewOrig(request, p, quiet=True):
         request.navigation.add_option(self.view_path(p, size='orig'),
                                       link='Original',
                                       title='For printing')
@@ -141,7 +141,8 @@ def generate_twu_map [html] (self, p):
             }
     
 def view_rotate_link [html] (self, request, p, size=None, extra=None, wantedit=False):
-    if not (self.collection.mayEdit(request, p) and (wantedit or request.session.wantedit)):
+    if not (self.collection.mayEdit(request, p, quiet=True) and \
+            (wantedit or request.session.wantedit)):
         return self.view_newwin_link(request, p, size, extra=extra)
 
     url='%s#thumb:%d' % (request.get_url(), p.id)

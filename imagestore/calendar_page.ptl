@@ -67,7 +67,8 @@ def picsbyday [html] (request, days, collection):
 def _q_index_ptl [html] (self, request):
     from calendarui import sorted_intervals, int_week, most_recent
 
-    filter = dbfilters.mayViewFilter(self.collection.db, request.session.getuser())
+    user = auth.login_user(quiet=True)
+    filter = dbfilters.mayViewFilter(self.collection.db, user)
     
     if self.date is None:
         self.date = self.interval.rounddown(most_recent(filter))
@@ -159,7 +160,8 @@ def emitmonth [html](request, calui, year, m):
 def formatyear [html] (self, request, year):
     from calendarui import pics_grouped, int_year, kw_summary
 
-    filter = dbfilters.mayViewFilter(self.calui.collection.db, request.session.getuser())
+    user = auth.login_user(quiet=True)
+    filter = dbfilters.mayViewFilter(self.calui.collection.db, user)
 
     pics = pics_grouped(int_year, filter=filter)
 

@@ -1,9 +1,8 @@
 # These are separated out from __init__.py to avoid recursuve imports
 
-import imagestore.config
-
 def base():
-    return imagestore.config.server.path
+    import imagestore.config as config
+    return config.get('server', 'path')
 
 def path():
     return base() +'/'

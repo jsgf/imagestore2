@@ -358,7 +358,7 @@ class UploadUI:
                 p.upload = None
 
             if not self.have_pending(user):
-                quixote.redirect(self.collection.path())
+                return quixote.redirect(self.collection.path())
 
         elif request.form.has_key('defaults'):
             kw = splitKeywords(request.form['keywords'])
@@ -370,5 +370,4 @@ class UploadUI:
                 if vis != 'unchanged':
                     p.visibility = vis
                 
-        quixote.redirect(self.pending_path())
-        return ''
+        return quixote.redirect(self.pending_path())

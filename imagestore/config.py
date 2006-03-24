@@ -1,24 +1,38 @@
 # Imagestore application configuration
 
 # These are the defaults; do not edit.  Put your changes in
-# config_local.py
+# imagestore.conf
 
-class server:
-    path = '/imagestore'                # base pathname in server
-    scgi_port = 4000                    # scgi port
+import ConfigParser
+import os.path
+
+_defaults = {
+    'server': {
+        'path': '/imagestore',          # base pathname in server
+        'scgi_port': 4000               # scgi port
+    },
+    'db': {
+    'connection': os.path.abspath('imagestore.db')
+    },
+    'auth': {
+    'schemes': 'digest',                # allowable schemes (digest, basic)
+    'realm': 'Imagestore',
+    'cookie_life': 'unlimited',          # ( 'unlimited' | 'session' | <seconds> )
+    'nonce_life': 'unlimited',           # ( 'unlimited' | <seconds> )
+    },
+    'users': {
+    'unpriv_newuser': 'True',            # allow anyone to create accounts
+    'mayComment': 'True',
+    'mayRate': 'True',
+    }
+}
     
-class users:
-    unpriv_newuser = True               # allow anyone to create accounts
+_config = ConfigParser.SafeConfigParser()
 
-    # Default permissions
-    mayComment = True
-    mayRate = False
+_config.read('imagestore.conf')
 
-class db:
-    import os.path
-    connection='sqlite:' + os.path.abspath('imagestore.db')
-
-try:
-    from config_local import *
-except:
-    pass
+def get(section, name):
+    try:
+        return _config.get(section, name)
+    except ConfigParser.Error:
+        return _defaults[section][name]

@@ -63,8 +63,7 @@ def user_edit [html] (self, request):
     form.add_reset('reset', 'Revert to original')
 
     if form.get_submit() == 'cancel':
-        quixote.redirect(request.get_path(1) + str('/'))
-        return ''
+        return quixote.redirect(request.get_path(1) + str('/'))
 
     if not form.is_submitted() or form.has_errors():
         form.render()
@@ -87,7 +86,7 @@ def user_edit [html] (self, request):
                 user.password = form['newpassword']
 
             user.username = form['username']
-            quixote.redirect(request.get_path())
+            return quixote.redirect(request.get_path())
 
     post()
 
@@ -169,5 +168,4 @@ def user_collections [html] (u, request):
                 nc = db.Collection(name=str(form['newcolname']),
                                    description=str(form['newcoldesc']),
                                    visibility=str(form['newcolvis']), ownerID = u.id)
-                #quixote.redirect('%s/%s' % (prefix, nc.name))
-                quixote.redirect(request.get_path())
+                return quixote.redirect(request.get_path())

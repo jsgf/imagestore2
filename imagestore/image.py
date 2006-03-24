@@ -20,18 +20,9 @@ import imagestore.style as style
 import imagestore.auth as auth
 import imagestore.insert as insert
 import imagestore.image_page as image_page
+import imagestore.http as http
 
 _json_type = 'text/javascript'
-
-class MethodError(PublishError):
-    status_code = 405
-    title = 'Method Not Allowed'
-    description = 'Method not allowed on this object'
-
-class ForbiddenError(PublishError):
-    status_code = 403
-    title = 'Forbidden'
-    description = 'Action forbidden on this object'
 
     
 def sizere():
@@ -145,10 +136,9 @@ class EditUI:
             p.visibility = form['visibility']
 
             if form.get_submit() == 'submit-next' and next:
-                quixote.redirect(self.image.edit.path(db.Picture.get(next)))
+                ret = quixote.redirect(self.image.edit.path(db.Picture.get(next)))
             else:
-                quixote.redirect(request.get_path())
-            ret = ''
+                ret = quixote.redirect(request.get_path())
 
         return ret
 
@@ -226,7 +216,7 @@ class ImageMeta:
         try:
             fn = self.fields.__dict__['set_'+name]
         except KeyError:
-            raise ForbiddenError("can't change '%s' field" % name)
+            raise http.ForbiddenError("can't change '%s' field" % name)
 
         return fn(p, value)
 
@@ -369,11 +359,7 @@ class Image:
         return Stream(p.getimagechunks(), p.datasize)
 
     def _q_access(self, request):
-        user = None
-        try:
-            user = auth.login_user()
-        except auth.UnauthorizedError:
-            pass
+        user = auth.login_user(quiet=True)
 
         p = self.pic()
         if not p.mayView(user):
@@ -406,7 +392,7 @@ class Image:
 
         p = self.pic()
 
-        if not self.collection.mayView(request, p):
+        if not self.collection.mayView(request, p, quiet=True):
             raise AccessError('You may not view this image')
         if p.collection != self.collection.db:
             raise TraversalError('Image %d is not part of this collection' % p.id)
@@ -482,18 +468,18 @@ class ImageDir:
 
         p.orientation = angle
 
+        ret = 'rotate done, I guess'
         if returnurl is not None:
-            quixote.redirect(returnurl)
+            ret = quixote.redirect(returnurl)
         
-        return 'rotate done, I guess'
+        return ret
 
     def _q_lookup(self, request, component):
         """ Create an Image() instance for a requested image.  If the
         component is an old-style URL, then generate a redirect for it. """
 
         if component == '':
-            quixote.redirect(self.collection.path())
-            return ''
+            return quixote.redirect(self.collection.path())
             
         # Look for old-style URL, and generate a redirect
         m = _re_old_style_url.match(component)
@@ -588,7 +574,7 @@ class ImageDir:
 
     def view_link(self, request, p, size=None, link=None, preferred=False, url=None, extra={}):
         if link is None:
-            user = request.session.getuser()
+            user = auth.login_user(quiet=True)
             link = self.thumb_img(p=p, showvis=(user and p.ownerID == user.id))
 
         url = url or self.view_path(p=p, size=size, preferred=preferred)

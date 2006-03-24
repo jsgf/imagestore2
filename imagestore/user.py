@@ -15,11 +15,12 @@ import imagestore.pages as page
 import imagestore.user_page as user_page
 import imagestore.menu as menu
 import imagestore.config as config
+import imagestore.auth as auth
 
 _q_exports = [ 'login', 'logout', 'editmode', 'editusers', 'newuser' ]
 
 def _q_access(request):
-    sess_user = request.session.getuser()
+    sess_user = auth.login_user(quiet=True)
     
     if sess_user and sess_user.mayAdmin:
         request.context_menu += [ menu.Separator(),
@@ -29,7 +30,7 @@ def _q_access(request):
 def user_path(user):
     return '%s%s/' % (path(), user.username)
 
-def path(user=None):
+def path():
     return imagestore.path() + 'user/'
 
 def login_path():
@@ -75,9 +76,10 @@ def login(request):
             body += H('<p>Hi, %s, you\'ve logged in' % user.fullname)
             session.setuser(user.id)
             if referer is not None and referer != '':
-                quixote.redirect(referer)
+                ret = quixote.redirect(referer)
             else:
-                quixote.redirect(path(user))
+                ret = quixote.redirect(path(user))
+            return ret
     else:
         body += user_page.login_form(request, referer=request.get_environ('HTTP_REFERER'))
 
@@ -92,9 +94,9 @@ def login(request):
     return p.getvalue()
 
 def newuser(request):
-    user = request.session.getuser()
+    user = admin.login_user(quiet=True)
 
-    if not ((user and user.mayAdmin) or config.users.unpriv_newuser):
+    if not ((user and user.mayAdmin) or config.get('users', 'unpriv_newuser'):
         raise AccessError('You may not create a new user')
 
     form = form2.Form()
@@ -106,7 +108,7 @@ def newuser(request):
     form.add(form2.PasswordWidget, 'pass2', title='Password verify')
     form.add_submit('create', 'Create user')
     
-    render=False
+    ret = None
     
     if form.is_submitted():
         username = form['username'].strip()
@@ -128,15 +130,11 @@ def newuser(request):
                         mayAdmin=False,
                         mayViewall=False,
                         mayUpload=False,
-                        mayComment=config.users.mayComment,
-                        mayRate=config.users.mayRate)
-            quixote.redirect(path(u))
-        else:
-            render=True
-    else:
-        render=True
+                        mayComment=config.get('users', 'mayComment'),
+                        mayRate=config.get('users', 'mayRate')
+            ret = quixote.redirect(path(u))
 
-    if render:
+    if ret is None:
         r = TemplateIO(html=True)
         
         r += page.pre(request, 'New User', 'newuser')
@@ -144,17 +142,14 @@ def newuser(request):
         r += form.render()
         r += page.post()
 
-        return r.getvalue()
-    else:
-        return ''
+        ret =  r.getvalue()
 
+    return ret
     
 def logout(request):
     request.session.setuser(None)
 
-    quixote.redirect(request.get_environ('HTTP_REFERER'))
-
-    return 'logged out'
+    return quixote.redirect(request.get_environ('HTTP_REFERER'))
 
 def _q_lookup(request, component):
     u = None
@@ -173,11 +168,14 @@ def _q_lookup(request, component):
 def _q_index(request):
     session = request.session
 
-    user = session.getuser()
+    user = admin.login_user(quiet=True)
 
-    quixote.redirect(path(user))
+    if user is None:
+        path = login_path()
+    else:
+        path = user_path(user)
 
-    return ''
+    return quixote.redirect(path)
 
 
 class UserWidget(form2.CompositeWidget):
@@ -367,7 +365,7 @@ def editusers(request):
     """
 
 
-    user = request.session.getuser()
+    user = admin.login_user()
 
     if user is None or not user.mayAdmin:
         raise AccessError("You may not change user information")
@@ -401,8 +399,7 @@ def editusers(request):
 
     if userform.get_submit() == 'cancel' or (state > 0 and not userlist.changed()):
         print 'CANCEL'
-        quixote.redirect(request.get_path())
-        return ''
+        return quixote.redirect(request.get_path())
 
     if state > 0:
         userlist.replace_deleted()
@@ -428,8 +425,7 @@ def editusers(request):
     
     userlist.commit()
 
-    quixote.redirect(request.get_path()) # reload with the new details
-    return ''
+    return quixote.redirect(request.get_path()) # reload with the new details
     
 
 
@@ -445,9 +441,7 @@ def editmode(request):
         session.wantedit = bool(int(request.get_field('wantedit')))
         session.set_dirty()
         
-    quixote.redirect(request.get_environ('HTTP_REFERER'))
-
-    return ''
+    return quixote.redirect(request.get_environ('HTTP_REFERER'))
 
 def editmode_url(onoff):
     return '%suser/editmode?wantedit=%d' % (imagestore.path(), onoff)
@@ -479,17 +473,16 @@ class UserUI:
         self.user = u
 
     def _q_access(self, request):
-        sess_user = request.session.getuser()
+        sess_user = auth.login_user()
 
         if not sess_user or (sess_user != self.user and not sess_user.mayAdmin):
             raise AccessError("You may not view this user's details")
             
     def _q_index(self, request):
-        sess_user = request.session.getuser()
+        sess_user = auth.login_user(quiet=True)
 
         if sess_user is None:
-            quixote.redirect(path(sess_user))
-            return ''
+            return quixote.redirect(path(sess_user))
 
         return user_page.user_page(request)
 

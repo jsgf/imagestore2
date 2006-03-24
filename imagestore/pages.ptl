@@ -88,8 +88,7 @@ def menupane [html] (request, extra=None):
     
     # Login info
 
-    session = request.session
-    sess_user = session.getuser()
+    sess_user = auth.login_user(quiet=True)
 
     menu = Menu()
     

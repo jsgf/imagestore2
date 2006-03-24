@@ -13,6 +13,7 @@ import imagestore.db as db
 import imagestore.calendar_page as calendar_page
 import imagestore.dbfilters as dbfilter
 import imagestore.menu as menu
+import imagestore.auth as auth
 
 def to_mxDateTime(dt):
     if type(dt) == mxdt.DateTime:
@@ -270,7 +271,8 @@ class CalendarUI:
         to the list). """
 
         # Get pics grouped into months
-        filter = dbfilter.mayViewFilter(self.collection.dbobj, request.session.getuser())
+        user = auth.login_user(quiet=True)
+        filter = dbfilter.mayViewFilter(self.collection.dbobj, user)
         months = [ (Month(year, m.month), res) for (m, res) in pics_grouped(int_month,
                                                                             mxdt.DateTime(year  ,1,1),
                                                                             mxdt.DateTime(year+1,1,1),
@@ -306,7 +308,7 @@ class Year:
     def _q_index(self, request):
         if self.year is None:
             filter = dbfilter.mayViewFilter(self.calui.collection.dbobj,
-                                            request.session.getuser())
+                                            auth.login_user(quiet=True))
             self.year = most_recent(filter).year
 
         y = self.calui.yearview(request, self.year)

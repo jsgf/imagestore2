@@ -22,5 +22,5 @@ def create_my_publisher():
 
 if __name__ == '__main__':
     run(create_my_publisher,
-        port=imagestore.config.server.scgi_port,
-        script_name=imagestore.config.server.path)
+        port=imagestore.config.get('server', 'scgi_port'),
+        script_name=imagestore.config.get('server', 'path'))

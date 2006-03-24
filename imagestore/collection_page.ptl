@@ -21,8 +21,9 @@ class CollectionUI:
         
     def _q_index [html] (self):
         request = quixote.get_request()
-        
-        filter = dbfilters.mayViewFilter(self.db, request.session.getuser())
+
+        user = auth.login_user(quiet=True)
+        filter = dbfilters.mayViewFilter(self.db, user)
 
         npics = db.Picture.select(AND(filter, db.Picture.q.collectionID == self.db.id)).count()
 
@@ -111,8 +112,7 @@ class CollectionUI:
         if props.get_submit() == 'delete' and nopics:
             col.destroySelf()
             request.session.del_breadcrumb()
-            quixote.redirect(str('%s/user/') % prefix)
-            return ''
+            return quixote.redirect(str('%s/user/') % prefix)
 
         if not props.is_submitted() or props.has_errors():
             '<div class="title-box collection-admin">\n'
@@ -130,7 +130,7 @@ class CollectionUI:
                 col.showOriginal = str(props['showOriginal'])
 
                 request.session.del_breadcrumb()
-                quixote.redirect(self.admin_path())
+                return quixote.redirect(self.admin_path())
 
 
         '<div class="title-box user-perms">\n'

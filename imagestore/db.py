@@ -32,7 +32,7 @@ conn = None
 
 def db_connect():
     global conn, __connection__
-    uri=config.db.connection
+    uri=config.get('db', 'connection')
 
     print 'uri='+uri
 

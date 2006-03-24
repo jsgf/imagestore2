@@ -14,6 +14,7 @@ import imagestore.calendarui as calendarui
 import imagestore.search as search
 import imagestore.upload as upload
 import imagestore.menu as menu
+import imagestore.auth as auth
 
 import imagestore.collection_page as collection_page
 
@@ -70,15 +71,15 @@ class Collection:
                 raise TraversalError('Bad image MD5 hash')
                 
     def _q_access(self, request):
-        if not self.mayViewCollection(request):
+        if not self.mayViewCollection(request, quiet=True):
             raise AccessError, "You may not view this collection"
 
         m = menu.SubMenu(heading='Collection: %s' % self.db.name)
-        if self.mayAdminCol(request):
+        if self.mayAdminCol(request, quiet=True):
             m += [ menu.Link(link='Administer',
                              url=self.admin_path()) ]
 
-        if self.mayUpload(request):
+        if self.mayUpload(request, quiet=True):
             um = menu.SubMenu(heading=menu.Link(link='Upload', url=self.upload.path()))
             if self.upload.have_pending(request.session.getuser()):
                 um += [ menu.Link(link='Pending', url=self.upload.pending_path()) ]
@@ -141,8 +142,8 @@ class Collection:
         return json.write({ 'added': added, 'skipped': skipped })
         
     
-    def mayEdit(self, request, p):
-        user = request.session.getuser()
+    def mayEdit(self, request, p, quiet=False):
+        user = auth.login_user(quiet=quiet)
         
         if user is None:
             return False
@@ -151,8 +152,8 @@ class Collection:
         
         return (perms and perms.mayEdit) or p.mayEdit(user)
 
-    def mayViewCollection(self, request):
-        user = request.session.getuser()
+    def mayViewCollection(self, request, quiet=False):
+        user = auth.login_user(quiet=quiet)
 
         if self.db.visibility == 'public':
             return True
@@ -162,8 +163,8 @@ class Collection:
 
         return False
     
-    def mayViewOrig(self, request, p):
-        user=request.session.getuser()
+    def mayViewOrig(self, request, p, quiet=False):
+        user = auth.login_user(quiet=quiet)
 
         if self.db.visibility == 'public' and self.db.showOriginal:
             return p.mayView(user)
@@ -180,8 +181,8 @@ class Collection:
         
         return False
 
-    def mayView(self, request, p):
-        user = request.session.getuser()
+    def mayView(self, request, p, quiet=False):
+        user = auth.login_user(quiet=quiet)
 
         if self.db.visibility == 'public':
             return p.mayView(user)
@@ -198,8 +199,8 @@ class Collection:
 
         return False
 
-    def mayAdminCol(self, request):
-        user = request.session.getuser()
+    def mayAdminCol(self, request, quiet=False):
+        user = auth.login_user(quiet=quiet)
 
         if user is None:
             return False
@@ -216,8 +217,8 @@ class Collection:
 
         return False
 
-    def mayUpload(self, request):
-        user = request.session.getuser()
+    def mayUpload(self, request, quiet=False):
+        user = auth.login_user(quiet=quiet)
 
         if not user:
             return False;

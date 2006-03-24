@@ -5,13 +5,18 @@ import re
 import time
 import struct
 import binascii
+
+import json
+
 from sqlobject import SQLObjectNotFound
 
 import quixote
-from quixote.errors import AccessError
+from quixote.errors import AccessError, QueryError
 
 import imagestore
 import imagestore.db as db
+import imagestore.config as config
+import imagestore.http as http
 
 # Store persistently if nonce needs to survive over server restarts.
 # Alternatively, change regularly to force digest renegotations.  We
@@ -21,8 +26,11 @@ _private = os.urandom(20)
 
 _nonce_random = 12
 _sha_len = 20
-_pack_hash = 'l%ds%ds' % (_nonce_random, len(_private))
-_pack_nonce = 'l%ds%ds' % (_nonce_random, _sha_len)
+_pack_hash = '>l%ds%ds' % (_nonce_random, len(_private))
+_pack_nonce = '>l%ds%ds' % (_nonce_random, _sha_len)
+
+_schemes_allowed = config.get('auth', 'schemes').split(', ')
+_realm = config.get('auth', 'realm')
 
 def _hash_nonce(e, r):
     return sha.sha(struct.pack(_pack_hash, e, r, _private)).digest()
@@ -38,8 +46,8 @@ def makenonce(expire=0):
         return s
 
     e = 0
-    if expire != 0:
-        e = expire + int(time.time())
+    if expire != 0 and expire != 'unlimited':
+        e = int(expire) + int(time.time())
 
     r = os.urandom(_nonce_random)
     s = _hash_nonce(e, r)
@@ -62,6 +70,19 @@ def checknonce(n):
 
 assert checknonce(makenonce())
 
+def _auth_challenge(scheme, realm, stale=False):
+    if scheme == 'basic':
+        return { 'realm': realm }
+    if scheme == 'digest':
+        return {
+            'realm': realm,
+            'nonce': makenonce(config.get('auth', 'nonce_life')),
+            'uri': imagestore.path(),
+            'algorithm': 'MD5',
+            'qop': 'auth',
+            'stale': stale and 'true' or 'false'
+            }
+    
 class UnauthorizedError(AccessError):
     """The request requires user authentication.
     
@@ -72,7 +93,7 @@ class UnauthorizedError(AccessError):
     title = "Unauthorized"
     description = "You are not authorized to access this resource."
 
-    def __init__(self, realm='Protected', scheme='digest',
+    def __init__(self, realm, scheme='digest',
                  public_msg=None, private_msg=None, stale=None):
         self.realm = realm
         self.scheme = scheme
@@ -80,18 +101,8 @@ class UnauthorizedError(AccessError):
         AccessError.__init__(self, public_msg, private_msg)
 
     def format(self):
-        response = quixote.get_request().response
-        if self.scheme == 'basic':
-            dict = { 'realm': self.realm }
-        elif self.scheme == 'digest':
-            dict = {
-                'realm': self.realm,
-                'nonce': makenonce(),
-                'uri': imagestore.path(),
-                'algorithm': 'MD5',
-                'qop': 'auth',
-                'stale': self.stale and 'true' or 'false'
-                }
+        response = quixote.get_response()
+        dict = _auth_challenge(self.scheme, self.realm, self.stale)
 
         auth = '%s %s' % (self.scheme.capitalize(),
                           ', '.join([ '%s="%s"' % (k, v.encode('string-escape'))
@@ -220,12 +231,10 @@ def _check_basic(dict):
 def _check_digest(dict):
     #print dict
 
-    def H(x):
-        return md5.md5(x).digest().encode('hex')
+    H = lambda x: md5.md5(x).digest().encode('hex')
 
     if 'algorithm' in dict and dict['algorithm'].lower() == 'sha':
-        def H(x):
-            return sha.sha(x).digest().encode('hex')
+        H = lambda x: sha.sha(x).digest().encode('hex')
 
     def KD(secret, data):
         #print 'KD(%s, %s)' % (secret, data)
@@ -263,7 +272,7 @@ def _check_digest(dict):
     if not checknonce(dict['nonce']):
         # stale nonce; the client knows the username/password,
         # but passed a bad nonce
-        raise UnauthorizedError(scheme='digest', stale=True)
+        raise UnauthorizedError(realm=_realm, scheme=_schemes_allowed[0], stale=True)
 
     return digest == dict['response']
 
@@ -271,10 +280,30 @@ def _check_digest(dict):
 _schemes = { 'digest':      _check_digest,
              'basic':       _check_basic }
 
-def login_user(scheme='digest'):
+def do_authenticate(scheme, dict):
+    response = quixote.get_response()
+    session = quixote.get_session()
+
+    username = dict.get('username')
+
+    try:
+        user = db.User.byUsername(username)
+    except SQLObjectNotFound:
+        return None
+
+    response.set_cookie('imagestore_auth', json.write((scheme,dict)),
+                        path=imagestore.path())
+
+    session.setuser(user.id)
+    return user
+    
+
+def login_user(quiet=False):
     """ Return the currently logged-in user.  If the user has
     logged in with a session cookie, use that, otherwise use
-    HTTP authentication. """
+    HTTP authentication.  If quiet is true, then this will
+    not force an authentication request. """
+
     session = quixote.get_session()
     user = session.getuser()
     if user is not None:
@@ -285,17 +314,47 @@ def login_user(scheme='digest'):
     auth_hdr = request.get_header('authorization')
 
     if auth_hdr is not None:
-        ha_scheme,dict = parse_auth_header(auth_hdr)
+        scheme,dict = parse_auth_header(auth_hdr)
 
         try:
-            if scheme == ha_scheme and _schemes[scheme](dict):
-                username = dict['username']
-                user = db.User.byUsername(username)
-                session.setuser(user.id)
-                return session.getuser()
+            if scheme in _schemes_allowed and _schemes[scheme](dict):
+                return do_authenticate(scheme, dict)
         except KeyError:
             pass
         except SQLObjectNotFound:
             pass
 
-    raise UnauthorizedError(scheme=scheme)
+    if not quiet:
+        #raise 'oops'
+        raise UnauthorizedError(realm=_realm, scheme=_schemes_allowed[0])
+
+    return None
+
+_q_exports = [ 'nonce', 'authenticate' ]
+
+def nonce(request):
+    response = quixote.get_response()
+    response.set_content_type('text/plain')
+    return makenonce(config.get('auth', 'nonce_life'))
+
+def authenticate(request):
+    request = quixote.get_request()
+    response = quixote.get_response()
+
+    if request.get_method() == 'GET':
+        d = _auth_challenge(_schemes_allowed[0], _realm)
+        return json.write((_schemes_allowed[0], d))
+    elif request.get_method() != 'POST':
+        raise http.MethodError(['GET', 'POST'])
+
+    scheme = request.form.get('scheme')
+
+    if scheme not in _schemes or \
+           scheme not in _schemes_allowed:
+        raise QueryError('bad scheme')
+
+    if do_authenticate(scheme, request.form) is None:
+        raise QueryError('authentication failed')
+
+    response.set_status(204)            # no content
+    return ''
