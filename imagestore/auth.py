@@ -191,8 +191,11 @@ def _parse_value(str, dict):
 def parse_auth_header(header):
     """Parse an Authorization header and return the scheme
     and a dictionary of parameters for that scheme."""
-    scheme,rest = header.split(None, 1)
-
+    try:
+        scheme,rest = header.split(None, 1)
+    except ValueError:
+        return (None, None)
+    
     scheme = scheme.lower()
     dict = {}
     
@@ -225,10 +228,10 @@ def getpass(username):
 #def getpass(x):
 #    return { 'foo': 'bar' }[x]
 
-def _check_basic(dict):
+def _check_basic(dict, method):
     return getpass(dict['username']) == dict['password']
 
-def _check_digest(dict):
+def _check_digest(dict, method):
     #print dict
 
     H = lambda x: md5.md5(x).digest().encode('hex')
@@ -257,14 +260,14 @@ def _check_digest(dict):
                     dict['cnonce'],
                     dict['qop'] ]
 
-    pieces += [ H(A2(request.get_method(), dict['uri'])) ]
+    pieces += [ H(A2(method, dict['uri'])) ]
 
     digest = KD(H(A1(dict['username'],
                      dict['realm'],
                      getpass(dict['username']))),
                 ':'.join(pieces))
 
-    #print 'digest=%s response=%s' % (digest, dict['response'])
+    print 'digest=%s response=%s' % (digest, dict['response'])
 
     if digest != dict['response']:
         return False
@@ -280,9 +283,12 @@ def _check_digest(dict):
 _schemes = { 'digest':      _check_digest,
              'basic':       _check_basic }
 
-def do_authenticate(scheme, dict):
+def _do_authenticate(scheme, dict, method):
     response = quixote.get_response()
     session = quixote.get_session()
+
+    if not _schemes[scheme](dict, method):
+        return None
 
     username = dict.get('username')
 
@@ -291,10 +297,6 @@ def do_authenticate(scheme, dict):
     except SQLObjectNotFound:
         return None
 
-    response.set_cookie('imagestore_auth', json.write((scheme,dict)),
-                        path=imagestore.path())
-
-    session.setuser(user.id)
     return user
     
 
@@ -311,14 +313,14 @@ def login_user(quiet=False):
 
     request = quixote.get_request()
 
-    auth_hdr = request.get_header('authorization')
+    auth_hdr = request.get_header('authorization') or request.get_header('x-authorization')
 
     if auth_hdr is not None:
         scheme,dict = parse_auth_header(auth_hdr)
 
         try:
-            if scheme in _schemes_allowed and _schemes[scheme](dict):
-                return do_authenticate(scheme, dict)
+            if scheme in _schemes_allowed:
+                return _do_authenticate(scheme, dict, request.get_method())
         except KeyError:
             pass
         except SQLObjectNotFound:
@@ -342,6 +344,8 @@ def authenticate(request):
     response = quixote.get_response()
 
     if request.get_method() == 'GET':
+        #response.set_content_type('text/json', 'utf-8')
+        
         d = _auth_challenge(_schemes_allowed[0], _realm)
         return json.write((_schemes_allowed[0], d))
     elif request.get_method() != 'POST':
@@ -353,7 +357,7 @@ def authenticate(request):
            scheme not in _schemes_allowed:
         raise QueryError('bad scheme')
 
-    if do_authenticate(scheme, request.form) is None:
+    if _do_authenticate(scheme, request.form, request.form.get('method')) is None:
         raise QueryError('authentication failed')
 
     response.set_status(204)            # no content
