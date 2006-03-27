@@ -96,7 +96,8 @@ def login(request):
 def newuser(request):
     user = admin.login_user(quiet=True)
 
-    if not ((user and user.mayAdmin) or config.get('users', 'unpriv_newuser'):
+    if not ((user and user.mayAdmin) or
+            config.get('users', 'unpriv_newuser')):
         raise AccessError('You may not create a new user')
 
     form = form2.Form()
@@ -131,7 +132,7 @@ def newuser(request):
                         mayViewall=False,
                         mayUpload=False,
                         mayComment=config.get('users', 'mayComment'),
-                        mayRate=config.get('users', 'mayRate')
+                        mayRate=config.get('users', 'mayRate'))
             ret = quixote.redirect(path(u))
 
     if ret is None:

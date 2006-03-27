@@ -13,6 +13,7 @@ import imagestore.dbfilters as dbfilters
 import imagestore.image as image
 import imagestore.form as form
 import imagestore.calendarui as calendarui
+import imagestore.auth as auth
 
 class CollectionUI:
     def __init__(self, collection):

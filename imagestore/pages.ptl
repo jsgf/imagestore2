@@ -1,6 +1,7 @@
 # -*- python -*-
 
 import imagestore.base_paths as paths
+import imagestore.auth as auth
 
 def plural(n, word):
     n=int(n)
