@@ -1,22 +1,43 @@
 dojo.require("dojo.crypto.MD5");
 dojo.require("dojo.json");
 
-var user = 'admin';
-var pass = 'admin';
-var auth_response = {};
+var authstate = {
+	user: null,
+	pass: null,
+	response: {},
+	challenge: null,
+	challenge_expire: 0,
+};
 
-function set_userpass(_user, _pass)
+function set_userpass(user, pass)
 {
-	if (_user == user && _pass == pass)
+	if (user == authstate.user && pass == authstate.pass)
 		return;
 
-	user = _user;
-	pass = _pass;
-	auth_response = {};
+	authstate.user = user;
+	authstate.pass = pass;
+	authstate.response = {};
+	//authstate.challenge = null;
 }
 
+/*
+  Authentication algorithm:
+  - if we have a cached token for URL, then use it immediately,
+
+  otherwise
+  - get a challenge from auth/authenticate
+  - generate response
+  - cache reponse for URL
+
+  This should mean that we always avoid getting an explicit error 401
+  from the server, which will avoid the browser's dialog.
+
+  The challenge is common to all responses (it is not URI-specific),
+  so it is cached to save on turnarounds.
+*/
+
 // This matches name=value, where value can either be a number, an identifier or a quoted string.
-var authitem = /\s*([a-z_][a-z0-9_-]*)\s*=\s*(\d+|[a-z_][a-z0-9_-]*|"([^"]*)"),?\s*(.*)$/i; // "
+var authitem = /\s*([a-z_][a-z0-9_-]*)\s*=\s*(\d+|[a-z_][a-z0-9_-]*|"([^"]*)"),?\s*(.*)$/i; // ";
 
 function parse_challenge(authhdr)
 {
@@ -95,9 +116,50 @@ function authenticate(user, pass, method, uri, challenge)
 	
 	//alert(['user=', user, 'pass=', pass, 'method=', method, 'uri=', uri, 'challenge=', challenge].join(' '));
 
-	alert('ret='+ret);
+	//alert('ret='+ret);
 
 	return 'Digest '+ret;
+}
+
+function get_challenge()
+{
+	var now = Math.floor((new Date()).getTime() / 1000); // milliseconds to seconds
+
+	if (authstate.challenge &&
+	    (authstate.challenge_expire == 0 || authstate.challenge_expire > now))
+		return authstate.challenge;
+
+	alert('getting new challenge: now='+now+
+	      ' authstate.challenge='+ authstate.challenge+
+	      ' authstate.challenge_expire='+authstate.challenge_expire);
+	
+
+	var ret = null;
+
+	var req = {
+		url: '/imagestore/auth/authenticate',
+		mimetype: 'text/json',
+		sync: true,
+		sendTransport: false,
+		preventCache: true,
+		load: function(type, data, event) {
+			ret = data;
+			//alert('got challenge: '+data);
+		},
+		error: function(type, data, event) {
+			alert('get challenge failed: '+event.error);
+		},
+	};
+	dojo.io.bind(req);
+
+	if (ret) {
+		authstate.challenge_expire = ret.expire;
+		if (authstate.challenge_expire)
+			authstate.challenge_expire -= (10*60); // give 10 mins leeway
+		authstate.challenge = ret.challenge;
+	}
+
+	return authstate.challenge;
 }
 
 // Request a URL.  If we have been given a username and password, then
@@ -106,28 +168,37 @@ function authenticate(user, pass, method, uri, challenge)
 // supply the response without being asked.
 function request(origreq, challenge)
 {
-	req = dojo.lang.shallowCopy(origreq);
+	var req = dojo.lang.shallowCopy(origreq);
 
-	if (user && pass) {
+	if (authstate.user && authstate.pass) {
+		// If we have no response, pre-get a challenge so we
+		// can avoid a 401 error
+		if (!challenge && !authstate.response[req.url]) {
+			challenge = get_challenge();
+			//alert('got challenge for '+origreq.url+': '+challenge);
+		}
+
 		// If we have a challenge, then generate a response
 		if (challenge) {
 			var method = req.method;
 			if (!method)
 				method = 'get';
-			var auth = authenticate(user, pass, method.toUpperCase(),
+			var auth = authenticate(authstate.user, authstate.pass,
+						method.toUpperCase(),
 						req.url, parse_challenge(challenge));
-			auth_response[req.url] = auth;
+			authstate.response[req.url] = auth;
 		}
 
 		// If we have a response, then be prepared to use it
-		if (auth_response[req.url]) {
-			var auth = auth_response[req.url];
+		if (authstate.response[req.url]) {
+			var auth = authstate.response[req.url];
 
 			//alert('url='+req.url+' auth='+auth);
 			if (req['headers'] == null)
 				req['headers'] = { };
-			req['headers']['x-authorization'] = auth;
 			req['headers']['authorization'] = auth;
+			// Opera, at least, seems to eat JS-created Authorization headers
+			req['headers']['x-authorization'] = auth;
 		} else {
 			// If we have no response, then be prepared to generate one.
 			req.error = function (type, data, event) {
@@ -138,11 +209,10 @@ function request(origreq, challenge)
 					return origreq.error(type, data, event);
 			}
 		}
-
-		//alert('req.headers.keys='+req.headers);
 	}
 
 	req.sendTransport = false;
+	req.preventCache = true;
 
 	dojo.io.bind(req);
 }
@@ -166,15 +236,17 @@ function A2(method, uri) {
 authcount = 1;
 
 
-//authenticate('admin', 'admin');
+set_userpass('admin', 'admin');
 
 poke = {
-	url: '/imagestore/default/1/',
+	url: '/imagestore/default/1/meta/id',
+	mimetype: 'text/json',
+
 	load: function(type, data, event) {
-		alert('loaded OK');
+		alert('loaded OK: '+data);
 	},
 	error: function(type, data, event) {
 		alert('error ' + event.status);
 	}
 };
-request(poke);
+//request(poke, true);

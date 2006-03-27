@@ -47,7 +47,7 @@ def makenonce(expire=0):
 
     e = 0
     if expire != 0 and expire != 'unlimited':
-        e = int(expire) + int(time.time())
+        e = int(expire)
 
     r = os.urandom(_nonce_random)
     s = _hash_nonce(e, r)
@@ -72,16 +72,23 @@ assert checknonce(makenonce())
 
 def _auth_challenge(scheme, realm, stale=False):
     if scheme == 'basic':
-        return { 'realm': realm }
+        ret =(0, { 'realm': realm })
     if scheme == 'digest':
-        return {
+        expire = 0
+        life=config.get('auth', 'nonce_life')
+        if life != 'unlimited' and int(life) != 0:
+            expire = int(time.time()) + int(life)
+            
+        ret = (expire, {
             'realm': realm,
-            'nonce': makenonce(config.get('auth', 'nonce_life')),
+            'nonce': makenonce(expire),
             'uri': imagestore.path(),
             'algorithm': 'MD5',
             'qop': 'auth',
             'stale': stale and 'true' or 'false'
-            }
+            })
+
+    return ret
     
 class UnauthorizedError(AccessError):
     """The request requires user authentication.
@@ -102,7 +109,7 @@ class UnauthorizedError(AccessError):
 
     def format(self):
         response = quixote.get_response()
-        dict = _auth_challenge(self.scheme, self.realm, self.stale)
+        (exp,dict) = _auth_challenge(self.scheme, self.realm, self.stale)
 
         auth = '%s %s' % (self.scheme.capitalize(),
                           ', '.join([ '%s="%s"' % (k, v.encode('string-escape'))
@@ -332,22 +339,25 @@ def login_user(quiet=False):
 
     return None
 
-_q_exports = [ 'nonce', 'authenticate' ]
-
-def nonce(request):
-    response = quixote.get_response()
-    response.set_content_type('text/plain')
-    return makenonce(config.get('auth', 'nonce_life'))
+_q_exports = [ 'authenticate' ]
 
 def authenticate(request):
     request = quixote.get_request()
     response = quixote.get_response()
 
     if request.get_method() == 'GET':
-        #response.set_content_type('text/json', 'utf-8')
+        response.set_content_type('text/json', 'utf-8')
+
+        scheme = _schemes_allowed[0]
+        (expire,dict) = _auth_challenge(scheme, _realm)
         
-        d = _auth_challenge(_schemes_allowed[0], _realm)
-        return json.write((_schemes_allowed[0], d))
+        auth = '%s %s' % (scheme.capitalize(),
+                          ', '.join([ '%s="%s"' % (k, v.encode('string-escape'))
+                                      for k,v in dict.items() ]))
+
+        # XXX use expire header instead/as well?
+        return json.write({ 'expire': expire,
+                            'challenge': auth })
     elif request.get_method() != 'POST':
         raise http.MethodError(['GET', 'POST'])
 
