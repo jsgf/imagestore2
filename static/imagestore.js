@@ -2,22 +2,51 @@ dojo.require("dojo.crypto.MD5");
 dojo.require("dojo.json");
 
 var authstate = {
+	state: 'unset',		// unset, set, valid, invalid
 	user: null,
 	pass: null,
 	response: {},
 	challenge: null,
 	challenge_expire: 0,
+	authcount: 1
 };
+
+function setstate(state)
+{
+	log('authstate.state '+authstate.state+' -> '+state);
+	authstate.state = state;
+}
 
 function set_userpass(user, pass)
 {
-	if (user == authstate.user && pass == authstate.pass)
+	if (user == authstate.user && pass == authstate.pass) {
+		log("setpass unchanged: "+authstate.pass+", "+authstate.pass);
 		return;
+	}
+
+	log("setpass changed: "+user+", "+pass);
+
+	if (user != null && pass != null)
+		setstate('set');
+	else
+		setstate('unset');
 
 	authstate.user = user;
 	authstate.pass = pass;
 	authstate.response = {};
 	//authstate.challenge = null;
+
+	update_auth();
+}
+
+function log(str)
+{
+	//return;
+
+	l = document.getElementById("log");
+
+	if (l)
+		l.innerHTML += str + "<br>\n";
 }
 
 /*
@@ -25,7 +54,7 @@ function set_userpass(user, pass)
   - if we have a cached token for URL, then use it immediately,
 
   otherwise
-  - get a challenge from auth/authenticate
+  - get a challenge from auth/challenge
   - generate response
   - cache reponse for URL
 
@@ -79,6 +108,22 @@ function parse_challenge(authhdr)
 // header string
 function authenticate(user, pass, method, uri, challenge)
 {
+	function H(x) {
+		return dojo.crypto.MD5.compute(x, dojo.crypto.outputTypes.Hex);
+	}
+
+	function KD(secret, data) {
+		return H([ secret, data ].join(':'));
+	}
+
+	function A1(user, realm, password) {
+		return [ user, realm, password ].join(':');
+	}
+
+	function A2(method, uri) {
+		return [ method, uri ].join(':');
+	}
+
 	method = method.toUpperCase();
 
 	response = {
@@ -87,7 +132,7 @@ function authenticate(user, pass, method, uri, challenge)
 		nonce: challenge.nonce,
 		uri: uri,
 
-		nc: authcount++,
+		nc: authstate.authcount++,
 		cnonce: Math.floor(Math.random() * 1000000000).toString(),
 		qop: 'auth'
 	};
@@ -106,7 +151,7 @@ function authenticate(user, pass, method, uri, challenge)
 
 	var ret = [];
 	
-	for (k in response) {
+	for (var k in response) {
 		var r = dojo.lang.reprString(response[k].toString());
 		//alert('k='+k+' -> '+r);
 		ret.push(k + '=' + r);
@@ -129,15 +174,16 @@ function get_challenge()
 	    (authstate.challenge_expire == 0 || authstate.challenge_expire > now))
 		return authstate.challenge;
 
-	alert('getting new challenge: now='+now+
-	      ' authstate.challenge='+ authstate.challenge+
-	      ' authstate.challenge_expire='+authstate.challenge_expire);
+	if (0)
+		alert('getting new challenge: now='+now+
+		      ' authstate.challenge='+ authstate.challenge+
+		      ' authstate.challenge_expire='+authstate.challenge_expire);
 	
 
 	var ret = null;
 
 	var req = {
-		url: '/imagestore/auth/authenticate',
+		url: '/imagestore/auth/challenge',
 		mimetype: 'text/json',
 		sync: true,
 		sendTransport: false,
@@ -148,14 +194,14 @@ function get_challenge()
 		},
 		error: function(type, data, event) {
 			alert('get challenge failed: '+event.error);
-		},
+		}
 	};
 	dojo.io.bind(req);
 
 	if (ret) {
 		authstate.challenge_expire = ret.expire;
 		if (authstate.challenge_expire)
-			authstate.challenge_expire -= (10*60); // give 10 mins leeway
+			authstate.challenge_expire -= (60); // give 60 sec leeway
 		authstate.challenge = ret.challenge;
 	}
 
@@ -170,7 +216,7 @@ function request(origreq, challenge)
 {
 	var req = dojo.lang.shallowCopy(origreq);
 
-	if (authstate.user && authstate.pass) {
+	if (authstate.state != 'unset') {
 		// If we have no response, pre-get a challenge so we
 		// can avoid a 401 error
 		if (!challenge && !authstate.response[req.url]) {
@@ -217,26 +263,54 @@ function request(origreq, challenge)
 	dojo.io.bind(req);
 }
 
-function H(x) {
-	return dojo.crypto.MD5.compute(x, dojo.crypto.outputTypes.Hex);
+function update_auth() {
+	var progress = document.getElementById("login.progress");
+
+	var req = {
+		url: '/imagestore/auth/user',
+		mimetype: 'text/json',
+
+		error: function(type, data, event) {
+			alert('user probe failed: '+event.status);
+		},
+		load: function(type, data, event) {
+			var form = document.getElementById('login.form');
+			var state = document.getElementById('login.state');
+			var loginid = document.getElementById('login.loginid');
+
+			log('update_auth: user='+data+' auth.state='+authstate.state);
+
+			progress.setAttribute('style', 'display:none');
+
+			if (data != null) {
+				setstate('valid');
+				
+				log('data.username='+data.username+' fullname='+data.fullname);
+
+				loginid.innerHTML = data.fullname;
+				form.setAttribute('style', 'display:none');
+				state.setAttribute('style', 'display:inline');
+			} else {
+				if (authstate.state == 'set')
+					setstate('invalid');
+				else
+					setstate('unset');
+
+				loginid.innerHTML = 'Not logged in';
+				form.setAttribute('style', 'display:block');
+				state.setAttribute('style', 'display:none');
+			}
+		}
+	};
+
+	log("updating auth");
+	
+	progress.setAttribute('style', 'display:inline');
+
+	request(req);
 }
 
-function KD(secret, data) {
-	return H([ secret, data ].join(':'));
-}
-
-function A1(user, realm, password) {
-	return [ user, realm, password ].join(':');
-}
-
-function A2(method, uri) {
-	return [ method, uri ].join(':');
-}
-
-authcount = 1;
-
-
-set_userpass('admin', 'admin');
+dojo.addOnLoad(update_auth);
 
 poke = {
 	url: '/imagestore/default/1/meta/id',

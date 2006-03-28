@@ -290,11 +290,22 @@ def _check_digest(dict, method):
 _schemes = { 'digest':      _check_digest,
              'basic':       _check_basic }
 
-def _do_authenticate(scheme, dict, method):
+def _do_authenticate(auth_hdr, method):
+    if auth_hdr is None:
+        return None
+    
+    scheme,dict = parse_auth_header(auth_hdr)
+
+    if scheme not in _schemes_allowed:
+        return None
+        
     response = quixote.get_response()
     session = quixote.get_session()
 
-    if not _schemes[scheme](dict, method):
+    try:
+        if not _schemes[scheme](dict, method):
+            return None
+    except KeyError:
         return None
 
     username = dict.get('username')
@@ -322,16 +333,9 @@ def login_user(quiet=False):
 
     auth_hdr = request.get_header('authorization') or request.get_header('x-authorization')
 
-    if auth_hdr is not None:
-        scheme,dict = parse_auth_header(auth_hdr)
-
-        try:
-            if scheme in _schemes_allowed:
-                return _do_authenticate(scheme, dict, request.get_method())
-        except KeyError:
-            pass
-        except SQLObjectNotFound:
-            pass
+    ret = _do_authenticate(auth_hdr, request.get_method())
+    if ret is not None:
+        return ret
 
     if not quiet:
         #raise 'oops'
@@ -339,36 +343,43 @@ def login_user(quiet=False):
 
     return None
 
-_q_exports = [ 'authenticate' ]
+_q_exports = [ 'challenge', 'user' ]
 
-def authenticate(request):
+def challenge(request):
+    """ Generate a HTTP Digest authentication challenge, along with an expiry time. """
     request = quixote.get_request()
     response = quixote.get_response()
 
-    if request.get_method() == 'GET':
-        response.set_content_type('text/json', 'utf-8')
+    if request.get_method() != 'GET':
+        raise http.MethodError(['GET'])
+    
+    response.set_content_type('text/json', 'utf-8')
 
-        scheme = _schemes_allowed[0]
-        (expire,dict) = _auth_challenge(scheme, _realm)
+    scheme = _schemes_allowed[0]
+    (expire,dict) = _auth_challenge(scheme, _realm)
+    
+    auth = '%s %s' % (scheme.capitalize(),
+                      ', '.join([ '%s="%s"' % (k, v.encode('string-escape'))
+                                  for k,v in dict.items() ]))
+
+    # XXX use expire header instead/as well?
+    return json.write({ 'expire': expire,
+                        'challenge': auth })
+
+def user(request):
+    """ Return the currently authenticated user, if any. """
+    response = quixote.get_response()
+    response.set_content_type('text/json', 'utf-8')
+
+    quiet = True
+    if request.form.get('force'):
+        quiet = False
+
+    user = login_user(quiet=quiet)
+
+    ret = None
+    if user is not None:
+        ret = { 'id': user.id, 'username': user.username, 'fullname': user.fullname }
+        #time.sleep(2)
         
-        auth = '%s %s' % (scheme.capitalize(),
-                          ', '.join([ '%s="%s"' % (k, v.encode('string-escape'))
-                                      for k,v in dict.items() ]))
-
-        # XXX use expire header instead/as well?
-        return json.write({ 'expire': expire,
-                            'challenge': auth })
-    elif request.get_method() != 'POST':
-        raise http.MethodError(['GET', 'POST'])
-
-    scheme = request.form.get('scheme')
-
-    if scheme not in _schemes or \
-           scheme not in _schemes_allowed:
-        raise QueryError('bad scheme')
-
-    if _do_authenticate(scheme, request.form, request.form.get('method')) is None:
-        raise QueryError('authentication failed')
-
-    response.set_status(204)            # no content
-    return ''
+    return json.write(ret)
