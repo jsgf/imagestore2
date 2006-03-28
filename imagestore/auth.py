@@ -293,32 +293,33 @@ _schemes = { 'digest':      _check_digest,
              'basic':       _check_basic }
 
 def _do_authenticate(auth_hdr, method):
-    if auth_hdr is None:
-        return None
-    
-    scheme,dict = parse_auth_header(auth_hdr)
-
-    if scheme not in _schemes_allowed:
-        return None
-
     user = None
-    
+
     response = quixote.get_response()
     session = quixote.get_session()
 
     try:
-        if _schemes[scheme](dict, method):
-            username = dict.get('username')
-            user = db.User.byUsername(username)
-    except KeyError:
-        pass
-    except SQLObjectNotFound:
-        pass
+        if auth_hdr is None:
+            return None
 
-    if user is None:
-        response.expire_cookie(_auth_cookie, path=imagestore.path())
-    else:
-        response.set_cookie(_auth_cookie, auth_hdr, path=imagestore.path())
+        scheme,dict = parse_auth_header(auth_hdr)
+
+        if scheme not in _schemes_allowed:
+            return None
+
+        try:
+            if _schemes[scheme](dict, method):
+                username = dict.get('username')
+                user = db.User.byUsername(username)
+        except KeyError:
+            pass
+        except SQLObjectNotFound:
+            pass
+    finally:
+        if user is None:
+            response.expire_cookie(_auth_cookie, path=imagestore.path())
+        else:
+            response.set_cookie(_auth_cookie, auth_hdr, path=imagestore.path())
 
     return user
 

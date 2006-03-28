@@ -2,6 +2,8 @@ dojo.require("dojo.crypto.MD5");
 dojo.require("dojo.json");
 dojo.require("dojo.io.cookie");
 
+var logging = 0;
+
 var base_path = '/imagestore/';
 
 var authstate = {
@@ -57,14 +59,15 @@ function logout()
 	authstate.user = null;
 	authstate.pass = null;
 
-	document.cookie = 'IS-authorization=-;path='+base_path+';max-age=0;';
+	document.cookie = 'IS-authorization=;path='+base_path+';max-age=0;';
 
 	update_auth();
 }
 
 function log(str)
 {
-	//return;
+	if (!logging)
+		return;
 
 	l = dojo.byId("log");
 
@@ -213,7 +216,7 @@ function get_challenge()
 		preventCache: true,
 		load: function(type, data, event) {
 			ret = data;
-			//alert('got challenge: '+data);
+			//log('challenge: '+data);
 		},
 		error: function(type, data, event) {
 			alert('get challenge failed: '+event.error);
@@ -292,7 +295,12 @@ function update_auth() {
 	var loginuser = dojo.byId('login.user');
 	var loginpass = dojo.byId('login.pass');
 	loginuser.value = authstate.user;
+	if (authstate.user == null)
+		loginuser.value = '';
+	
 	loginpass.value = authstate.pass;
+	if (authstate.pass == null)
+		loginpass.value = '';
 
 	var req = {
 		url: base_path+'auth/user',
@@ -306,11 +314,10 @@ function update_auth() {
 			var state = dojo.byId('login.state');
 			var loginid = dojo.byId('login.loginid');
 
-			log('update_auth: user='+data+' auth.state='+authstate.state);
-
 			progress.style.display = 'none';
+			log('update_auth: user="'+data+'" auth.state='+authstate.state);
 
-			if (data != null) {
+			if (data) {
 				setstate('valid');
 				
 				log('data.username='+data.username+' fullname='+data.fullname);
