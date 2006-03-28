@@ -2,38 +2,43 @@
 <html>
   <head>
     <title>AJAX test</title>
+    <script type="text/javascript" src="/imagestore/static/dojo.js"></script>
+    <script type="text/javascript" src="/imagestore/static/imagestore.js"></script>
+    <link type="text/css" rel="stylesheet" href="jsstyle.css">
   </head>
 
   <body>
     <h1>AJAX test</h1>
-    <script type="text/javascript" src="/imagestore/static/dojo.js"></script>
-    <script type="text/javascript" src="/imagestore/static/imagestore.js"></script>
 
+<!--
     <a href="javascript:set_userpass('admin','admin')">set pass</a>
+    <a href="javascript:set_userpass('admin','adminx')">set bad pass</a>
     <a href="javascript:set_userpass(null, null)">clear pass</a>
+-->
     <a href="javascript:request(poke)">poke</a>
 
-    <form id="login">
-      <!-- displayed when not logged in -->
-      <div id="login.form" style="display:block">
-	<label>User name: <input id="login.user" type="text" width="20" /></label>
-	<label>Password: <input id="login.pass" type="password" width="20" /></label>
-	<input id="login.submit" type="submit" value="Log in">
-      </div>
-
-      <!-- displayed when authenticated -->
-      <div id="login.state" style="display:none">
-	<span id="login.loginid"></span>
-	<a href="javascript:set_userpass(null, null)">Logout</a>
-      </div>
-
-      <!-- displayed while authentication in progress -->
-      <div id="login.progress" style="display:none">
-	Checking login details...
-	<img src="/imagestore/static/progress.gif"/>
-      </div>
-    </form>
-
+    <div id="login" class="auth-unset">
+      <form>
+	<!-- displayed when not logged in -->
+	<div id="login.form" style="display:block">
+	  <label>User name: <input id="login.user" type="text" width="20" /></label>
+	  <label>Password: <input id="login.pass" type="password" width="20" /></label>
+	  <input id="login.submit" type="button" value="Log in" />
+	</div>
+	
+	<!-- displayed when authenticated -->
+	<div id="login.state" style="display:none">
+	  <span id="login.loginid"></span>
+	  <a href="javascript:set_userpass(null, null)">Logout</a>
+	</div>
+	
+	<!-- displayed while authentication in progress -->
+	<div id="login.progress" style="display:none">
+	  Checking login details...
+	  <img src="/imagestore/static/progress.gif"/>
+	</div>
+      </form>
+    </div>
     <hr>
     <div id="log"></div>
 
@@ -41,7 +46,7 @@
     <address><a href="mailto:jeremy@goop.org">Jeremy Fitzhardinge</a></address>
 <!-- Created: Thu Mar 23 19:04:21 PST 2006 -->
 <!-- hhmts start -->
-Last modified: Mon Mar 27 19:09:59 PST 2006
+Last modified: Tue Mar 28 11:44:01 PST 2006
 <!-- hhmts end -->
   </body>
 </html>

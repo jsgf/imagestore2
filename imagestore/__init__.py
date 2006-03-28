@@ -2,7 +2,9 @@
 import quixote
 quixote.enable_ptl()
 
+import os
 import os.path
+import sha
 
 from sqlobject import SQLObjectNotFound
 
@@ -67,6 +69,12 @@ def rss(request):
 # Some glue to make static files work with quixote.publisher1
 class Q1StaticFile(StaticFile):
     def __call__(self, req):
+        # Add an ETag header for better caching.
+        response = quixote.get_response()
+        stat = os.stat(self.path)
+        goo=str(stat.st_mtime)+self.path
+        response.set_header('ETag', sha.sha(goo).digest().encode('hex'))
+        
         return StaticFile.__call__(self)
     
 class Q1StaticDirectory(StaticDirectory):

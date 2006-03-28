@@ -1,0 +1,23 @@
+/* #login in the login box.  It can have 4 states:
+   unset - no login details
+   set - username+password have been provided, but not validated
+   invalid - bad username/password
+   valid - good username/password
+   */
+
+#login { 
+  color: white;
+  padding: 1em;
+}
+#login.auth-invalid {
+  background-color: red;
+}
+#login.auth-valid { 
+  background-color: green;
+}
+#login.auth-set { 
+  background-color: blue;
+}
+#login.auth-unset { 
+  background-color: gray;
+}

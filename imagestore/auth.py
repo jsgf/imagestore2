@@ -32,6 +32,8 @@ _pack_nonce = '>l%ds%ds' % (_nonce_random, _sha_len)
 _schemes_allowed = config.get('auth', 'schemes').split(', ')
 _realm = config.get('auth', 'realm')
 
+_auth_cookie = 'IS-authorization'
+
 def _hash_nonce(e, r):
     return sha.sha(struct.pack(_pack_hash, e, r, _private)).digest()
 
@@ -298,25 +300,27 @@ def _do_authenticate(auth_hdr, method):
 
     if scheme not in _schemes_allowed:
         return None
-        
+
+    user = None
+    
     response = quixote.get_response()
     session = quixote.get_session()
 
     try:
-        if not _schemes[scheme](dict, method):
-            return None
+        if _schemes[scheme](dict, method):
+            username = dict.get('username')
+            user = db.User.byUsername(username)
     except KeyError:
-        return None
-
-    username = dict.get('username')
-
-    try:
-        user = db.User.byUsername(username)
+        pass
     except SQLObjectNotFound:
-        return None
+        pass
+
+    if user is None:
+        response.expire_cookie(_auth_cookie, path=imagestore.path())
+    else:
+        response.set_cookie(_auth_cookie, auth_hdr, path=imagestore.path())
 
     return user
-    
 
 def login_user(quiet=False):
     """ Return the currently logged-in user.  If the user has
@@ -331,7 +335,9 @@ def login_user(quiet=False):
 
     request = quixote.get_request()
 
-    auth_hdr = request.get_header('authorization') or request.get_header('x-authorization')
+    auth_hdr = request.get_header('authorization') or \
+               request.get_header('x-authorization') or \
+               request.get_cookie(_auth_cookie)
 
     ret = _do_authenticate(auth_hdr, request.get_method())
     if ret is not None:

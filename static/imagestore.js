@@ -1,5 +1,8 @@
 dojo.require("dojo.crypto.MD5");
 dojo.require("dojo.json");
+dojo.require("dojo.io.cookie");
+
+var base_path = '/imagestore/';
 
 var authstate = {
 	state: 'unset',		// unset, set, valid, invalid
@@ -19,6 +22,14 @@ function setstate(state)
 
 function set_userpass(user, pass)
 {
+	if (user == '')
+		user = null;
+	if (pass == '')
+		pass = null;
+
+	if (user == null || pass == null)
+		return logout();
+
 	if (user == authstate.user && pass == authstate.pass) {
 		log("setpass unchanged: "+authstate.pass+", "+authstate.pass);
 		return;
@@ -26,15 +37,27 @@ function set_userpass(user, pass)
 
 	log("setpass changed: "+user+", "+pass);
 
-	if (user != null && pass != null)
-		setstate('set');
-	else
-		setstate('unset');
+	setstate('set');
 
 	authstate.user = user;
 	authstate.pass = pass;
 	authstate.response = {};
 	//authstate.challenge = null;
+
+	window.user = user;
+	window.pass = pass;
+
+	update_auth();
+}
+
+function logout()
+{
+	setstate('unset');
+
+	authstate.user = null;
+	authstate.pass = null;
+
+	document.cookie = 'IS-authorization=-;path='+base_path+';max-age=0;';
 
 	update_auth();
 }
@@ -43,7 +66,7 @@ function log(str)
 {
 	//return;
 
-	l = document.getElementById("log");
+	l = dojo.byId("log");
 
 	if (l)
 		l.innerHTML += str + "<br>\n";
@@ -183,7 +206,7 @@ function get_challenge()
 	var ret = null;
 
 	var req = {
-		url: '/imagestore/auth/challenge',
+		url: base_path+'auth/challenge',
 		mimetype: 'text/json',
 		sync: true,
 		sendTransport: false,
@@ -264,23 +287,28 @@ function request(origreq, challenge)
 }
 
 function update_auth() {
-	var progress = document.getElementById("login.progress");
+	var progress = dojo.byId("login.progress");
+	var login = dojo.byId('login');
+	var loginuser = dojo.byId('login.user');
+	var loginpass = dojo.byId('login.pass');
+	loginuser.value = authstate.user;
+	loginpass.value = authstate.pass;
 
 	var req = {
-		url: '/imagestore/auth/user',
+		url: base_path+'auth/user',
 		mimetype: 'text/json',
 
 		error: function(type, data, event) {
 			alert('user probe failed: '+event.status);
 		},
 		load: function(type, data, event) {
-			var form = document.getElementById('login.form');
-			var state = document.getElementById('login.state');
-			var loginid = document.getElementById('login.loginid');
+			var form = dojo.byId('login.form');
+			var state = dojo.byId('login.state');
+			var loginid = dojo.byId('login.loginid');
 
 			log('update_auth: user='+data+' auth.state='+authstate.state);
 
-			progress.setAttribute('style', 'display:none');
+			progress.style.display = 'none';
 
 			if (data != null) {
 				setstate('valid');
@@ -288,8 +316,8 @@ function update_auth() {
 				log('data.username='+data.username+' fullname='+data.fullname);
 
 				loginid.innerHTML = data.fullname;
-				form.setAttribute('style', 'display:none');
-				state.setAttribute('style', 'display:inline');
+				form.style.display = 'none';
+				state.style.display = 'inline';
 			} else {
 				if (authstate.state == 'set')
 					setstate('invalid');
@@ -297,14 +325,16 @@ function update_auth() {
 					setstate('unset');
 
 				loginid.innerHTML = 'Not logged in';
-				form.setAttribute('style', 'display:block');
-				state.setAttribute('style', 'display:none');
+				form.style.display = 'block';
+				state.style.display = 'none';
 			}
+			login.className = 'auth-' + authstate.state;
 		}
 	};
 
 	log("updating auth");
 	
+	login.className = 'auth-' + authstate.state;
 	progress.setAttribute('style', 'display:inline');
 
 	request(req);
@@ -312,8 +342,28 @@ function update_auth() {
 
 dojo.addOnLoad(update_auth);
 
+function setup_events()
+{
+	var login_submit = dojo.byId('login.submit');
+	var login_user = dojo.byId('login.user');
+	var login_pass = dojo.byId('login.pass');
+
+	log('login_submit='+login_submit);
+
+	function submit_login () {
+		var user = login_user.value;
+		var pass = login_pass.value;
+		
+		set_userpass(user, pass);
+	}
+	dojo.event.connect(login_submit, 'onclick', submit_login);
+	dojo.event.connect(login_pass, 'onblur', submit_login);
+}
+
+dojo.addOnLoad(setup_events);
+
 poke = {
-	url: '/imagestore/default/1/meta/id',
+	url: base_path+'default/1/meta/id',
 	mimetype: 'text/json',
 
 	load: function(type, data, event) {
