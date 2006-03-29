@@ -1,6 +1,5 @@
 dojo.require("dojo.crypto.MD5");
 dojo.require("dojo.json");
-dojo.require("dojo.io.cookie");
 
 var logging = 0;
 
@@ -158,25 +157,21 @@ var auth = {
 		var ret = [];
 	
 		for (var k in response) {
-			var r = dojo.lang.reprString(response[k].toString());
+			var r = dojo.lang.repr(response[k].toString());
 			//alert('k='+k+' -> '+r);
 			ret.push(k + '=' + r);
 		}
 
 		ret = ret.join(',');
 	
-		//alert(['user=', user, 'pass=', pass, 'method=', method, 'uri=', uri, 'challenge=', challenge].join(' '));
-
-		//alert('ret='+ret);
-
 		return 'Digest '+ret;
 	},
 
 	_parse_challenge: function(authhdr) {
-		var authitem = /\s*([a-z_][a-z0-9_-]*)\s*=\s*(\d+|[a-z_][a-z0-9_-]*|"([^"]*)"),?\s*(.*)$/i; // )";
+		// This matches name=value, where value can either be
+		// a number, an identifier or a quoted string.
+		var authitem = /\s*([a-z_][a-z0-9_-]*)\s*=\s*([0-9a-f]+|[a-z_][a-z0-9_-]*|"((?:[^"\\]|\\[^0-7]|\\[0-7]{1,3})*)")(?:\s*,)?\s*(.*)$/i; // ))";
 
-		// This matches name=value, where value can either be a number, an identifier or a quoted string.
-	
 		if (authhdr.split(/\W+/)[0] != 'Digest')
 			alert('bad scheme: '+authhdr);
 		else
@@ -197,13 +192,11 @@ var auth = {
 			var name, value;
 
 			name = matches[1];
-			value = matches[2];
-			if (matches[3] != null)
-				value = matches[3];
+			value = unescape(matches[3] || matches[2]);	// [3] is the unquoted string
 
-			authhdr = matches[4];
+			authhdr = matches[4];	// remaining string
 
-			//alert('name='+name+' value='+value);
+			//log('name='+name+' value='+value);
 		
 			ret[name] = value;
 		}

@@ -123,77 +123,41 @@ class UnauthorizedError(AccessError):
         return AccessError.format(self)
 
 
-re_ident=re.compile('[a-z_][a-z0-9_]+', re.I)
-re_string=re.compile(r'"((?:[^"\\]|\\[^0-9]|\\[0-9]{1,3})*)"')
-re_number=re.compile('[0-9][0-9a-f]*')       # hex number ambigious with ident
-
-_tokens = {
-    (lambda s: re_ident.match(s)):  ('ident',                   # type
-                                     lambda x: x.group(0),      # value
-                                     lambda x: x.end(0)),       # chomp
-    (lambda s: re_string.match(s)): ('string',
-                                     lambda x: x.group(1).decode('string-escape'),
-                                     lambda x: x.end(0)),
-    (lambda s: re_number.match(s)): ('number',
-                                     lambda x: x.group(0),
-                                     lambda x: x.end(0)),
-    (lambda s: s.startswith(',')):  (',', lambda x: ',', lambda x: 1),
-    (lambda s: s.startswith('=')):  ('=', lambda x: '=', lambda x: 1)
-    }
-
-def _gettok(s):
-    """Fetch the next token from the string, and return a
-    (toktype, tokval, remains) triple.  Returns None if the next
-    part of the string isn't tokenizable."""
-    
-    s = s.lstrip()                      # skip whitespace
-    ret = None
-    chomp = 0
-
-    for f in _tokens:
-        m = f(s)
-        if m:
-            type,strfn,chompfn = _tokens[f]
-            chomp = chompfn(m)
-            value = strfn(m)
-            ret = (type, value, s[chomp:])
-            break
-        
-    return ret
+re_nameval = re.compile(r'\s*([a-z_][a-z0-9_-]*)'       # match identifier, with leading whitespace
+                        r'(?:\s*=\s*('                  # start optional ' = ...' block
+                            r'[0-9a-f]+|'                   # hex number
+                            r'[a-z_][a-z0-9_-]*|'           # ident
+                            r'"((?:[^"\\]|'                 # string - normal chars
+                              r'\\[^0-7x]|'                 # \" quoting
+                              r'\\[0-7]{1,3}'               # \NNN octal quoting
+                              r'\\x[0-9a-f]{1,2}'           # \xNN hex quoting
+                            r')*)"'
+                          r')'
+                        r')?'                           # end ' = ... ' block
+                        r'(?:\s*,)?'                    # match trailing ' , '
+                        r'\s*(.*)$',                    # match rest of string
+                        re.I)
 
 class TokException(Exception):
     pass
-
-def _next(str):
-    p = _gettok(str)
-    if p:
-        return p[0]
-    
-def _expect(tok, str):
-    """Expect one of a set of tokens at the start of the string.
-    Returns a (remains,value) pair if present; otherwise it raises
-    TokException."""
-    t = _gettok(str)
-    if t is None or t[0] not in tok:
-        raise TokException
-    return (t[2], t[1])
 
 def _parse_value(str, dict):
     """Parse the next name=value in the string, and adds it to the
     dictionary.  If '=value' is missing, then it adds 'name: None'
     to the dictionary.  Returns the remains of the string, with any
     trailing ',' consumed."""
-    str,name = _expect(('ident',), str)
 
-    value=None
+    m = re_nameval.match(str)
 
-    if _next(str) == '=':
-        str,x = _expect(('=',), str)
+    #print 'str=\"%s\" m=%r' % (str, m)
+    
+    if not m:
+        raise TokException
 
-        str,value = _expect(('string', 'number', 'ident'), str)
+    name = m.group(1)
+    value = (m.group(3) or m.group(2)).decode('string-escape')
+    str = m.group(4)
 
-    if _next(str) == ',':
-        str = str[1:]
     dict[name] = value
     return str
 
