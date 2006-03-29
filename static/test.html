@@ -10,11 +10,6 @@
   <body>
     <h1>AJAX test</h1>
 
-<!--
-    <a href="javascript:set_userpass('admin','admin')">set pass</a>
-    <a href="javascript:set_userpass('admin','adminx')">set bad pass</a>
-    <a href="javascript:set_userpass(null, null)">clear pass</a>
--->
     <a href="javascript:request(poke)">poke</a>
 
     <div id="login" class="auth-unset">
@@ -29,7 +24,7 @@
 	<!-- displayed when authenticated -->
 	<div id="login.state" style="display:none">
 	  <span id="login.loginid"></span>
-	  <a href="javascript:set_userpass(null, null)">Logout</a>
+	  <a href="javascript:window.auth.logout()">Logout</a>
 	</div>
 	
 	<!-- displayed while authentication in progress -->
@@ -46,7 +41,7 @@
     <address><a href="mailto:jeremy@goop.org">Jeremy Fitzhardinge</a></address>
 <!-- Created: Thu Mar 23 19:04:21 PST 2006 -->
 <!-- hhmts start -->
-Last modified: Tue Mar 28 15:37:28 PST 2006
+Last modified: Tue Mar 28 17:26:22 PST 2006
 <!-- hhmts end -->
   </body>
 </html>
