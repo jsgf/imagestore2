@@ -262,7 +262,7 @@ class SearchUI:
     def _q_index(self, request):
         r = TemplateIO(html=True)
 
-        kw = db.Keyword.select(db.Keyword.q.collectionID == self.col.dbobj.id,
+        kw = db.Keyword.select(db.Keyword.q.collectionID == self.col.db.id,
                                orderBy=db.Keyword.q.word)
 
         r += page.pre(request, 'Keyword search', 'search', brieftitle='keywords')

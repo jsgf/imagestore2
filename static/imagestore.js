@@ -1,16 +1,17 @@
-var widget = {};	// widget package
 
 djConfig.isDebug=false;
 djConfig.debugContainerId = 'log';
+
+if (typeof(base_path) == 'undefined')
+	alert('base_path not set');
 
 var log = dojo.debug;
 
 dojo.require("dojo.crypto.MD5");
 dojo.require("dojo.json");
 
+var widget = {};	// widget package
 dojo.require('widget.Login');
-
-var base_path = '/imagestore/';
 
 /*
   Authentication algorithm:
@@ -118,11 +119,15 @@ var auth = {
 		dojo.event.topic.publish('IS/Auth', arguments);		
 	},
 
-	_setstate: function(state, fullname, userid) {
-		log('this.state '+this.state+' -> '+state+'('+fullname+','+userid+')');
+	_setstate: function(state, user) {
+		log('this.state '+this.state+' -> '+state);
 		this.state = state;
-		this.fullname = fullname;
-		this.userid = userid;
+		if (user) {
+			log(' user.fullname='+user.fullname+' username='+user.username+' id='+user.id);
+			this.fullname = user.fullname;
+			this.user = user.username;
+			this.userid = user.id;
+		}
 	},
 
 	update_auth: function() {
@@ -139,7 +144,7 @@ var auth = {
 				log('update_auth: user="'+data+'" this.state='+_this.state);
 
 				if (data) {
-					_this._setstate('valid', data.fullname, data.id);
+					_this._setstate('valid', data);
 					_this._publish('valid', data);
 				} else {
 					if (_this.state == 'set') {
@@ -319,7 +324,7 @@ var auth = {
 				//alert('url='+req.url+' auth='+auth);
 				if (req['headers'] == null)
 					req['headers'] = { };
-				req['headers']['authorization'] = resp;
+				//req['headers']['authorization'] = resp;
 				// Opera, at least, seems to eat JS-created Authorization headers
 				req['headers']['x-authorization'] = resp;
 			} else {
@@ -357,16 +362,3 @@ function request(origreq, challenge)
 dojo.event.topic.subscribe('IS/Auth/UI', auth, 'authevent');
 // Make sure the auth object has up-to-date information
 dojo.addOnLoad(function () { window.auth.update_auth() });
-
-poke = {
-	url: base_path+'default/1/meta/id',
-	mimetype: 'text/json',
-
-	load: function(type, data, event) {
-		alert('loaded OK: '+data);
-	},
-	error: function(type, data, event) {
-		alert('error ' + event.status);
-	}
-};
-//request(poke, true);

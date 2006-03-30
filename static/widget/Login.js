@@ -112,7 +112,10 @@ dojo.widget.html.Login = function() {
 			this._setvisible([ 'validating' ]);
 			break;
 		case 'valid':
+			this.user.value = user.username;
 			this.currentUser.innerHTML = user.fullname;
+		        // XXX need better way of getting base path
+			this.currentUser.href = window.base_path+'user/'+user.username+'/';
 			this._setvisible([ 'logoutForm' ]);
 			break;
 		default:

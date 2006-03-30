@@ -2,6 +2,7 @@
 
 import imagestore.base_paths as paths
 import imagestore.auth as auth
+from menu import Menu, SubMenu, Link, Heading
 
 def plural(n, word):
     n=int(n)
@@ -21,11 +22,15 @@ def pre [html] (request, title, bodyid, trail=True, brieftitle=None):
 <html>
 <head>
   <link type="text/css" rel="stylesheet" href="%(base)sstyle.css">
+  <script type="text/javascript" src="%(static)sdojo.js"></script>
+  <script type="text/javascript">base_path="%(base)s";</script>
+  <script type="text/javascript" src="%(static)simagestore.js"></script>
   <title>%(title)s</title>
 %(nav)s</head>
 <body id="%(id)s">\n""" % {
       'title': title,
       'base': paths.path(),
+      'static': paths.static_path(),
       'id': bodyid,
       'nav': request.navigation.render_links(depth=1),
       }
@@ -75,8 +80,6 @@ def generate_extra [html] (extra, depth=0):
 # Generate a menu pane.  extra is a list of items to add to the list;
 # it's in the form of nested lists of tuples
 def menupane [html] (request, extra=None):
-    from menu import Menu, SubMenu, Link, Heading
-    import user
     
     crumbs = request.session.breadcrumbs
     if crumbs:
@@ -92,16 +95,20 @@ def menupane [html] (request, extra=None):
     sess_user = auth.login_user(quiet=True)
 
     menu = Menu()
-    
-    if sess_user is None:
-        menu += [ Link('Log in', user.login_path()) ]
-    else:
-        menu += [ SubMenu(heading='Logged in:',
-                          items=[Link('%s' % sess_user.fullname,
-                                      user.user_path(sess_user))]),
-                  Link('Log out', user.logout_path()),
-                  user.EditSwitchItem(request.session) ]
 
+    if False:
+        import imagestore.user as user
+        if sess_user is None:
+            menu += [ Link('Log in', user.login_path()) ]
+        else:
+            menu += [ SubMenu(heading='Logged in:',
+                              items=[Link('%s' % sess_user.fullname,
+                                          user.user_path(sess_user))]),
+                      Link('Log out', user.logout_path()),
+                      user.EditSwitchItem(request.session) ]
+    else:
+        menu += [ Heading('Login', extra={ 'dojoType': 'Login' }) ]
+        
     # Context menu
     menu += request.context_menu
 

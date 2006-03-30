@@ -11,6 +11,7 @@ import imagestore.calendarui
 import imagestore.pages as page
 import imagestore.dbfilters as dbfilters
 import imagestore.image as image
+import imagestore.auth as auth
 
 def freqlist(list):
     " Take a list of items, and return a list of unique (item, count) tuples. "

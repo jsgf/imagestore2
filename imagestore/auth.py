@@ -125,8 +125,8 @@ class UnauthorizedError(AccessError):
 
 re_nameval = re.compile(r'\s*([a-z_][a-z0-9_-]*)'       # match identifier, with leading whitespace
                         r'(?:\s*=\s*('                  # start optional ' = ...' block
-                            r'[0-9a-f]+|'                   # hex number
                             r'[a-z_][a-z0-9_-]*|'           # ident
+                            r'[0-9a-f]+|'                   # hex number
                             r'"((?:[^"\\]|'                 # string - normal chars
                               r'\\[^0-7x]|'                 # \" quoting
                               r'\\[0-7]{1,3}'               # \NNN octal quoting
@@ -154,8 +154,12 @@ def _parse_value(str, dict):
     if not m:
         raise TokException
 
+    #print 'm.group="%s" "%s" "%s" "%s"' % (m.group(1), m.group(2), m.group(3), m.group(4))
+
     name = m.group(1)
-    value = (m.group(3) or m.group(2)).decode('string-escape')
+    value = (m.group(3) or m.group(2))
+    if value is not None:
+        value = value.decode('string-escape')
     str = m.group(4)
 
     dict[name] = value
@@ -298,19 +302,24 @@ def login_user(quiet=False):
     HTTP authentication.  If quiet is true, then this will
     not force an authentication request. """
 
-    session = quixote.get_session()
-    user = session.getuser()
-    if user is not None:
-        return user
-
     request = quixote.get_request()
 
-    auth_hdr = request.get_header('authorization') or \
-               request.get_header('x-authorization') or \
-               request.get_cookie(_auth_cookie)
+    try:
+        return request._cached_user
+    except AttributeError:
+        pass
+    
+    request._cached_user = None
+
+    # Use the official Authorization header last, since it seems to
+    # have made-up stuff in it sometimes.
+    auth_hdr = request.get_header('x-authorization') or \
+               request.get_cookie(_auth_cookie) or \
+               request.get_header('authorization')
 
     ret = _do_authenticate(auth_hdr, request.get_method())
     if ret is not None:
+        request._cached_user = ret
         return ret
 
     if not quiet:
@@ -351,10 +360,10 @@ def user(request):
     if request.form.get('force'):
         quiet = False
 
-    user = login_user(quiet=quiet)
+    u = login_user(quiet=quiet)
 
     ret = None
-    if user is not None:
-        ret = { 'id': user.id, 'username': user.username, 'fullname': user.fullname }
+    if u is not None:
+        ret = { 'id': u.id, 'username': u.username, 'fullname': u.fullname }
         
     return json.write(ret)

@@ -3,6 +3,7 @@
   <head>
     <title>AJAX test</title>
     <script type="text/javascript" src="/imagestore/static/dojo.js"></script>
+    <script type="text/javascript">base_path="/imagestore/";</script>
     <script type="text/javascript" src="/imagestore/static/imagestore.js"></script>
     <link type="text/css" rel="stylesheet" href="jsstyle.css">
   </head>
@@ -10,7 +11,18 @@
   <body>
     <h1>AJAX test</h1>
 
-    <a href="javascript:request(poke)">poke</a>
+
+    <a href="javascript:request({
+	url: base_path+'default/1/meta/id',
+	mimetype: 'text/json',
+
+	load: function(type, data, event) {
+		alert('loaded OK: '+data);
+	},
+	error: function(type, data, event) {
+		alert('error ' + event.status);
+	}
+      })">poke</a>
 
     <!-- Our dojo login form widget -->
     <form dojoType="Login">Woo!</form>
@@ -22,7 +34,7 @@
     <address><a href="mailto:jeremy@goop.org">Jeremy Fitzhardinge</a></address>
 <!-- Created: Thu Mar 23 19:04:21 PST 2006 -->
 <!-- hhmts start -->
-Last modified: Wed Mar 29 17:41:53 PST 2006
+Last modified: Thu Mar 30 02:13:33 PST 2006
 <!-- hhmts end -->
   </body>
 </html>

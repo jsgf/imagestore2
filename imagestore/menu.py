@@ -4,8 +4,6 @@ import copy
 
 from quixote.html import TemplateIO, htmltext as H
 
-import imagestore.pages
-
 def _p(d):
     return ' '*d
 
@@ -21,6 +19,8 @@ class MenuItem:
         pass
 
     def tags(self):
+        import imagestore.pages
+
         c = ' '.join(self.classes)
         e = imagestore.pages.join_extra(self.extra)
         i=''
