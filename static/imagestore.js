@@ -1,7 +1,14 @@
+var widget = {};	// widget package
+
+djConfig.isDebug=false;
+djConfig.debugContainerId = 'log';
+
+var log = dojo.debug;
+
 dojo.require("dojo.crypto.MD5");
 dojo.require("dojo.json");
 
-var logging = 0;
+dojo.require('widget.Login');
 
 var base_path = '/imagestore/';
 
@@ -36,6 +43,38 @@ var auth = {
 
 	userid: null,		// set when state valid
 	fullname: null,		// set when state valid
+
+	authevent: function(event, user, pass) {
+		log('auth.authevent: '+event+' user="'+user+'" pass="'+pass+'"');
+
+		switch(event) {
+		case 'login':
+			this.login(user, pass);
+			break;
+
+		case 'logout':
+			this.logout();
+			break;
+
+		case 'update':
+			switch(this.state) {
+			case 'unset':
+				this._publish('unauth');
+				break;
+			case 'set':
+				this._publish('details', this.user, this.pass);
+				break;
+			case 'valid':
+				this._publish('valid', { fullname: this.fullname, id: this.userid });
+				break;
+			case 'invalid':
+				this._publish('invalid', this.user, '');
+				break;
+			default:
+				alert('bad auth state:'+this.state);
+			}
+		}
+	},
 
 	login: function(user, pass) {
 		if (user == '')
@@ -74,6 +113,11 @@ var auth = {
 		this.update_auth();
 	},
 
+	_publish: function() {
+		dojo.debug('auth publish: '+arguments[0]);
+		dojo.event.topic.publish('IS/Auth', arguments);		
+	},
+
 	_setstate: function(state, fullname, userid) {
 		log('this.state '+this.state+' -> '+state+'('+fullname+','+userid+')');
 		this.state = state;
@@ -82,7 +126,7 @@ var auth = {
 	},
 
 	update_auth: function() {
-		var auth = this;
+		var _this = this;
 
 		var req = {
 			url: base_path+'auth/user',
@@ -92,20 +136,24 @@ var auth = {
 				alert('user probe failed: '+event.status);
 			},
 			load: function(type, data, event) {
-				log('update_auth: user="'+data+'" auth.state='+auth.state);
+				log('update_auth: user="'+data+'" this.state='+_this.state);
 
-				if (data)
-					auth._setstate('valid', data.fullname, data.id);
-				else {
-					if (auth.state == 'set')
-						auth._setstate('invalid');
-					else
-						auth._setstate('unset');
+				if (data) {
+					_this._setstate('valid', data.fullname, data.id);
+					_this._publish('valid', data);
+				} else {
+					if (_this.state == 'set') {
+						_this._setstate('invalid');
+						_this._publish('invalid');
+					} else {
+						_this._setstate('unset');
+						_this._publish('unauth');
+					}
 				}
 			}
 		};
 
-		log("updating auth");
+		log("validating auth token");
 	
 		request(req);
 	},
@@ -129,15 +177,15 @@ var auth = {
 
 		method = method.toUpperCase();
 
-		var auth = this;
+		var _this = this;
 
 		var response = {
-			username: auth.user,
+			username: _this.user,
 			realm: challenge.realm,
 			nonce: challenge.nonce,
 			uri: uri,
 
-			nc: auth.authcount++,
+			nc: _this.authcount++,
 			cnonce: Math.floor(Math.random() * 1000000000).toString(),
 			qop: 'auth'
 		};
@@ -290,17 +338,6 @@ var auth = {
 	}
 };
 
-function log(str)
-{
-	if (!logging)
-		return;
-
-	l = dojo.byId("log");
-
-	if (l)
-		l.innerHTML += str + "<br>\n";
-}
-
 
 // Request a URL.  If we have been given a username and password, then
 // prepare to answer an authentication response.  Also keeps a cache
@@ -316,76 +353,10 @@ function request(origreq, challenge)
 	dojo.io.bind(req);
 }
 
-// Hook function to update the UI as the authentication state changes
-function _auth_state_updates ()
-{
-	var progress = dojo.byId("login.progress");
-	var login = dojo.byId('login');
-	var loginuser = dojo.byId('login.user');
-	var loginpass = dojo.byId('login.pass');
-	var form = dojo.byId('login.form');
-	var state = dojo.byId('login.state');
-	var loginid = dojo.byId('login.loginid');
-
-	var auth = window.auth;
-
-	function start_progress() {
-		progress.style.display = 'inline';
-
-		loginuser.value = (auth.user == null) && '' || auth.user;
-		loginpass.value = (auth.pass == null) && '' || auth.pass;
-	}
-	function update_form() {
-		progress.style.display = 'none';
-		if (auth.state == 'valid') {
-			loginid.innerHTML = auth.fullname;
-			form.style.display = 'none';
-			state.style.display = 'inline';
-		} else {
-			loginid.innerHTML = '';
-			form.style.display = 'block';
-			state.style.display = 'none';
-		}
-		login.className = 'auth-' + auth.state;
-	}
-
-	dojo.event.kwConnect({
-		  adviceType: 'before',
-				srcObj: auth,
-				srcFunc: 'update_auth',
-				adviceFunc: start_progress
-				});
-	dojo.event.kwConnect({
-		  adviceType: 'after',
-				srcObj: auth,
-				srcFunc: '_setstate',
-				adviceFunc: update_form
-				});
-
-	auth.update_auth();
-}
-dojo.addOnLoad(_auth_state_updates);
-
-// Hook to cause authentication events as the UI state changes
-function _auth_ui_events()
-{
-	var login_submit = dojo.byId('login.submit');
-	var login_user = dojo.byId('login.user');
-	var login_pass = dojo.byId('login.pass');
-
-	log('login_submit='+login_submit);
-
-	function submit_login () {
-		var user = login_user.value;
-		var pass = login_pass.value;
-		
-		window.auth.login(user, pass);
-	}
-	dojo.event.connect(login_submit, 'onclick', submit_login);
-	dojo.event.connect(login_pass, 'onblur', submit_login);
-}
-
-dojo.addOnLoad(_auth_ui_events);
+// Subscribe the auth object to events coming from the auth UI
+dojo.event.topic.subscribe('IS/Auth/UI', auth, 'authevent');
+// Make sure the auth object has up-to-date information
+dojo.addOnLoad(function () { window.auth.update_auth() });
 
 poke = {
 	url: base_path+'default/1/meta/id',

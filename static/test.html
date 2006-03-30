@@ -12,28 +12,9 @@
 
     <a href="javascript:request(poke)">poke</a>
 
-    <div id="login" class="auth-unset">
-      <form>
-	<!-- displayed when not logged in -->
-	<div id="login.form" style="display:none">
-	  <label>User name: <input id="login.user" type="text" width="20" /></label>
-	  <label>Password: <input id="login.pass" type="password" width="20" /></label>
-	  <input id="login.submit" type="button" value="Log in" />
-	</div>
-	
-	<!-- displayed when authenticated -->
-	<div id="login.state" style="display:none">
-	  <span id="login.loginid"></span>
-	  <a href="javascript:window.auth.logout()">Logout</a>
-	</div>
-	
-	<!-- displayed while authentication in progress -->
-	<div id="login.progress" style="display:none">
-	  Checking login details...
-	  <img src="/imagestore/static/progress.gif"/>
-	</div>
-      </form>
-    </div>
+    <!-- Our dojo login form widget -->
+    <form dojoType="Login">Woo!</form>
+
     <hr>
     <div id="log"></div>
 
@@ -41,7 +22,7 @@
     <address><a href="mailto:jeremy@goop.org">Jeremy Fitzhardinge</a></address>
 <!-- Created: Thu Mar 23 19:04:21 PST 2006 -->
 <!-- hhmts start -->
-Last modified: Tue Mar 28 17:26:22 PST 2006
+Last modified: Wed Mar 29 17:41:53 PST 2006
 <!-- hhmts end -->
   </body>
 </html>

@@ -1,0 +1,20 @@
+<div dojoAttachPoint="loginFormContainer" class="loginBox">
+  <div dojoAttachPoint="notLoggedIn" dojoAttachEvent="onClick: startEntry;" style="display:block;">
+    <span>Click to log in</span>
+  </div>
+  <div dojoAttachPoint="validating" style="display:none">
+    <span>Validating "<span dojoAttachPoint="validatingUser"></span>"</span>
+    <img src="progress.gif" dojoAttachPoint="progress">
+  </div>
+  <div dojoAttachPoint="loginForm" style="display:none">
+    <span dojoAttachPoint="loginFailed" style="display:none">Login failed</span>
+    <label>User:<input dojoAttachPoint="user" type="text" width="20" tabindex=1 /></label>
+    <input dojoAttachPoint="login" type="button" value="Login" tabindex=3 dojoAttachEvent="onClick: submitLogin;"><br>
+    <label>Pass:<input dojoAttachPoint="pass" type="password" width="20" tabindex=2 /></label>
+    <input dojoAttachPoint="cancel" type="reset" value="Cancel" tabindex=4 dojoAttachEvent="onClick: cancelLogin;">
+  </div>
+  <div dojoAttachPoint="logoutForm" style="display:none">
+    <span dojoAttachPoint="currentUser"></span>
+    <input type="button" value="Logout" dojoAttachEvent="onClick: logout;">
+  </div>
+</div>

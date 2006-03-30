@@ -279,6 +279,11 @@ def _do_authenticate(auth_hdr, method):
             pass
         except SQLObjectNotFound:
             pass
+
+        # If we got an auth string but login failed, then delay a bit
+        # to prevent being pounded with bad requests.
+        if user is None:
+            time.sleep(2)
     finally:
         if user is None:
             response.expire_cookie(_auth_cookie, path=imagestore.path())
@@ -351,6 +356,5 @@ def user(request):
     ret = None
     if user is not None:
         ret = { 'id': user.id, 'username': user.username, 'fullname': user.fullname }
-        #time.sleep(2)
         
     return json.write(ret)
