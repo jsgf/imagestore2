@@ -16,6 +16,8 @@ from traceback import extract_tb, format_list
 from sets import Set
 from zipfile import is_zipfile, ZipFile
 
+import json
+
 from cStringIO import StringIO
 
 from mx.DateTime import DateTime, gmt, gmtime
@@ -35,6 +37,8 @@ import imagestore.search as search
 import imagestore.image as image
 import imagestore.calendarui as calendarui
 import imagestore.pages as page
+import imagestore.auth as auth
+import imagestore.http as http
 
 from form import userOptList, visibilityOptList, cameraOptList, splitKeywords
 
@@ -53,7 +57,66 @@ def is_zip_fp(fp):
 class UploadWorker:
     def __init__(self, files):
         self.files = files
+
+class Upload:
+    _q_exports = [ 'form' ]
+
+    def __init__(self, collection):
+        self.collection = collection
+
+    def path(self):
+        return self.collection.path() + 'upload/'
+
+    def _q_access(self, request):
+        user = auth.login_user()
+        perm = self.collection.db.permissions(user)
+
+        mayupload = (user and user.mayUpload) or (perm and perm.mayUpload)
         
+        if not mayupload:
+            raise AccessError, 'You may not upload images'
+
+    def uploads(self, user):
+        return db.Upload.select(AND(db.Upload.q.collectionID == self.collection.db.id,
+                                    db.Upload.q.userID == user.id),
+                                orderBy=db.Upload.q.import_time)
+
+    def have_pending(self, user):
+        if user is None:
+            return False
+        return self.uploads(user).count() != 0
+    
+    def _q_index(self, request):
+        request = quixote.get_request()
+        
+        method = request.get_method()
+
+        if method == 'POST':
+            # create a new upload
+            pass
+        elif method == 'GET':
+            user = auth.login_user()
+            uploads = self.uploads(user)
+            
+            if http.want_json():
+                uploads = [ (u.import_time.year, u.import_time.month, u.import_time.day,
+                             u.import_time.hour, u.import_time.minute, u.import_time.second)
+                            for u in uploads ]
+                http.json_response()
+                return json.write(uploads)
+            else:
+                r = TemplateIO(html=True)
+                r += page.pre(request, 'Uploads', 'upload')
+                r += page.menupane(request)
+                r += H('<ul>')
+                r += H(''.join([ '<li>'+str(u.import_time)+'\n' for u in uploads ]))
+                r += H('</ul>')
+                r += page.post()
+                return r.getvalue()
+                       
+        else:
+            raise http.MethodError(['GET', 'POST'])
+    
 class UploadUI:
     _q_exports = [ 'pending', 'commit' ]
     

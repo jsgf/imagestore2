@@ -1,5 +1,5 @@
 import re
-from rfc822 import formatdate
+from cStringIO import StringIO
 import json
 
 from sqlobject import SQLObjectNotFound
@@ -21,10 +21,8 @@ import imagestore.auth as auth
 import imagestore.insert as insert
 import imagestore.image_page as image_page
 import imagestore.http as http
+import imagestore.EXIF as EXIF
 
-_json_type = 'text/javascript'
-
-    
 def sizere():
     return '|'.join(ImageTransform.sizes.keys())
 
@@ -142,66 +140,161 @@ class EditUI:
 
         return ret
 
+class ImageExif:
+    _q_exports = []
+
+    def __init__(self, image):
+        self.image = image
+
+    def path(self):
+        return self.image.path() + 'exif/'
+
+    def get_exif(self):
+        p = self.image.pic()
+        if p.mimetype != 'image/jpeg':
+            return None
+        
+        pixfp = StringIO(p.getimage())
+        exif = EXIF.process_file(pixfp)
+
+        def decode_values(v, map):
+            if v.tag not in EXIF.EXIF_TAGS:
+                return
+
+            tag = EXIF.EXIF_TAGS[v.tag]
+            if len(tag) > 1:
+                ret = None
+                mapper = tag[1]
+                if type(mapper) == dict:
+                    ret = [ tag[1].get(val, None) for val in v.values ]
+                elif callable(mapper):
+                    ret = mapper(v.values)
+
+                map['decoded'] = ret
+
+            return map
+        
+        def json_map(v):
+            fieldtype = EXIF.FIELD_TYPES
+
+            ret = v.values
+            
+            if fieldtype[v.field_type][1] == 'A': # ascii
+                ret = ''.join(v.values)
+            if fieldtype[v.field_type][1] in ('SR', 'R'): # signed ratio or ratio
+                ret = [ { 'ratio': (v.num, v.den), 'real': (float(v.num) / v.den) }
+                             for v in v.values ]
+            return ret
+
+        for k,v in exif.items():
+            if type(v) == EXIF.IFD_Tag:
+                v.values = json_map(v)
+                exif[k] = decode_values(v, { 'tag': v.tag, 'values': v.values })
+        
+        return exif
+    
+    def _q_index(self, request):
+        request = quixote.get_request()
+        response = quixote.get_response()
+
+        if request.get_method() not in ('GET', 'HEAD'):
+            raise http.MethodError(('GET', 'HEAD'))
+
+        exif = self.get_exif()
+        if exif is None:
+            raise TraversalError('Image has no EXIF data')
+        http.json_response()
+        return json.write(exif.keys())
+
+    def _q_lookup(self, request, component):
+        response = quixote.get_response()
+        
+        exif = self.get_exif()
+        if exif is None:
+            raise TraversalError('Image has no EXIF data')
+
+        if component not in exif:
+            raise TraversalError('No such EXIF tag')
+        
+        if component == 'JPEGThumbnail':
+            response.set_content_type('image/jpeg')
+            return exif[component]
+        elif component == 'TIFFThumbnail':
+            response.set_content_type('image/tiff')
+            return exif[component]
+
+        http.json_response()
+        return json.write(exif[component])
+    
 class ImageMeta:
     _q_exports = []
 
-    class fields:
-        def get_id(p):          return p.id
-        def get_hash(p):        return p.hash
-        def get_md5hash(p):     return p.md5hash
-        def get_mimetype(p):    return p.mimetype
-        def get_datasize(p):    return p.datasize
-        def get_collection(p):  return (p.collection.id, p.collection.name)
-        def get_keywords(p):    return [ w.word for w in p.keywords ]
-        def get_title(p):       return p.title
-        def get_description(p): return p.description
-        def get_copyright(p):   return p.copyright
-        def get_visibility(p):  return p.visibility
-        def get_record_time(p): return p.record_time.isoformat()
-        def get_modified_time(p):       return p.modified_time.isoformat()
-        def get_owner(p):       return (p.owner.id, p.owner.username)
-        def get_photographer(p):return (p.photographer.id, p.photographer.username)
-        def get_camera(p):      return p.camera
-        def get_rating(p):      return p.rating
-        def get_dimensions(p):  return (p.width, p.height)
-        def get_thumb_dimensions(p):    return (p.th_width, p.th_height)
+    get_fields = {
+        'id':           lambda p: p.id,
+        'hash':         lambda p: p.hash,
+        'md5hash':      lambda p: p.md5hash,
+        'mimetype':     lambda p: p.mimetype,
+        'datasize':     lambda p: p.datasize,
+        'collection':   lambda p: (p.collection.id, p.collection.name),
+        'keywords':     lambda p: [ w.word for w in p.keywords ],
+        'title':        lambda p: p.title,
+        'description':  lambda p: p.description,
+        'copyright':    lambda p: p.copyright,
+        'visibility':   lambda p: p.visibility,
+        'record_time':  lambda p: p.record_time.isoformat(),
+        'modified_time':lambda p: p.modified_time.isoformat(),
+        'owner':        lambda p: (p.owner.id, p.owner.username),
+        'photographer': lambda p: (p.photographer.id, p.photographer.username),
+        'camera':       lambda p: p.camera,
+        'rating':       lambda p: p.rating,
+        'dimensions':   lambda p: (p.width, p.height),
+        'thumb_dimensions': lambda p: (p.th_width, p.th_height),
 
-        def get_orientation(p): return p.orientation
-        def get_flash(p):       return p.flash
-        def get_fnumber(p):     return p.f_number
-        def get_exposure_time(p):return p.exposure_time
-        def get_exposure_bias(p):return p.exposure_bias
-        def get_brightness(p):  return p.brightness
-        def get_focal_length(p):return p.focal_length
+        'orientation':  lambda p: p.orientation,
+        'flash':        lambda p: p.flash,
+        'fnumber':      lambda p: p.f_number,
+        'exposure_time':lambda p: p.exposure_time,
+        'exposure_bias':lambda p: p.exposure_bias,
+        'brightness':   lambda p: p.brightness,
+        'focal_length': lambda p: p.focal_length,
+        }
+    
+    def set_title(p, t):
+        p.title = t
+        return t
 
-        def set_title(p, t):
-            p.title = t
-            return t
-        
-        def set_description(p, d):
-            p.description = d
-            return d
-        
-        def set_visibility(p, v):
-            if v not in ('public', 'restricted', 'private'):
-                raise QueryError('bad visibility')
-            p.visibility = v
-            return v
-            
-        def set_orientation(p, o):
-            try:
-                o = int(o)
-            except ValueError:
-                raise QueryError('bad orientation')
-            except TypeError:
-                raise QueryError('bad orientation')
-            if o not in (0, 90, 180, 270):
-                raise QueryError('bad orientation')
-            p.orientation = o
-            return o
+    def set_description(p, d):
+        p.description = d
+        return d
 
-        def set_keywords(p, kw):
-            pass
+    def set_visibility(p, v):
+        if v not in ('public', 'restricted', 'private'):
+            raise QueryError('bad visibility')
+        p.visibility = v
+        return v
+
+    def set_orientation(p, o):
+        try:
+            o = int(o)
+        except ValueError:
+            raise QueryError('bad orientation')
+        except TypeError:
+            raise QueryError('bad orientation')
+        if o not in (0, 90, 180, 270):
+            raise QueryError('bad orientation')
+        p.orientation = o
+        return o
+
+    def set_keywords(p, kw):
+        pass
+
+    set_fields = {
+        'title':        set_title,
+        'description':  set_description,
+        'visibility':   set_visibility,
+        'orientation':  set_orientation,
+        'keywords':     set_keywords,
+        }
         
     def __init__(self, image):
         self.image = image
@@ -213,20 +306,17 @@ class ImageMeta:
         if not p.mayEdit(user):
             raise AccessError('Must log in to change picture')
 
-        try:
-            fn = self.fields.__dict__['set_'+name]
-        except KeyError:
+        if name not in self.set_fields:
             raise http.ForbiddenError("can't change '%s' field" % name)
 
-        return fn(p, value)
+        return self.set_fields[name](p, value)
 
     def get_meta(self):
         p = self.image.pic()
         meta = {}
 
-        for k,fn in self.fields.__dict__.items():
-            if k.startswith('get_'):
-                meta[k[4:]] = fn(p)
+        for k,fn in self.get_fields.items():
+            meta[k] = fn(p)
 
         return meta
     
@@ -238,8 +328,8 @@ class ImageMeta:
     def _q_index(self, request):
         request = quixote.get_request()
         response = quixote.get_response()
-        
-        response.set_content_type(_json_type, charset='utf-8')
+
+        http.json_response()
 
         if request.get_method() in ('POST', 'PUT'):
             if '_json' in request.form:
@@ -265,13 +355,11 @@ class ImageMeta:
         request = quixote.get_request()
         response = quixote.get_response()
 
-        try:
-            fn = self.fields.__dict__['get_' + component]
-        except KeyError:
+        if component not in self.get_fields:
             raise TraversalError('No meta key "%s"' % component)
 
-        response.set_content_type(_json_type, charset='utf-8')
-
+        http.json_response()
+        
         if request.get_method() in ('POST', 'PUT'):
             if '_json' in request.form:
                 data = json.read(request.form['_json'])
@@ -282,7 +370,7 @@ class ImageMeta:
             return ''
         
         p = self.image.pic()
-        return json.write(fn(p))
+        return json.write(self.get_fields[component](p))
 
     def path(self):
         return self.image.path() + 'meta/'
@@ -291,13 +379,14 @@ _re_xform_image = re.compile('^([a-z]+|([0-9]+)x([0-9]+))\.([a-z]+)$')
 
 class Image:
     """ Class for a specific image, and its namespace. """
-    _q_exports = [ 'download', 'meta', 'details' ]
+    _q_exports = [ 'download', 'meta', 'exif', 'details' ]
 
     def __init__(self, collection, id):
         self.collection = collection
         self.id = id
         self.details = image_page.DetailsUI(self)
         self.meta = ImageMeta(self)
+        self.exif = ImageExif(self)
 
     def path(self):
         return '%s%d/' % (self.collection.path(), self.id)
@@ -439,7 +528,7 @@ class Image:
 _re_old_style_url = re.compile('^([0-9]+)(?:-([a-z]+)!?)?\.([a-z]+)$')
 
 class ImageDir:
-    """ Class for /COLLECTION/image namespace (not an individual image).
+    """ Class for /COLLECTION/image/ namespace (not an individual image).
     This is soley for backwards compatibility. """
     _q_exports = [ 'edit', 'rotate' ]
 

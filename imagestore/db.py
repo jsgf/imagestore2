@@ -311,9 +311,11 @@ class Picture(SQLObject):
 #         return m
     
     def getimage(self, verify=False):
+        """ Return the entire image in one chunk """
         return getmedia(self.mediaid, verify)
 
     def getimagechunks(self):
+        """ Return a sequence of image chunks """
         return getmediachunks(self.hash)
     
     def getthumb(self, verify=False):

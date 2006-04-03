@@ -103,7 +103,7 @@ class UnauthorizedError(AccessError):
     description = "You are not authorized to access this resource."
 
     def __init__(self, realm, scheme='digest',
-                 public_msg=None, private_msg=None, stale=None):
+                 public_msg=None, private_msg=None, stale=False):
         self.realm = realm
         self.scheme = scheme
         self.stale = stale
@@ -244,7 +244,7 @@ def _check_digest(dict, method):
                      getpass(dict['username']))),
                 ':'.join(pieces))
 
-    print 'digest=%s response=%s' % (digest, dict['response'])
+    #print 'digest=%s response=%s' % (digest, dict['response'])
 
     if digest != dict['response']:
         return False
@@ -252,7 +252,8 @@ def _check_digest(dict, method):
     if not checknonce(dict['nonce']):
         # stale nonce; the client knows the username/password,
         # but passed a bad nonce
-        raise UnauthorizedError(realm=_realm, scheme=_schemes_allowed[0], stale=True)
+        # XXX need to make sure username is actually valid before returning stale=True
+        raise UnauthorizedError(realm=_realm, scheme=_schemes_allowed[0], stale=False)
 
     return digest == dict['response']
 
@@ -305,7 +306,10 @@ def login_user(quiet=False):
     request = quixote.get_request()
 
     try:
-        return request._cached_user
+        ret = request._cached_user
+        if ret is None and not quiet:
+            del request._cached_user
+            raise UnauthorizedError(realm=_realm, scheme=_schemes_allowed[0])            
     except AttributeError:
         pass
     
@@ -317,7 +321,13 @@ def login_user(quiet=False):
                request.get_cookie(_auth_cookie) or \
                request.get_header('authorization')
 
-    ret = _do_authenticate(auth_hdr, request.get_method())
+    ret = None
+    try:
+        ret = _do_authenticate(auth_hdr, request.get_method())
+    except UnauthorizedError, x:
+        if not quiet:
+            raise x
+        
     if ret is not None:
         request._cached_user = ret
         return ret
@@ -337,8 +347,8 @@ def challenge(request):
 
     if request.get_method() != 'GET':
         raise http.MethodError(['GET'])
-    
-    response.set_content_type('text/json', 'utf-8')
+
+    http.json_response()
 
     scheme = _schemes_allowed[0]
     (expire,dict) = _auth_challenge(scheme, _realm)
@@ -353,8 +363,6 @@ def challenge(request):
 
 def user(request):
     """ Return the currently authenticated user, if any. """
-    response = quixote.get_response()
-    response.set_content_type('text/json', 'utf-8')
 
     quiet = True
     if request.form.get('force'):
@@ -366,4 +374,5 @@ def user(request):
     if u is not None:
         ret = { 'id': u.id, 'username': u.username, 'fullname': u.fullname }
         
+    http.json_response()
     return json.write(ret)

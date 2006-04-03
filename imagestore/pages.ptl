@@ -96,18 +96,7 @@ def menupane [html] (request, extra=None):
 
     menu = Menu()
 
-    if False:
-        import imagestore.user as user
-        if sess_user is None:
-            menu += [ Link('Log in', user.login_path()) ]
-        else:
-            menu += [ SubMenu(heading='Logged in:',
-                              items=[Link('%s' % sess_user.fullname,
-                                          user.user_path(sess_user))]),
-                      Link('Log out', user.logout_path()),
-                      user.EditSwitchItem(request.session) ]
-    else:
-        menu += [ Heading('Login', extra={ 'dojoType': 'Login' }) ]
+    menu += [ Heading('Login', extra={ 'dojoType': 'Login' }) ]
         
     # Context menu
     menu += request.context_menu

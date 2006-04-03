@@ -1,6 +1,8 @@
 
 import re
 
+import json
+
 from sqlobject import SQLObjectNotFound
 
 import quixote
@@ -15,7 +17,8 @@ import imagestore.search as search
 import imagestore.upload as upload
 import imagestore.menu as menu
 import imagestore.auth as auth
-
+import imagestore.insert as insert
+import imagestore.http as http
 import imagestore.collection_page as collection_page
 
 _re_number = re.compile('^[0-9]+$')
@@ -31,7 +34,7 @@ class Collection:
 
         self.calendar = calendarui.CalendarUI(self)
         self.search = search.SearchUI(self)
-        self.upload = upload.UploadUI(self)
+        self.upload = upload.Upload(self)
         self.ui = collection_page.CollectionUI(self)
 
         self.image = image.ImageDir(self)      # keep old URLs alive
@@ -81,8 +84,10 @@ class Collection:
 
         if self.mayUpload(request, quiet=True):
             um = menu.SubMenu(heading=menu.Link(link='Upload', url=self.upload.path()))
-            if self.upload.have_pending(request.session.getuser()):
+
+            if False and self.upload.have_pending(auth.login_user(quiet=True)):
                 um += [ menu.Link(link='Pending', url=self.upload.pending_path()) ]
+                
             m += [ um ]
 
         request.context_menu += [ menu.Separator(), m ]
@@ -113,6 +118,9 @@ class Collection:
             skipped[img.orig_filename] = x.id
 
     def handle_upload(self):
+        request = quixote.get_request()
+        response = quixote.get_response()
+        
         user = auth.login_user()
         perm = self.db.permissions(user)
 
@@ -137,8 +145,9 @@ class Collection:
         added = [ image.Image(self, id) for id in added ]
         added = [ (p.path(), p.meta.get_meta()) for p in added ]
 
-        response.set_content_type(_json_type, charset='utf-8')
-
+        http.json_response()
+        response.set_status(201)        # created
+        
         return json.write({ 'added': added, 'skipped': skipped })
         
     

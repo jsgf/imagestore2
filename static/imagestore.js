@@ -322,11 +322,8 @@ var auth = {
 				var resp = this.response[req.url];
 
 				//alert('url='+req.url+' auth='+auth);
-				if (req['headers'] == null)
-					req['headers'] = { };
-				//req['headers']['authorization'] = resp;
-				// Opera, at least, seems to eat JS-created Authorization headers
-				req['headers']['x-authorization'] = resp;
+				//_set_req_header(req, 'authorization', resp);
+				_set_req_header(req, 'x-authorization', resp);
 			} else {
 				// If we have no response, then be prepared to generate one.
 				req.error = function (type, data, event) {
@@ -343,6 +340,12 @@ var auth = {
 	}
 };
 
+function _set_req_header(req, header, value)
+{
+	if (!('headers' in req))
+		req['headers'] = {}
+	req['headers'][header] = value;
+}
 
 // Request a URL.  If we have been given a username and password, then
 // prepare to answer an authentication response.  Also keeps a cache
@@ -351,9 +354,29 @@ var auth = {
 function request(origreq, challenge)
 {
 	var req = window.auth.authorize_request(origreq);
+	var types = [ 'text/plain', 'text/html', 'text/json',
+		      'application/json', 'text/xml',
+		      'application/xml', 'application/xhtml+xml' ];
 
 	req.sendTransport = false;
 	req.preventCache = true;
+
+	// Set what types we want to see based on the request's
+	// mimetype property.
+	var accept = [];
+	if (req.mimetype) {
+		for(var i = 0; i < types.length; i++) {
+			if (types[i] != req.mimetype)
+				accept.push(types[i] + ';q=0.9');
+			else
+				accept.push(types[i]);
+		}
+	} else
+		for(var i = 0; i < types.length; i++)
+			accept.push(types[i]);
+	accept.push('text/*;q=0.5');
+
+	_set_req_header(req, 'Accept', accept.join(','));
 
 	dojo.io.bind(req);
 }
