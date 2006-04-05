@@ -4,37 +4,78 @@
     <title>AJAX test</title>
     <script type="text/javascript" src="/imagestore/static/dojo.js"></script>
     <script type="text/javascript">base_path="/imagestore/";</script>
-    <script type="text/javascript" src="/imagestore/static/imagestore.js"></script>
+    <x-script type="text/javascript" src="/imagestore/static/imagestore.js"></x-script>
+    <script type="text/javascript">
+      djConfig.isDebug=true;
+      djConfig.debugContainerId = 'log';
+    </script>
     <link type="text/css" rel="stylesheet" href="jsstyle.css">
   </head>
 
-  <body>
+  <body class="no-auth no-want-edit">
+
     <h1>AJAX test</h1>
 
+    <ul class="thumb-set">
+      <li class="thumbnail mayedit" style="background-image: url(/imagestore/default/3/thumb.jpg)">
+	<a class="view" label="View image" href="/imagestore/default/3/default.html"></a>
+	<div class="need-auth ui">
+	  <div class="visibility public"><a href="setvis"><i class="hide">setvis</i></a></div>
+	  <div class="rotate"
+	    onmouseover="dojo.html.addClass(this, 'hover');"
+	    onmouseout="dojo.html.removeClass(this, 'hover');">
+	    <a class="view" label="View image" href="/imagestore/default/3/default.html"></a>
+	    <a class="arrow right" href="rotate?rot=90?id=3"><i class="hide">rightisup</i></a>
+	    <a class="arrow down" href="rotate?rot=180?id=3"><i class="hide">downisup</i></a>
+	    <a class="arrow left" href="rotate?rot=270?id=3"><i class="hide">leftisup</i></a>
+	  </div>
+	</div>
+      </li>
+      
+      <li class="thumbnail" style="background-image: url(/imagestore/default/18/thumb.jpg)">
+	<a class="view" href="/imagestore/default/18/default.html"></a>
+	<div class="need-auth ui">
+	  <div class="visibility restricted"><a href="setvis"><i class="hide">setvis</i></a></div>
+	  <div class="rotate"
+	    onmouseover="dojo.html.addClass(this, 'hover');"
+	    onmouseout="dojo.html.removeClass(this, 'hover');">
+	    <a class="view" href="/imagestore/default/18/default.html"></a>
+	    <a class="arrow right" href="rotate?rot=90?id=18"><i class="hide">rightisup</i></a>
+	    <a class="arrow down" href="rotate?rot=180?id=18"><i class="hide">downisup</i></a>
+	    <a class="arrow left" href="rotate?rot=270?id=18"><i class="hide">leftisup</i></a>
+	  </div>
+	</div>
+      </li>
 
-    <a href="javascript:request({
-	url: base_path+'default/1/meta/id',
-	mimetype: 'text/json',
+      <li class="thumbnail mayedit" style="background-image: url(/imagestore/default/19/thumb.jpg)">
+	<a class="view" href="/imagestore/default/19/default.html"></a>
+	<div class="need-auth ui">
+	  <div class="visibility private"><a href="setvis"><i class="hide">setvis</i></a></div>
+	  <div class="rotate"
+	    onmouseover="dojo.html.addClass(this, 'hover');"
+	    onmouseout="dojo.html.removeClass(this, 'hover');">
+	    <a class="view" href="/imagestore/default/19/default.html"></a>
+	    <a class="arrow right" href="rotate?rot=90?id=19"><i class="hide">rightisup</i></a>
+	    <a class="arrow down" href="rotate?rot=190?id=19"><i class="hide">downisup</i></a>
+	    <a class="arrow left" href="rotate?rot=270?id=19"><i class="hide">leftisup</i></a>
+	  </div>
+	</div>
+      </li>
+    </ul>
+    <br style="clear: both">
 
-	load: function(type, data, event) {
-		alert('loaded OK: '+data);
-	},
-	error: function(type, data, event) {
-		alert('error ' + event.status);
-	}
-      })">poke</a>
-
-    <!-- Our dojo login form widget -->
-    <form dojoType="Login">Woo!</form>
-
+    <input class="need-noauth" type=button
+      onclick="dojo.html.replaceClass(dojo.html.body(), 'auth', 'noauth')" value="Auth">
+    <input class="need-auth" type=button
+      onclick="dojo.html.replaceClass(dojo.html.body(), 'noauth', 'auth')" value="Unauth">
+    <input class="need-auth no-want-edit" type=button
+      onclick="dojo.html.replaceClass(dojo.html.body(), 'want-edit', 'no-want-edit')" value="WantEdit">
+    <input class="need-auth want-edit" type=button
+      onclick="dojo.html.replaceClass(dojo.html.body(), 'no-want-edit', 'want-edit')" value="NoEdit">
+    
     <hr>
     <div id="log"></div>
 
     <hr>
-    <address><a href="mailto:jeremy@goop.org">Jeremy Fitzhardinge</a></address>
-<!-- Created: Thu Mar 23 19:04:21 PST 2006 -->
-<!-- hhmts start -->
-Last modified: Thu Mar 30 02:13:33 PST 2006
-<!-- hhmts end -->
   </body>
 </html>
