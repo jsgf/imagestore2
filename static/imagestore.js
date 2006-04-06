@@ -381,7 +381,25 @@ function request(origreq, challenge)
 	dojo.io.bind(req);
 }
 
+// Update the auth classes on BODY so the auth-sensitive styles work.
+auth_styles = {
+	update: function(event) {
+		var from, to;
+
+		if (event == 'valid') {
+			from = 'no-auth';
+			to = 'auth';
+		} else {
+			from = 'auth';
+			to = 'no-auth';
+		}
+		dojo.html.replaceClass(dojo.html.body(), to, from);
+	}
+};
+dojo.event.topic.subscribe('IS/Auth', auth_styles, 'update');
+
 // Subscribe the auth object to events coming from the auth UI
 dojo.event.topic.subscribe('IS/Auth/UI', auth, 'authevent');
+
 // Make sure the auth object has up-to-date information
 dojo.addOnLoad(function () { window.auth.update_auth() });

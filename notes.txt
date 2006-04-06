@@ -31,6 +31,18 @@ Image view:
 backwards compat:
 redirect /COLLECTION/image/NNNN(-SIZE!?)?(.ext)? to new form URL
 
+Image upload:
+      XXX use ?format=html or json to get two views?  Or use separate paths?
+	Or use Accept: header?  Accept header is nice.
+
+      POST /COLLECTION/image/ to insert image directly
+      POST /COLLECTION/upload/ to create a new Upload and put images in it
+      POST /COLLECTION/upload/UPLOAD/ to add to an existing Upload
+      GET /COLLECTION/upload/UPLOAD/ to get contents of existing uploads
+      GET /COLLECTION/upload/ to get list of existing Uploads for user
+      GET /COLLECTION/upload/form to get an HTML form
+      
+
 Basic ideas:
 
 - archival system for photos, movies and other digital (or digitized) media

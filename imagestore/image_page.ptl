@@ -4,6 +4,7 @@ import imagestore
 import imagestore.pages as page
 import imagestore.style as style
 import imagestore.ImageTransform as ImageTransform
+import imagestore.auth as auth
 
 sorted_sizes=ImageTransform.sizes.items()
 sorted_sizes.sort(lambda a,b: cmp(a[1][0]*a[1][1], b[1][0]*b[1][1]))
@@ -58,7 +59,59 @@ class DetailsUI:
 
         page.post()
 
+class ImageUI:
+    """ Generate bits of HTML UI relating to images """
+    def __init__(self, image):
+        self.image = image
 
+    def thumbnail [html] (self, link, wantedit=False):
+        #""" Generate a thumbnail with all the trimmings. """
+
+        user = auth.login_user(quiet=True)
+        p = self.image.pic()
+        
+        (tw,th) = ImageTransform.thumb_size(p)
+        mayedit = ''
+        if wantedit and self.image.collection.mayEdit(p, quiet=True):
+            mayedit = 'mayedit'
+
+        thumb = """
+            <div id="%(id)s" class="thumbnail %(mayedit)s">
+              <img title="%(title)s" src="%(img)s"
+                style="width:%(th-width)dpx;height:%(th-height)dpx;left:%(pos-x)dpx;top:%(pos-y)dpx;">
+              <div class="ui"
+                onmouseover="dojo.html.addClass(this, 'hover');"
+                onmouseout="dojo.html.removeClass(this, 'hover');">
+                <a class="view" href="%(link)s"><i class="hide">view larger</i></a>
+                <div class="need-auth visibility %(visibility)s"><a href="setvis"><i class="hide">setvis</i></a></div>
+                <a class="need-auth arrow right" href="%(rot90)s"><i class="hide">rightisup</i></a>
+                <a class="need-auth arrow down" href="%(rot180)s"><i class="hide">downisup</i></a>
+                <a class="need-auth arrow left" href="%(rot270)s"><i class="hide">leftisup</i></a>
+              </div>
+            </div>
+        """
+
+        thumb % {
+            'id':       'pic%d' % p.id,
+            
+            'rot90':    self.image.rotate_path(( 90 + p.orientation) % 360),
+            'rot180':   self.image.rotate_path((180 + p.orientation) % 360),
+            'rot270':   self.image.rotate_path((270 + p.orientation) % 360),
+
+            'title':    p.title or 'Image %d' % p.id,
+
+            'img':      self.image.thumb_path(),
+            'link':     link,
+            'th-width': tw,
+            'th-height':th,
+            'pos-x':    (style.thumb_size - tw) / 2,
+            'pos-y':    (style.thumb_size - th) / 2,
+            
+            'visibility': p.visibility,
+
+            'mayedit':  mayedit,
+            }
+        
 
 def view [html] (self, request, p, size, default):
     import imagestore.image as image
@@ -121,87 +174,7 @@ def view [html] (self, request, p, size, default):
 
     page.post()
 
-def generate_twu_map [html] (self, p):
-    (w,h) = ImageTransform.thumb_size(p)
-    
-    """\
-    <map name="map:%(id)d">
-        <area href="%%(rot180)s" shape="circle" title="This way up" coords="%(midwidth)d,%(height)d,%(rad)d">
-        <area href="%%(rot270)s" shape="circle" title="This way up" coords="0,%(midheight)d,%(rad)d">
-        <area href="%%(rot90)s" shape="circle" title="This way up" coords="%(width)d,%(midwidth)d,%(rad)d">
-        <area href="%(default)s" shape="default">
-    </map>\n""" % {
-            'id': p.id,
-            'width': w-1,
-            'height': h-1,
-            'midwidth': w/2,
-            'midheight': h/2,
-            'rad': min(w,h)/3,
-            'default': self.edit.path(p)
-            }
-    
-def view_rotate_link [html] (self, request, p, size=None, extra=None, wantedit=False):
-    if not (self.collection.mayEdit(request, p, quiet=True) and \
-            (wantedit or request.session.wantedit)):
-        return self.view_newwin_link(request, p, size, extra=extra)
-
-    url='%s#thumb:%d' % (request.get_url(), p.id)
-
-    thsz = ImageTransform.thumb_size(p)
-
-    extra = extra or {}
-    extra[str('style')] = str('width:%dpx; height:%dpx;' % thsz)
-    extra[str('class')] = str(' thumb')
-
-    if style.table_twu:
-        # Table version should work everywhere
-        twu = """\
-        <table class="thiswayup" style="width:%(tablewidth)dpx; height:%(tableheight)dpx;" cellspacing=0 cellpadding=0 border=0>
-        <tr><td colspan=3 class="top" align="center" valign="bottom">%(up)s</td></tr>
-        <tr>
-          <td valign="center" align="right"><a title="This way up" class="left-arrow" href="%(rot270)s">%(left)s</a></td>
-          <td>%(thumb)s</td>
-          <td valign="center" align="left"><a title="This way up" class="right-arrow" href="%(rot90)s">%(right)s</a></td>
-        </tr>
-        <tr><td colspan=3 class="bottom" align="center" valign="top"><a title="This way up" class="down-arrow" href="%(rot180)s">%(down)s</a></td></tr>
-        </table>\n"""
-    else:
-        # Non-table version seems pretty problematic
-        twu = """\
-        <div class="thiswayup" style="width:%(totwidth)dpx; height:%(totheight)dpx;">
-          %(thumb)s
-          %(up)s
-          <a title="This way up" class="down-arrow" href="%(rot180)s">%(down)s</a>
-          <a title="This way up" class="left-arrow" href="%(rot270)s">%(left)s</a>
-          <a title="This way up" class="right-arrow" href="%(rot90)s">%(right)s</a>
-        </div>"""
-
-    twu = twu + generate_twu_map(self, p)
-
-    user = request.session.getuser()
-    link = self.thumb_img(p=p, showvis=(user and p.ownerID == user.id),
-                          extra={ 'ismap': None, 'usemap': '#map:%d' % p.id })
-
-    print twu
-    twu % {
-        'rot0':   self.rotate_path(p, (  0 + p.orientation) % 360, url),
-        'rot90':  self.rotate_path(p, ( 90 + p.orientation) % 360, url),
-        'rot180': self.rotate_path(p, (180 + p.orientation) % 360, url),
-        'rot270': self.rotate_path(p, (270 + p.orientation) % 360, url),
-
-        'thumb':  link,
-
-        'up':     page.arrow('up', extra={'title': 'Up is up'}),
-        'down':   page.arrow('down'),
-        'left':   page.arrow('left'),
-        'right':  page.arrow('right'),
-        
-        'totwidth': thsz[0] + (2*style.thiswayup_img_padding),
-        'totheight': thsz[1] + (2*style.thiswayup_img_padding),
-
-        'tablewidth': thsz[0] + (2*style.arrow_height),
-        'tableheight': thsz[1] + (2*style.arrow_height),
-        }
+                
 
 def detail_table [html] (p):
     camera = p.camera

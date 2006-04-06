@@ -27,7 +27,7 @@ def pre [html] (request, title, bodyid, trail=True, brieftitle=None):
   <script type="text/javascript" src="%(static)simagestore.js"></script>
   <title>%(title)s</title>
 %(nav)s</head>
-<body id="%(id)s">\n""" % {
+<body id="%(id)s" class="no-auth want-edit">\n""" % {
       'title': title,
       'base': paths.path(),
       'static': paths.static_path(),

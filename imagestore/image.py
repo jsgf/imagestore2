@@ -247,8 +247,8 @@ class ImageMeta:
         'photographer': lambda p: (p.photographer.id, p.photographer.username),
         'camera':       lambda p: p.camera,
         'rating':       lambda p: p.rating,
-        'dimensions':   lambda p: (p.width, p.height),
-        'thumb_dimensions': lambda p: (p.th_width, p.th_height),
+        'dimensions':   lambda p: ImageTransform.transformed_size(p, 'full'),
+        'thumb_dimensions': lambda p: ImageTransform.thumb_size(p),
 
         'orientation':  lambda p: p.orientation,
         'flash':        lambda p: p.flash,
@@ -387,12 +387,16 @@ class Image:
         self.details = image_page.DetailsUI(self)
         self.meta = ImageMeta(self)
         self.exif = ImageExif(self)
-
+        self.ui = image_page.ImageUI(self)
+        
     def path(self):
         return '%s%d/' % (self.collection.path(), self.id)
 
     def thumb_path(self):
         return self.path() + 'thumb.jpg'
+
+    def rotate_path(self, angle):
+        return self.path() + 'rotate?angle=%d' % angle
 
     def pic(self):
         """ Defer looking up the picture until we actually need it. """
@@ -427,7 +431,7 @@ class Image:
 
         p = self.pic()
         
-        if not self.collection.mayViewOrig(request, p):
+        if not self.collection.mayViewOrig(p):
             raise AccessError('You may not view this original image')
 
         etag = self.etag('orig')
@@ -481,7 +485,7 @@ class Image:
 
         p = self.pic()
 
-        if not self.collection.mayView(request, p, quiet=True):
+        if not self.collection.mayView(p, quiet=True):
             raise AccessError('You may not view this image')
         if p.collection != self.collection.db:
             raise TraversalError('Image %d is not part of this collection' % p.id)
@@ -545,7 +549,7 @@ class ImageDir:
 
             p = db.Picture.get(id)
 
-            if not self.collection.mayEdit(request, p):
+            if not self.collection.mayEdit(p):
                 raise AccessError('may not edit image')
 
             if angle not in (0, 90, 180, 270):
@@ -600,9 +604,6 @@ class ImageDir:
             size = ''
 
         return '%s%d%s.html' % (self.path(), p.id, size)
-
-    def thumb_path(self, p):
-        return '%s%d/thumb.jpg' % (self.collection.path(), p.id)
 
     def picture_url(self, p, size, preferred=False):
         if size is not None:

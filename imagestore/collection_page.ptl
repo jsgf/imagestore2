@@ -63,17 +63,17 @@ class CollectionUI:
         '<h1>%s: %d pictures</h1>\n' % (self.db.description, npics)
 
         if sampler:
-            '<div class="sampler">\n'
-
-            imageui = self.collection.image
+            '<ul class="sampler thumb-set no-want-edit">\n'
 
             for p in sampler:
-                '<span class="image">\n'
-                '<a href="%s">%s</a>\n' % ('%s#pic%d' % (self.collection.calendar.path(calendarui.int_day, p.record_time), p.id),
-                                           imageui.thumb_img(p, False))
-                '</span>\n'
+                im = image.Image(self.collection, p.id)
 
-            '</div>'
+                '<li>'
+                im.ui.thumbnail('%s#pic%d' % (self.collection.calendar.path(calendarui.int_day,
+                                                                            p.record_time),
+                                              p.id))
+
+            '</ul>'
 
             request.session.set_query_results(sampler)
 

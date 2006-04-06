@@ -4,19 +4,16 @@
 arrow_width = 8
 arrow_height = 4
 
-visibility_mark = 13
+lg_arrow_width = 22
+lg_arrow_height = 28
 
+vis_size = 13
+
+thumb_size = 180                        # 180x180 thumbnails
 thumb_padding = 5
 thumb_hover_border = 1
 
-thiswayup_margin = 10
-thiswayup_img_padding = 6
-thiswayup_img_hover_border = 1
-thiswayup_img_hover_padding = thiswayup_img_padding-thiswayup_img_hover_border
-
 view_margin = 15
-
-table_twu=True                          # Whether to use a TABLE for thiswayup
 
 import imagestore
 
@@ -25,29 +22,25 @@ def style_css [plain] (request):
     request.response.cache=60
     
     params = {
-        'background-color':     '#444444',
-        'foreground-color':     '#eeeeee',
-        'link-color':           '#dddddd',
+        'background-color':     '#444',
+        'foreground-color':     '#eee',
+        'link-color':           '#ddd',
         'active-color':         '#ffa66b',      # orange
         'strong-active':        '#ff8b3e',      # brighter orange
-        'highlight-color':      '#777777',      # for highlighting things
+        'highlight-color':      '#777',         # for highlighting things
+
+        'view-margin':          view_margin,
+
+        'thumb-frame':          '#aaa',
+        'thumb-size':           thumb_size,
+
+        'large-arrow-width':          lg_arrow_width,
+        'large-arrow-height':         lg_arrow_height,
+        'rotate-left':          (thumb_size - lg_arrow_height) / 2,
+        'rotate-top':           (thumb_size - lg_arrow_width) / 2,
+
+        'vis-size':             vis_size+2,
         
-        'thumb-padding':        thumb_padding,
-        'thumb-hover-border':   thumb_hover_border,
-        'thumb-hover-padding':  thumb_padding-thumb_hover_border,
-        'visibility-mark':      visibility_mark,
-
-        'thiswayup-margin':             thiswayup_margin,
-        'thiswayup-img-padding':        thiswayup_img_padding,
-        'thiswayup-pos-bump':           arrow_height - thiswayup_img_padding,
-        'thiswayup-img-hover-border':   thiswayup_img_hover_border,
-        'thiswayup-img-hover-padding':  thiswayup_img_hover_padding,
-
-        'arrow-width':                  arrow_width,
-        'arrow-height':                 arrow_height,
-
-        'view-margin': view_margin,
-
         'staticdir':    imagestore.static_path()
         }
 
@@ -88,39 +81,189 @@ A:active	{ color: %(active-color)s; }
 
 .picture	{ border: 0; padding: 0; }
 
-/* Thumbnails, with overlaid visibility information */
-.thumb-img {
-  position: relative;
-  padding: 0;
+/* A group of thumbnails */
+UL.thumb-set {
+  list-style-type: none;
   margin: 0;
-  border: 0;
+  padding: 0;
+  border: none;
 }
-.thumb-img IMG.thumb {
-  border: 0;
-  padding: %(thumb-padding)dpx;
+UL.thumb-set > LI { 
+  width: 180px;
+  height: 180px;
+  float: left;
+  margin: 0.5em;
 }
-A:hover .thumb	{
-  border: %(thumb-hover-border)dpx solid %(strong-active)s;
-  padding: %(thumb-hover-padding)dpx;
-}
-.thumb-img IMG.visibility {
+
+""" % params
+
+    """
+/* 
+   Thumbnail with associated user interface
+
+   The structure of this is:
+   <.thumbnail>		-- container (maybe .mayedit)	z=0
+     <img>		-- thumbnail itself		z=1
+     <.ui>		-- .ui element hover to activate other UI parts	z=2
+       <A.view>         -- link to view large image	z=3
+       <DIV.visibility>	-- image visibility indicator	z=4
+         <A.need-auth>	-- edit image visibility	
+       <A.arrow.need-edit>  -- rotate arrows		z=4
+       <.meta>          -- metadata view		z=4
+
+   .thumbnail > IMG needs to have inline styles to set its size and
+   position itself properly within the thumbnail frame.
+*/
+.thumbnail { 
+  margin: .5em;
   position: absolute;
-  border: 0;
+  width: %(thumb-size)dpx;  
+  height: %(thumb-size)dpx;
+
+  background: %(thumb-frame)s;
+
+  z-index: 0;
+}
+
+/* Editable thumbnails are emphasized */
+.auth.want-edit .thumbnail.mayedit { 
+  background-color: %(active-color)s;
+}
+/* No images have borders */
+.thumbnail IMG { 
+  border: none;
+}
+
+.thumbnail > IMG { 
+  position: absolute;
   z-index: 1;
-  left: .5em;
-  top: -0.5em;
-  width: %(visibility-mark)dpx;
-  height: %(visibility-mark)dpx;
+}
+
+/* UI parts of the thumbnail */
+.thumbnail > .ui { 
+  position: absolute;
+  width: inherit;
+  height: inherit;
+  z-index: 2;
+}
+
+/* View-larger link */
+.thumbnail > .ui > A.view { 
+  position: absolute;
+  width: 100%%;
+  height: 100%%;
+  z-index: 3;
+  background-color: transparent;
+}
+.thumbnail > .ui.hover > A.view { 
+  background: url(%(staticdir)strans-50perc.png) repeat;
+}
+
+/* Visibility indicator */
+.thumbnail > .ui > .visibility {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  z-index: 4;
+  
+  /* use png backgrounds to indicate visibility */
+  width: %(vis-size)dpx;
+  height: %(vis-size)d15px;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+.thumbnail > .ui > .visibility.public {
+  background-image: url(%(staticdir)spublic.png);
+}
+.thumbnail > .ui > .visibility.private {
+  background-image: url(%(staticdir)sprivate.png);
+}
+.thumbnail > .ui > .visibility.restricted {
+  background-image: url(%(staticdir)srestricted.png);
+}
+
+/* May change the visibility - make the link visible*/
+.auth.want-edit .thumbnail.mayedit > .ui > .visibility > A { 
+  display: block;
+}
+/* If visibility isn't changable, no link */
+.thumbnail > .ui > .visibility > A { 
+  display: none;
+}
+
+/* arrow links invisible by default */
+.thumbnail > .ui > A.arrow {
+  display: none;
+}
+/* visible if we can edit */
+.auth.want-edit .thumbnail.mayedit > .ui > A.arrow {
+  display: block;
+}
+
+/* Arrow link positioning */
+.thumbnail > .ui > A.arrow {
+  position: absolute;
+  z-index: 4;
+  background: transparent no-repeat center;
+}
+.thumbnail > .ui > A.arrow:hover {
+  background-color: orange;
+}
+
+.thumbnail > .ui > A.left {
+  left: 0px;
+  top: %(rotate-top)dpx;
+  width: %(large-arrow-height)dpx;
+  height: %(large-arrow-width)dpx;
+}
+.thumbnail > .ui.hover > A.left {
+  background-image: url(%(staticdir)sarrow-large-left.png);
+}
+
+.thumbnail > .ui > A.right { 
+  right: 0px;
+  top: %(rotate-top)dpx;
+  width: %(large-arrow-height)dpx;
+  height: %(large-arrow-width)dpx;
+}
+.thumbnail > .ui.hover > A.right {
+  background-image: url(%(staticdir)sarrow-large-right.png);
+}
+
+.thumbnail > .ui > A.down { 
+  bottom: 0px;
+  left: %(rotate-left)dpx;
+  width: %(large-arrow-width)dpx;
+  height: %(large-arrow-height)dpx;
+}
+.thumbnail .ui.hover > A.down {
+  background-image: url(%(staticdir)sarrow-large-down.png);
 }
 
 
-/* If the URL targets this image, then emphasize it */
-.thumb:target	{ background-color: %(highlight-color)s; }
-
-.arrow		{ border: 0; padding: 0; }
-A .arrow-left, A .arrow-right { 
-  vertical-align: middle;
+/* Use an <i></i> for marking hidden content in the links */
+A > I.hide { 
+  visibility: hidden;
 }
+""" % params
+
+    """
+/* Deal with authentication */
+.need-auth {
+  display: none;
+}
+.auth .need-auth { 
+  display: block;
+}
+.need-no-auth { 
+  display: block;
+}
+.auth .need-no-auth { 
+  display: none;
+}
+""" % params
+
+    """
 .selected	{
   background-color: %(highlight-color)s;
   font-weight: bold;
@@ -337,140 +480,6 @@ BODY {
 }
 
 """
-
-    # This-way-up widget
-    # 
-    # This is all a bit subtle.  The idea is to glue little arrows onto
-    # each side of the thumbnail image, and wrap all the images in A
-    # elements to make them do things.  It also tries to minimize the
-    # number of hard-coded values inserted into the style.
-    # 
-    # The hover effect for the thumbnail link adds an orange border.
-
-    """\
-DIV.thiswayup {
-  position: relative;
-  display: block;
-  float: left;
-
-  padding: 0px;
-  margin: %(thiswayup-margin)dpx;
-
-  line-height: 0;		/* no line gaps */
-}
-
-DIV.thiswayup A {
-  position: absolute;
-  border: 0;
-  padding: 0;
-}
-
-DIV.thiswayup IMG.thumb {
-  position: relative;
-  top: %(thiswayup-pos-bump)dpx;
-  left: %(thiswayup-pos-bump)dpx;
-  padding: %(thiswayup-img-padding)dpx;
-  border: 0;
-  margin: 0px;
-}
-DIV.thiswayup A:hover .thumb {
-  border: %(thiswayup-img-hover-border)dpx solid %(strong-active)s;
-  padding: %(thiswayup-img-hover-padding)dpx;
-}
-
-/* position the arrows */
-DIV.thiswayup > .left-arrow {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  margin: auto auto auto 0px;
-}
-DIV.thiswayup > .right-arrow {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  margin: auto 0px auto auto;
-}
-DIV.thiswayup > .up-arrow {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  margin: 0px auto auto auto;
-}
-DIV.thiswayup > .down-arrow {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  margin: auto auto 0px auto;
-}
-
-IMG.arrow { border: 0; }
-
-/* sizes of arrows and things containing arrows */
-DIV.thiswayup .left-arrow, DIV.thiswayup .right-arrow {
-  width: %(arrow-height)dpx;
-  height: %(arrow-width)dpx;
-}
-DIV.thiswayup .up-arrow, DIV.thiswayup .down-arrow {
-  width: %(arrow-width)dpx;
-  height: %(arrow-height)dpx;
-}
-
-TABLE.thiswayup {
-  display: inline;
-  padding: 0px;
-  border-spacing: 0;
-  margin: 0;
-  line-height: 0;
-  border-collapse: collapse;
-}
-
-/*
-TABLE.thiswayup TD.top, TABLE.thiswayup TD.bottom {
-  text-align: center;
-  height: %(arrow-height)dpx;
-}
-TABLE.thiswayup TD.left {
-  text-align: right;
-  width: %(arrow-height)dpx;
-}
-
-TABLE.thiswayup TD.right {
-  text-align: left;
-  width: %(arrow-height)dpx;
-}
-TABLE.thiswayup .up-arrow, TABLE.thiswayup .down-arrow {
-  margin-left: auto;
-  margin-right: auto;
-  margin-top: 0;
-  margin-bottom: 0;
-}
-TABLE.thiswayup TD > .left-arrow, TABLE.thiswayup TD > .right-arrow {
-  margin-top: auto;
-  margin-bottom: auto;
-  margin-left: 0;
-  margin-right: 0;
-}
-*/
-
-TABLE.thiswayup IMG.thumb {
-  padding: 1px;
-  border: 0;
-  margin: 0;
-}
-TABLE.thiswayup A:hover .thumb {
-  border: 1px solid %(strong-active)s;
-  padding: 0px;
-}
-""" % params
 
     """\
 /* view windows */

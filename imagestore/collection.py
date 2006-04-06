@@ -74,15 +74,15 @@ class Collection:
                 raise TraversalError('Bad image MD5 hash')
                 
     def _q_access(self, request):
-        if not self.mayViewCollection(request, quiet=True):
+        if not self.mayViewCollection(quiet=True):
             raise AccessError, "You may not view this collection"
 
         m = menu.SubMenu(heading='Collection: %s' % self.db.name)
-        if self.mayAdminCol(request, quiet=True):
+        if self.mayAdminCol(quiet=True):
             m += [ menu.Link(link='Administer',
                              url=self.admin_path()) ]
 
-        if self.mayUpload(request, quiet=True):
+        if self.mayUpload(quiet=True):
             um = menu.SubMenu(heading=menu.Link(link='Upload', url=self.upload.path()))
 
             if False and self.upload.have_pending(auth.login_user(quiet=True)):
@@ -151,7 +151,7 @@ class Collection:
         return json.write({ 'added': added, 'skipped': skipped })
         
     
-    def mayEdit(self, request, p, quiet=False):
+    def mayEdit(self, p, quiet=False):
         user = auth.login_user(quiet=quiet)
         
         if user is None:
@@ -161,7 +161,7 @@ class Collection:
         
         return (perms and perms.mayEdit) or p.mayEdit(user)
 
-    def mayViewCollection(self, request, quiet=False):
+    def mayViewCollection(self, quiet=False):
         user = auth.login_user(quiet=quiet)
 
         if self.db.visibility == 'public':
@@ -172,7 +172,7 @@ class Collection:
 
         return False
     
-    def mayViewOrig(self, request, p, quiet=False):
+    def mayViewOrig(self, p, quiet=False):
         user = auth.login_user(quiet=quiet)
 
         if self.db.visibility == 'public' and self.db.showOriginal:
@@ -190,7 +190,7 @@ class Collection:
         
         return False
 
-    def mayView(self, request, p, quiet=False):
+    def mayView(self, p, quiet=False):
         user = auth.login_user(quiet=quiet)
 
         if self.db.visibility == 'public':
@@ -208,7 +208,7 @@ class Collection:
 
         return False
 
-    def mayAdminCol(self, request, quiet=False):
+    def mayAdminCol(self, quiet=False):
         user = auth.login_user(quiet=quiet)
 
         if user is None:
@@ -226,7 +226,7 @@ class Collection:
 
         return False
 
-    def mayUpload(self, request, quiet=False):
+    def mayUpload(self, quiet=False):
         user = auth.login_user(quiet=quiet)
 
         if not user:
@@ -241,8 +241,8 @@ class Collection:
 
         return False
 
-    def admin(self, request):
-        if not self.mayAdminCol(request):
+    def admin(self):
+        if not self.mayAdminCol():
             raise AccessError('You may not modify this collection')
         
         return self.ui.admin_page()
