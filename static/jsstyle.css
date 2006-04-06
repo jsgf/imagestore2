@@ -36,146 +36,154 @@ UL.thumb-set {
   padding: 0;
   border: none;
 }
-
-/* Outer element of a thumbnail */
-LI.thumbnail { 
-  margin: .5em;
-  display: block-inline;
-  float: left;
-
+UL.thumb-set > LI { 
   width: 180px;
+  height: 180px;
+  float: left;
+  margin: 0.5em;
+}
+
+
+/* 
+   Thumbnail with associated user interface
+
+   The structure of this is:
+   <.thumbnail>		-- container (maybe .mayedit)	z=0
+     <img>		-- thumbnail itself		z=1
+     <.ui>		-- .ui element hover to activate other UI parts	z=2
+       <A.view>         -- link to view large image	z=3
+       <DIV.visibility>	-- image visibility indicator	z=4
+         <A.need-auth>	-- edit image visibility	
+       <A.arrow.need-edit>  -- rotate arrows		z=4
+       <.meta>          -- metadata view		z=4
+
+   Dimensions of the thumbnail are hard-coded; currently 180x180px.
+   .thumbnail > IMG needs to have inline styles to set its size and
+   position itself properly within the thumbnail frame.
+*/
+.thumbnail { 
+  margin: .5em;
+  position: absolute;
+  width: 180px;  
   height: 180px;
 
   background: #aaa;
-  background-repeat: no-repeat;
-  background-position: center;
-}
-.thumbnail IMG { 
-  border: none;
-}
-/* Editable thumbnails are emphasized */
-.auth.want-edit .thumbnail.mayedit { 
-  background-color: #eee;
-  //margin: .25em;
-  //border: solid .25em #eee;
-}
 
-.thumbnail > A {
-  position: absolute;
-  width: 180px;
-  height: 180px;
   z-index: 0;
 }
 
-/* UI parts of the thumbnail */
-.thumbnail .ui { 
+/* Editable thumbnails are emphasized */
+.auth.want-edit .thumbnail.mayedit { 
+  background-color: #eee;
+}
+/* No images have borders */
+.thumbnail IMG { 
+  border: none;
+}
+
+.thumbnail > IMG { 
   position: absolute;
-  width: 180px;
-  height: 180px;
   z-index: 1;
 }
 
+/* UI parts of the thumbnail */
+.thumbnail > .ui { 
+  position: absolute;
+  width: inherit;
+  height: inherit;
+  z-index: 2;
+}
+
+/* View-larger link */
+.thumbnail > .ui > A.view { 
+  position: absolute;
+  width: inherit;
+  height: inherit;
+  z-index: 3;
+  background-color: transparent;
+}
+.thumbnail > .ui.hover > A.view { 
+  background: url(trans-50perc.png) repeat;
+}
+
 /* Visibility indicator */
-.thumbnail .ui > .visibility {
+.thumbnail > .ui > .visibility {
   position: absolute;
   left: 10px;
   bottom: 10px;
-
+  z-index: 4;
+  
   /* use png backgrounds to indicate visibility */
   width: 15px;
   height: 15px;
   background-repeat: no-repeat;
   background-position: center;
 }
-.thumbnail .ui > .visibility.public {
+.thumbnail > .ui > .visibility.public {
   background-image: url(public.png);
 }
-.thumbnail .ui > .visibility.private {
+.thumbnail > .ui > .visibility.private {
   background-image: url(private.png);
 }
-.thumbnail .ui > .visibility.restricted {
+.thumbnail > .ui > .visibility.restricted {
   background-image: url(restricted.png);
 }
 
 /* May change the visibility - make the link visible*/
-.want-edit .thumbnail.mayedit .ui > .visibility > A { 
+.auth.want-edit .thumbnail.mayedit > .ui > .visibility > A { 
   display: block;
-  z-index: 5;
 }
 /* If visibility isn't changable, no link */
-.thumbnail .ui > .visibility > A { 
+.thumbnail > .ui > .visibility > A { 
   display: none;
-}
-
-/* Rotate arrows appear when the user is authenticated, and the
-   picture is editable by this user, and the mouse is hovering over
-   the image. */
-.thumbnail .ui > .rotate {
-  width: 100%;
-  height: 100%;
-  position: absolute;
-  z-index: 1;
 }
 
 /* arrow links invisible by default */
-.thumbnail .ui > .rotate > A.arrow {
+.thumbnail > .ui > A.arrow {
   display: none;
 }
 /* visible if we can edit */
-.want-edit .thumbnail.mayedit .ui > .rotate A.arrow {
+.auth.want-edit .thumbnail.mayedit > .ui > A.arrow {
   display: block;
 }
 
-/* Image view link when rotate is present */
-.thumbnail .ui > .rotate A.view {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  left: 0%;
-  top: 0%;
-  //border: solid 2px red;
-  z-index: 3;
-}
-.thumbnail A.view:hover {
-  background: url(trans-50perc.png) repeat;
-}
-
 /* Arrow link positioning */
-.thumbnail .ui > .rotate > A.arrow {
+.thumbnail > .ui > A.arrow {
+  position: absolute;
   z-index: 4;
-  background: transparent no-repeat center center;
+  background: transparent no-repeat center;
 }
-.thumbnail .ui > .rotate > A.arrow:hover {
+.thumbnail > .ui > A.arrow:hover {
   background-color: orange;
 }
-.thumbnail .ui > .rotate A.left {
-  position: absolute;
+
+.thumbnail > .ui > A.left {
   left: 0px;
   top: 79px;			/* 90-(22/2) */
   width: 28px;
   height: 22px;
 }
-.thumbnail .ui > .rotate.hover A.left {
+.thumbnail > .ui.hover > A.left {
   background-image: url(arrow-large-left.png);
 }
-.thumbnail .ui > .rotate A.right { 
-  position: absolute;
+
+.thumbnail > .ui > A.right { 
   right: 0px;
   top: 79px;			/* 90-(22/2) */
   width: 28px;
   height: 22px;
 }
-.thumbnail .ui > .rotate.hover A.right {
+.thumbnail > .ui.hover > A.right {
   background-image: url(arrow-large-right.png);
 }
-.thumbnail .ui > .rotate A.down { 
-  position: absolute;
+
+.thumbnail > .ui > A.down { 
   bottom: 0px;
   left: 79px;			/* 90-(22/2) */
   width: 22px;
   height: 28px;
 }
-.thumbnail .ui > .rotate.hover A.down {
+.thumbnail .ui.hover > A.down {
   background-image: url(arrow-large-down.png);
 }
 
@@ -188,10 +196,10 @@ LI.thumbnail {
 .auth .need-auth { 
   display: block;
 }
-.need-noauth { 
+.need-no-auth { 
   display: block;
 }
-.auth .need-noauth { 
+.auth .need-no-auth { 
   display: none;
 }
 

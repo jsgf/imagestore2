@@ -17,57 +17,60 @@
     <h1>AJAX test</h1>
 
     <ul class="thumb-set">
-      <li class="thumbnail mayedit" style="background-image: url(/imagestore/default/3/thumb.jpg)">
-	<a class="view" label="View image" href="/imagestore/default/3/default.html"></a>
-	<div class="need-auth ui">
-	  <div class="visibility public"><a href="setvis"><i class="hide">setvis</i></a></div>
-	  <div class="rotate"
+      <li>
+	<div class="thumbnail mayedit">
+	  <img title="House" src="/imagestore/default/3/thumb.jpg"
+	    style="width:160px;height:120px;left:10px;top:30px;">
+	  <div class="ui"
 	    onmouseover="dojo.html.addClass(this, 'hover');"
 	    onmouseout="dojo.html.removeClass(this, 'hover');">
-	    <a class="view" label="View image" href="/imagestore/default/3/default.html"></a>
-	    <a class="arrow right" href="rotate?rot=90?id=3"><i class="hide">rightisup</i></a>
-	    <a class="arrow down" href="rotate?rot=180?id=3"><i class="hide">downisup</i></a>
-	    <a class="arrow left" href="rotate?rot=270?id=3"><i class="hide">leftisup</i></a>
-	  </div>
-	</div>
-      </li>
-      
-      <li class="thumbnail" style="background-image: url(/imagestore/default/18/thumb.jpg)">
-	<a class="view" href="/imagestore/default/18/default.html"></a>
-	<div class="need-auth ui">
-	  <div class="visibility restricted"><a href="setvis"><i class="hide">setvis</i></a></div>
-	  <div class="rotate"
-	    onmouseover="dojo.html.addClass(this, 'hover');"
-	    onmouseout="dojo.html.removeClass(this, 'hover');">
-	    <a class="view" href="/imagestore/default/18/default.html"></a>
-	    <a class="arrow right" href="rotate?rot=90?id=18"><i class="hide">rightisup</i></a>
-	    <a class="arrow down" href="rotate?rot=180?id=18"><i class="hide">downisup</i></a>
-	    <a class="arrow left" href="rotate?rot=270?id=18"><i class="hide">leftisup</i></a>
+	    <a class="view" href="/imagestore/default/3/default.html"><i class="hide">view larger</i></a>
+	    <div class="need-auth visibility public"><a href="setvis"><i class="hide">setvis</i></a></div>
+	    <a class="need-auth arrow right" href="rotate?rot=90?id=3"><i class="hide">rightisup</i></a>
+	    <a class="need-auth arrow down" href="rotate?rot=180?id=3"><i class="hide">downisup</i></a>
+	    <a class="need-auth arrow left" href="rotate?rot=270?id=3"><i class="hide">leftisup</i></a>
 	  </div>
 	</div>
       </li>
 
-      <li class="thumbnail mayedit" style="background-image: url(/imagestore/default/19/thumb.jpg)">
-	<a class="view" href="/imagestore/default/19/default.html"></a>
-	<div class="need-auth ui">
-	  <div class="visibility private"><a href="setvis"><i class="hide">setvis</i></a></div>
-	  <div class="rotate"
+      <li>
+	<div class="need-auth thumbnail">
+	  <img title="Claire" src="/imagestore/default/18/thumb.jpg"
+	    style="width:120px;height:160px;left:30px;top:10px;">
+	  <div class="ui"
 	    onmouseover="dojo.html.addClass(this, 'hover');"
 	    onmouseout="dojo.html.removeClass(this, 'hover');">
-	    <a class="view" href="/imagestore/default/19/default.html"></a>
-	    <a class="arrow right" href="rotate?rot=90?id=19"><i class="hide">rightisup</i></a>
-	    <a class="arrow down" href="rotate?rot=190?id=19"><i class="hide">downisup</i></a>
-	    <a class="arrow left" href="rotate?rot=270?id=19"><i class="hide">leftisup</i></a>
+	    <a class="view" href="/imagestore/default/18/default.html"><i class="hide">view larger</i></a>
+	    <div class="need-auth visibility restricted"><a href="setvis"><i class="hide">setvis</i></a></div>
+	    <a class="need-auth arrow right" href="rotate?rot=90?id=18"><i class="hide">rightisup</i></a>
+	    <a class="need-auth arrow down" href="rotate?rot=180?id=18"><i class="hide">downisup</i></a>
+	    <a class="need-auth arrow left" href="rotate?rot=270?id=18"><i class="hide">leftisup</i></a>
+	  </div>
+	</div>
+      </li>
+
+      <li>
+	<div class="need-auth thumbnail mayedit">
+	  <img title="Claire" src="/imagestore/default/19/thumb.jpg"
+	    style="width:120px;height:160px;left:30px;top:10px;">
+	  <div class="ui"
+	    onmouseover="dojo.html.addClass(this, 'hover');"
+	    onmouseout="dojo.html.removeClass(this, 'hover');">
+	    <a class="view" href="/imagestore/default/19/default.html"><i class="hide">view larger</i></a>
+	    <div class="need-auth visibility private"><a href="setvis"><i class="hide">setvis</i></a></div>
+	    <a class="need-auth arrow right" href="rotate?rot=90?id=19"><i class="hide">rightisup</i></a>
+	    <a class="need-auth arrow down" href="rotate?rot=180?id=19"><i class="hide">downisup</i></a>
+	    <a class="need-auth arrow left" href="rotate?rot=270?id=19"><i class="hide">leftisup</i></a>
 	  </div>
 	</div>
       </li>
     </ul>
     <br style="clear: both">
 
-    <input class="need-noauth" type=button
-      onclick="dojo.html.replaceClass(dojo.html.body(), 'auth', 'noauth')" value="Auth">
+    <input class="need-no-auth" type=button
+      onclick="dojo.html.replaceClass(dojo.html.body(), 'auth', 'no-auth')" value="Auth">
     <input class="need-auth" type=button
-      onclick="dojo.html.replaceClass(dojo.html.body(), 'noauth', 'auth')" value="Unauth">
+      onclick="dojo.html.replaceClass(dojo.html.body(), 'no-auth', 'auth')" value="Unauth">
     <input class="need-auth no-want-edit" type=button
       onclick="dojo.html.replaceClass(dojo.html.body(), 'want-edit', 'no-want-edit')" value="WantEdit">
     <input class="need-auth want-edit" type=button
