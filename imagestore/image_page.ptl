@@ -64,8 +64,11 @@ class ImageUI:
     def __init__(self, image):
         self.image = image
 
-    def thumbnail [html] (self, link, wantedit=False):
+    def thumbnail [html] (self, link=None, wantedit=False):
         #""" Generate a thumbnail with all the trimmings. """
+
+        if link is None:
+            link = self.image.path() + 'default.html'
 
         user = auth.login_user(quiet=True)
         p = self.image.pic()
@@ -88,8 +91,7 @@ class ImageUI:
                 <a class="need-auth arrow down" href="%(rot180)s"><i class="hide">downisup</i></a>
                 <a class="need-auth arrow left" href="%(rot270)s"><i class="hide">leftisup</i></a>
               </div>
-            </div>
-        """
+            </div>\n"""
 
         thumb % {
             'id':       'pic%d' % p.id,

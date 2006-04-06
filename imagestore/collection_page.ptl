@@ -12,7 +12,7 @@ import imagestore.pages as page
 import imagestore.dbfilters as dbfilters
 import imagestore.image as image
 import imagestore.form as form
-import imagestore.calendarui as calendarui
+import imagestore.calendar as calendar
 import imagestore.auth as auth
 
 class CollectionUI:
@@ -45,8 +45,8 @@ class CollectionUI:
                 if p not in sampler:
                     break
             sampler.append(p)
-            if calendarui.int_day.rounddown(p.record_time) not in days:
-                days.append(calendarui.int_day.rounddown(p.record_time))
+            if calendar.int_day.rounddown(p.record_time) not in days:
+                days.append(calendar.int_day.rounddown(p.record_time))
 
         page.pre(request, 'Collection %s: %d pictures' % (self.db.name, npics),
                  bodyid='collection', brieftitle='Collection: "%s"' % self.db.name)
@@ -54,8 +54,8 @@ class CollectionUI:
         extra=[]
 
         if days:
-            extra.append(['Days', [ (calendarui.int_day.num_fmt(d),
-                                     self.collection.calendar.path(calendarui.int_day, d))
+            extra.append(['Days', [ (calendar.int_day.num_fmt(d),
+                                     self.collection.calendar.path(calendar.int_day, d))
                                     for d in days ] ])
 
         page.menupane(request)
@@ -69,7 +69,7 @@ class CollectionUI:
                 im = image.Image(self.collection, p.id)
 
                 '<li>'
-                im.ui.thumbnail('%s#pic%d' % (self.collection.calendar.path(calendarui.int_day,
+                im.ui.thumbnail('%s#pic%d' % (self.collection.calendar.path(calendar.int_day,
                                                                             p.record_time),
                                               p.id))
 

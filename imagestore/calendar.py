@@ -1,17 +1,14 @@
 
-import calendar
+import std_calendar                     # really the standard calendar package
 
 import mx.DateTime as mxdt
 
 from quixote.errors import TraversalError, QueryError
 from quixote.html import htmltext
 
-from sqlobject.sqlbuilder import AND
-
 import imagestore
 import imagestore.db as db
 import imagestore.calendar_page as calendar_page
-import imagestore.dbfilters as dbfilter
 import imagestore.menu as menu
 import imagestore.auth as auth
 
@@ -32,23 +29,15 @@ def kw_summary(pics):
 
 def ordinal(n):
     o='th'
-    if n == 1:
+
+    if n%10 == 1:
         o = 'st'
-    elif n == 2:
+    elif n%10 == 2:
         o = 'nd'
-    elif n == 3:
+    elif n%10 == 3:
         o = 'rd'
 
     return '%d%s' % (n,o)
-
-def most_recent(filter):
-    " Return DateTime of most recent picture, or today "
-    try:
-        return db.Picture.select(filter,
-                                 orderBy=db.Picture.q.record_time).reversed()[0].record_time
-    except IndexError:
-        return mxdt.gmt()
-
 
 class Interval:
     def __init__(self, name, step, round):
@@ -152,52 +141,7 @@ def yrange(start, stop, inc):
         yield v
         v += inc
 
-def pics_in_range(start, end=None, delta=None, filter=None):
-    ' return a select result for pics from start - start+delta '
-    if end is None:
-        end = start + delta
-        
-    q = [ db.Picture.q.record_time >= start, db.Picture.q.record_time < end ]
-    if filter is not None:
-        q.append(filter)
-    return db.Picture.select(AND(*q), orderBy=db.Picture.q.record_time).distinct()
-
-def pics_grouped(group, first=None, last=None, filter=None):
-    ''' return a list of (DateTime, select-result) tuples counting the number
-    of images in a particular time interval '''
-
-    debug = False
-
-    try:
-        if first is None:
-            first = db.Picture.select(filter, orderBy=db.Picture.q.record_time)[0].record_time
-        if last is None:
-            last = db.Picture.select(filter, orderBy=db.Picture.q.record_time).reversed()[0].record_time
-    except IndexError:
-        # If there are no pictures, then return an empty list
-        return []
-
-    first = group.rounddown(first)
-    last = group.roundup(last)
-        
-    ret = []
-
-    if debug:
-        print 'first=%s last=%s group=%s round=%s' % (first, last, group, round)
-    
-    for t in yrange(first, last, group.step):
-        p = pics_in_range(t, delta=group.step, filter=filter)
-        if debug:
-            print '  t=%s -> %d' % (t, p.count())
-        if p.count() == 0:
-            continue
-        if round:
-            t = group.rounddown(t)
-        ret.append((t, p))
-
-    return ret
-
-class CalendarUI:
+class Calendar:
     _q_exports = [ 'year' ]
     
     def __init__(self, collection, date=None, interval=int_week):
@@ -207,6 +151,8 @@ class CalendarUI:
         self.date = date
 
         self.year = Year(self)
+
+        self.ui = calendar_page.CalendarUI(self)
         
     # calendar will accept any combination of interval/date path
     # elements, though only the last of each is used
@@ -223,7 +169,68 @@ class CalendarUI:
 
         return self
 
-    _q_index = calendar_page._q_index_ptl
+    def _q_index(self, request):
+        user = auth.login_user(quiet=True)
+        return self.ui._q_index(self.date, self.interval, user)
+    
+    def most_recent(self, user, filter = None):
+        " Return DateTime of most recent picture, or today "
+        try:
+            if filter is None:          # unfiltered if no filter
+                filter = True
+            pic = db.Picture.select(self.collection.db_filter(user) & filter,
+                                    orderBy=db.Picture.q.record_time).reversed()[0]
+            return to_mxDateTime(pic.record_time)
+        except IndexError:
+            return mxdt.gmt()
+
+    def pics_grouped(self, group, first=None, last=None, user=None):
+        ''' return a list of (DateTime, select-result) tuples counting the number
+        of images in a particular time interval '''
+
+        debug = False
+        filter = self.collection.db_filter(user)
+
+        try:
+            if first is None:
+                first = db.Picture.select(filter, orderBy=db.Picture.q.record_time)[0].record_time
+            if last is None:
+                last = db.Picture.select(filter, orderBy=db.Picture.q.record_time).reversed()[0].record_time
+        except IndexError:
+            # If there are no pictures, then return an empty list
+            return []
+
+        first = group.rounddown(first)
+        last = group.roundup(last)
+
+        ret = []
+
+        if debug:
+            print 'first=%s last=%s group=%s round=%s' % (first, last, group, round)
+
+        for t in yrange(first, last, group.step):
+            p = self.pics_in_range(t, delta=group.step, user=user)
+            if debug:
+                print '  t=%s -> %d' % (t, p.count())
+            if p.count() == 0:
+                continue
+            if round:
+                t = group.rounddown(t)
+            ret.append((t, p))
+
+        return ret
+
+    def pics_in_range(self, start, end=None, delta=None, user=None):
+        ' return a select result for pics from start - start+delta '
+        if end is None:
+            end = start + delta
+
+        filter = self.collection.db_filter(user)
+
+        return db.Picture.select((db.Picture.q.record_time >= start) &
+                                 (db.Picture.q.record_time < end) &
+                                 filter,
+                                 orderBy=db.Picture.q.record_time).distinct()
 
     def menupane_extra(self):
         return menu.SubMenu(heading='Calendar',
@@ -248,7 +255,7 @@ class CalendarUI:
 
         return htmltext(ret)
         
-    def build_calendar(self, date_start, interval, filter=None):
+    def build_calendar(self, date_start, interval, user=None):
         """ Returns a list of lists of images within a certain date
         range.  The outer list is a list of tuples (date, piclist)
         tuples, where piclist is a list of Pictures in record_time
@@ -257,7 +264,7 @@ class CalendarUI:
         date_end = interval.roundup(date_start+interval.step)
         date_start = interval.rounddown(date_start)
 
-        pics = pics_grouped(int_day, date_start, date_end, filter=filter)
+        pics = self.pics_grouped(int_day, date_start, date_end, user)
 
         days = [ (date, sel) for date,sel in pics if sel.count() != 0 ]
 
@@ -265,18 +272,16 @@ class CalendarUI:
 
         return days
 
-    def yearview(self, request, year):
+    def yearview(self, year, user):
         """ Returns a list of Months in a year, populated with info
         about pics in that month (only months with any pics are added
         to the list). """
 
         # Get pics grouped into months
-        user = auth.login_user(quiet=True)
-        filter = dbfilter.mayViewFilter(self.collection.dbobj, user)
-        months = [ (Month(year, m.month), res) for (m, res) in pics_grouped(int_month,
-                                                                            mxdt.DateTime(year  ,1,1),
-                                                                            mxdt.DateTime(year+1,1,1),
-                                                                            filter=filter)
+        months = [ (Month(year, m.month), res) for (m, res) in self.pics_grouped(int_month,
+                                                                                 mxdt.DateTime(year  ,1,1),
+                                                                                 mxdt.DateTime(year+1,1,1),
+                                                                                 user=user)
                    if res.count() > 0 ]
 
         # Mark each day in the month
@@ -291,12 +296,10 @@ class CalendarUI:
 class Year:
     _q_exports = []
 
-    import calendar_page
-    formatyear = calendar_page.formatyear
-
-    def __init__(self, cal):
+    def __init__(self, calendar):
         self.year = None
-        self.calui = cal
+        self.calendar = calendar
+        self.ui = calendar_page.YearUI(self)
         
     def _q_lookup(self, request, component):
         try:
@@ -306,20 +309,19 @@ class Year:
         return self
 
     def _q_index(self, request):
+        user=auth.login_user(quiet=True)
         if self.year is None:
-            filter = dbfilter.mayViewFilter(self.calui.collection.dbobj,
-                                            auth.login_user(quiet=True))
-            self.year = most_recent(filter).year
+            self.year = self.calendar.most_recent(user).year
 
-        y = self.calui.yearview(request, self.year)
+        y = self.calendar.yearview(self.year, user=user)
 
-        return self.formatyear(request, y)
+        return self.ui.formatyear(y, user)
         
 class Month:
     def __init__(self, year, month):
         self.year = year
         self.month = month
-        self.days = calendar.monthrange(year, month)
+        self.days = std_calendar.monthrange(year, month)
 
         self.marked = {}
         self.total = 0
@@ -335,4 +337,4 @@ class Month:
         return self.marked.get(day, 0)
 
     def getcalendar(self):
-        return calendar.monthcalendar(self.year, self.month)
+        return std_calendar.monthcalendar(self.year, self.month)

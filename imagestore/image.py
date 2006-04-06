@@ -381,9 +381,13 @@ class Image:
     """ Class for a specific image, and its namespace. """
     _q_exports = [ 'download', 'meta', 'exif', 'details' ]
 
-    def __init__(self, collection, id):
+    def __init__(self, collection, pic):
         self.collection = collection
-        self.id = id
+        if type(pic) == int:
+            self.id = pic
+        else:
+            self.id = pic.id
+            self.pic = lambda : pic
         self.details = image_page.DetailsUI(self)
         self.meta = ImageMeta(self)
         self.exif = ImageExif(self)
@@ -586,129 +590,10 @@ class ImageDir:
 
         raise TraversalError('Bad image identifier "%s"' % component)
 
-    # view is a PTL function
-    from image_page import view as view_ptl, view_rotate_link as view_rotate_link_ptl
-    view = view_ptl
-    view_rotate_link = view_rotate_link_ptl
-
     # Various URL generating functions
     def path(self):
         return self.collection.path() + 'image/'
     
-    def view_path(self, p, size, preferred=False):
-        if size is not None:
-            size = '-'+size
-            if preferred:
-                size += '!'
-        else:
-            size = ''
-
-        return '%s%d%s.html' % (self.path(), p.id, size)
-
-    def picture_url(self, p, size, preferred=False):
-        if size is not None:
-            size = '-'+size
-            if preferred:
-                size += '!'
-        else:
-            size = ''
-        return "%s%d%s.%s" % (self.path(), p.id, size,
-                              ImageTransform.extmap[p.mimetype])
-
-    def rotate_path(self, p, angle, frompage):
-        angle = int(angle)
-        return '%srotate?id=%d&angle=%d&fromurl=%s' % (self.path(), p.id, angle, frompage)
-
-    def picture_img(self, p, size, preferred=False, extra={}):
-        e = page.join_extra(extra)
-
-        (pw,ph) = ImageTransform.transformed_size(p, size)
-
-        r = TemplateIO(html=True)
-
-        # Don't worry about the visibility marker on full-sized pictures for now
-        
-        r += H('<img class="picture" style="width:%(w)dpx; height:%(h)dpx;" alt="%(alt)s" %(extra)s src="%(ref)s">') % \
-             { 'w': pw,
-               'h': ph,
-               'alt': 'Picture %d' % p.id,
-               'extra': e,
-               'ref': self.picture_url(p, size, preferred) }
-
-        return r.getvalue()
-
-    def thumb_img(self, p, showvis, extra={}):
-        e = page.join_extra(extra)
-        (tw,th) = ImageTransform.thumb_size(p)
-
-        r = TemplateIO(html=True)
-
-        r += H('<span class="thumb-img" style="width:%dpx; height=%dpx>">') % (tw, th)
-
-        r += H('<img id="thumb:%(id)d" class="thumb" style="width:%(w)dpx; height:%(h)dpx;" alt="%(alt)s" %(extra)s src="%(ref)s">') % {
-            'w': tw,
-            'h': th,
-            'alt': 'Thumbnail of %d' % p.id,
-            'id': p.id,
-            'extra': e,
-            'ref': self.thumb_path(p) }
-
-        if showvis:
-            r += H('<img class="visibility" title="%(v)s" alt="%(v)s" src="%(p)s%(v)s.png">') % {
-                'v': p.visibility, 'p': imagestore.static_path()
-                }
-
-        r += H('</span>')
-
-        return r.getvalue()
-
-    def view_link(self, request, p, size=None, link=None, preferred=False, url=None, extra={}):
-        if link is None:
-            user = auth.login_user(quiet=True)
-            link = self.thumb_img(p=p, showvis=(user and p.ownerID == user.id))
-
-        url = url or self.view_path(p=p, size=size, preferred=preferred)
-
-        e = page.join_extra(extra)
-
-        return H('<a id="pic%(id)d" %(extra)s href="%(url)s">%(link)s</a>' % {
-            'id': p.id,
-            'url': url,
-            'link': link,
-            'extra': e })
-
-    def edit_newwin_link(self, request, p, link=None, extra=None):
-        extra = extra or {}
-
-        extra['target'] = str(p.id)
-
-        return self.view_link(request, p, url=self.edit.path(p), link=link, extra=extra)
-        
-    def view_newwin_link(self, request, p, size=None, link=None, preferred=False, extra=None):
-        extra = extra or {}
-        
-        if size is None:
-            size = preferred_size(request, None)
-        extra['target'] = str(p.id)
-
-        if size is not None:
-            (tw,th) = ImageTransform.transformed_size(p, size)
-        else:
-            (tw,th) = (640,480)
-
-        extra['onClick'] = "newwin = window.open('', '%(id)d', 'width=%(w)d,height=%(h)d,resizable=1,scrollbars=0');" % {
-            'id': p.id,
-            'w': tw + (2*style.view_margin),
-            'h': th + (2*style.view_margin),
-            }
-        return self.view_link(request, p=p, size=size, link=link, preferred=preferred, extra=extra)
-
-    def details_link(self, p, link):
-        return H('<a href="%s">%s</a>' % (self.details.path(p), link))
-
-    def edit_link(self, p, link):
-        return H('<a href="%s">%s</a>' % (self.edit.path(p), link))
-
     def set_prevnext(self, request, id, size=None, urlfn=None):
         (first, last) = request.session.get_result_ends()
         (prev,next) = request.session.get_results_neighbours(id)

@@ -2,12 +2,12 @@
 
 import mx.DateTime as mxdt
 
+import quixote
 from quixote.html import htmltext as H, TemplateIO
 
 from sqlobject.sqlbuilder import AND
 
 import imagestore.db as db
-import imagestore.calendarui
 import imagestore.pages as page
 import imagestore.dbfilters as dbfilters
 import imagestore.image as image
@@ -34,204 +34,211 @@ def freqlist(list):
 
     return ret    
 
-def picsbyday [html] (request, days, collection):
-    from calendarui import int_day
+class CalendarUI:
+    def __init__(self, calendar):
+        self.calendar = calendar
 
-    # Days is list of (date, piclist) tuples.  This routine displays
-    # them grouped by day, along with a summary of the keywords used
-    # for that day's pictures.
-    maxkw = 10
-
-    for d,pl in days:
-        keywords = freqlist([ k.word for p in pl for k in p.keywords if k.word != 'unclassified' ])
-        ellip = len(keywords) > maxkw
-        keywords = [ collection.search.search_kw_link(k, d, { 'title': page.plural(c, 'occurrence')}) for k,c in keywords[:maxkw] ]
+    def _q_index [html] (self, date, interval, user):
+        import imagestore.calendar as calendar
+        request = quixote.get_request()
         
-        '<div id="%s" class="day">\n' % (int_day.num_fmt(d))
-        '<h3>\n'
-        '  <a class="day-link" id="day:%(date)s" href="%(url)s">%(date)s</a>\n' % {
-            'date': d.strftime(str('%Y-%m-%d')),
-            'url': collection.calendar.path(int_day, d),
-            }
-        '  <span class="day-keywords">\n'
-        '%(keywords)s%(ellip)s\n' % {
-            'keywords': ',\n'.join([ '    ' + k for k in keywords ]),
-            'ellip': ellip and '&hellip;' or '',
-            }
-        '  </span>\n'
-        '</h3>\n' 
-        '<div class="day-pics">\n'
-        for p in pl:
-            image.ImageDir(collection).view_rotate_link(request, p) + '\n'
-        '</div>\n</div>\n'
+        if self.calendar.date is None:
+            self.calendar.date = self.calendar.interval.rounddown(self.calendar.most_recent(user))
 
-def _q_index_ptl [html] (self, request):
-    from calendarui import sorted_intervals, int_week, most_recent
+        days = self.calendar.build_calendar(self.calendar.date, self.calendar.interval, user)
 
-    user = auth.login_user(quiet=True)
-    filter = dbfilters.mayViewFilter(self.collection.db, user)
+        total = reduce(lambda a,b:a+b, [0,0]+[ p.count() for (d,p) in days ])
+
+        page.pre(request, 'Calendar: %s - %s' % (self.calendar.interval.long_fmt(self.calendar.date),
+                                                 page.plural(total, 'picture')),
+                 'calendar', brieftitle='%s: %s' % (self.calendar.interval.name,
+                                                    self.calendar.interval.num_fmt(self.calendar.date)))
+
+        nav = ''
+        filter = self.calendar.collection.db_filter(user)
+        prev = db.Picture.select(AND(db.Picture.q.record_time < self.calendar.date, filter),
+                                 orderBy=db.Picture.q.record_time).reversed()
+        if prev.count() > 0:
+            prev = self.calendar.interval.rounddown(prev[0].record_time)
+            request.navigation.set_prev(self.calendar.path(self.calendar.interval, prev))
+
+        next = db.Picture.select(AND(db.Picture.q.record_time >= (self.calendar.date+self.calendar.interval.step), filter),
+                                 orderBy=db.Picture.q.record_time)
+        if next.count() > 0:
+            next = self.calendar.interval.rounddown(next[0].record_time)
+            request.navigation.set_next(self.calendar.path(self.calendar.interval, next))
+
+        page.menupane(request)
+
+        '<h1>%s - %s</h1>' % (self.calendar.interval.long_fmt(self.calendar.date),
+                              page.plural(total, 'picture'))
+
+        if days is None or len(days) == 0:
+            page.error(request, 'No pictures in specified range', 'Please select another date range')
+
+        for i in calendar.sorted_intervals:
+            sel=''
+            if i == self.calendar.interval:
+                sel='selected'
+            '<a class="%s" href="%s">%s</a>\n' % (sel, self.calendar.path(i, self.calendar.date),
+                                                  i.name.capitalize())
+
+        self.picsbyday(days)
+
+        request.session.set_query_results([ p for d, piclist in days for p in piclist ])
+
+        page.post()
+
+    def emitmonth [html](self, year, m):
+        import imagestore.calendar as calendar
+        title = page.plural(m.total, 'picture')
+
+        '\n<table class="month">\n'
+        '  <thead>\n'
+        '    <tr><td colspan="7"><a title="%s" href="%s">%s</a></td></tr>\n' % \
+          (title, self.calendar.path(calendar.int_month, mxdt.DateTime(year, m.month)), m.getname())
+        '  </thead>\n'
+        '  <tbody>\n'
+        mc = m.getcalendar()
+
+        if False:
+            # If we're making a 6-row month, fold the last row into the first
+            # User testing (ie, Rachel) says no
+            if len(mc) == 6:
+                mm=[]
+                for m1,m2 in zip(mc[0], mc[5]):
+                    mm.append(m1 or m2)
+                mc[0] = mm
+                del mc[5]
+
+        for week in mc:
+            '    <tr>'
+            for d in week:
+                if d == 0:
+                    '<td></td>'
+                    continue
+                mark =  m.ismarked(d)
+                if mark != 0:
+                    title = page.plural(mark, 'picture')
+                    '<td class="mark"><a href="%s" title="%s">%d</a></td>' % \
+                         (self.calendar.path(calendar.int_day, mxdt.DateTime(year, m.month, d)), title, d)
+                else:
+                    '<td>%d</td>' % d
+            '</tr>\n'
+        '  </tbody>\n'
+        '</table>\n'
+
     
-    if self.date is None:
-        self.date = self.interval.rounddown(most_recent(filter))
+    def picsbyday [html] (self, days):
+        # Days is list of (date, piclist) tuples.  This routine displays
+        # them grouped by day, along with a summary of the keywords used
+        # for that day's pictures.
+        import imagestore.calendar as calendar
+        maxkw = 10
 
-    days = self.build_calendar(self.date, self.interval, filter=filter)
+        collection = self.calendar.collection
 
-    total = reduce(lambda a,b:a+b, [0,0]+[ p.count() for (d,p) in days ])
+        for d,pl in days:
+            keywords = freqlist([ k.word for p in pl for k in p.keywords if k.word != 'unclassified' ])
+            ellip = len(keywords) > maxkw
+            keywords = [ collection.search.search_kw_link(k, d, { 'title': page.plural(c, 'occurrence')}) for k,c in keywords[:maxkw] ]
 
-    page.pre(request, 'Calendar: %s - %s' % (self.interval.long_fmt(self.date),
-                                             page.plural(total, 'picture')),
-             'calendar', brieftitle='%s: %s' % (self.interval.name,
-                                                self.interval.num_fmt(self.date)))
-
-    nav = ''
-    prev = db.Picture.select(AND(db.Picture.q.record_time < self.date, filter),
-                             orderBy=db.Picture.q.record_time).reversed()
-    if prev.count() > 0:
-        prev = self.interval.rounddown(prev[0].record_time)
-        request.navigation.set_prev(self.path(self.interval, prev))
-
-    next = db.Picture.select(AND(db.Picture.q.record_time >= (self.date+self.interval.step), filter),
-                             orderBy=db.Picture.q.record_time)
-    if next.count() > 0:
-        next = self.interval.rounddown(next[0].record_time)
-        request.navigation.set_next(self.path(self.interval, next))
-
-    page.menupane(request)
-
-    '<h1>%s - %s</h1>' % (self.interval.long_fmt(self.date), page.plural(total, 'picture'))
-
-    if days is None or len(days) == 0:
-        page.error(request, 'No pictures in specified range', 'Please select another date range')
-
-    for i in sorted_intervals:
-        sel=''
-        if i == self.interval:
-            sel='selected'
-        '<a class="%s" href="%s">%s</a>\n' % (sel, self.path(i, self.date),
-                                              i.name.capitalize())
-
-    picsbyday(request, days, self.collection)
-
-    request.session.set_query_results([ p for d, piclist in days for p in piclist ])
-
-    page.post()
+            '<div id="%s" class="day">\n' % (calendar.int_day.num_fmt(d))
+            '<h3>\n'
+            '  <a class="day-link" id="day:%(date)s" href="%(url)s">%(date)s</a>\n' % {
+                'date': d.strftime(str('%Y-%m-%d')),
+                'url': collection.calendar.path(calendar.int_day, d),
+                }
+            '  <span class="day-keywords">\n'
+            '%(keywords)s%(ellip)s\n' % {
+                'keywords': ',\n'.join([ '    ' + k for k in keywords ]),
+                'ellip': ellip and '&hellip;' or '',
+                }
+            '  </span>\n'
+            '</h3>\n' 
+            '<ul class="day-pics thumb-set">\n'
+            for p in pl:
+                im = image.Image(collection, p)
+                '<li>'+im.ui.thumbnail(wantedit=True)
+            '</ul>\n'
+            '</div>\n'
 
 
-def emitmonth [html](request, calui, year, m):
-    from calendarui import int_month, int_day
-
-    title = page.plural(m.total, 'picture')
-    
-    '\n<table class="month">\n'
-    '  <thead>\n'
-    '    <tr><td colspan="7"><a title="%s" href="%s">%s</a></td></tr>\n' % \
-      (title, calui.path(int_month, mxdt.DateTime(year, m.month)), m.getname())
-    '  </thead>\n'
-    '  <tbody>\n'
-    mc = m.getcalendar()
-
-    if False:
-        # If we're making a 6-row month, fold the last row into the first
-        # User testing (ie, Rachel) says no
-        if len(mc) == 6:
-            mm=[]
-            for m1,m2 in zip(mc[0], mc[5]):
-                mm.append(m1 or m2)
-            mc[0] = mm
-            del mc[5]
-
-    for week in mc:
-        '    <tr>'
-        for d in week:
-            if d == 0:
-                '<td></td>'
-                continue
-            mark =  m.ismarked(d)
-            if mark != 0:
-                title = page.plural(mark, 'picture')
-                '<td class="mark"><a href="%s" title="%s">%d</a></td>' % \
-                     (calui.path(int_day, mxdt.DateTime(year, m.month, d)), title, d)
-            else:
-                '<td>%d</td>' % d
-        '</tr>\n'
-    '  </tbody>\n'
-    '</table>\n'
-
-# Class of calendarui.Year
-def formatyear [html] (self, request, year):
-    from calendarui import pics_grouped, int_year, kw_summary
-
-    user = auth.login_user(quiet=True)
-    filter = dbfilters.mayViewFilter(self.calui.collection.db, user)
-
-    pics = pics_grouped(int_year, filter=filter)
-
-    total = 0
-    for d,c in pics:
-        if d.year == self.year:
-            total = c.count()
-
-    total = page.plural(total, 'picture')
-
-    page.pre(request, "Year %d: %s" % (self.year, total), 'calendar')
-
-    r = TemplateIO(html=True)
-    
-    prev = None
-    next = None
-
-    for d,c in pics:
-        if d.year < self.year:
-            prev = d
-        if next is None and d.year > self.year:
-            next = d
-
-        selected=''
-        if d.year == self.year:
-            selected='selected'
-
-        title = page.plural(c.count(), 'picture')
+class YearUI:
+    def __init__(self, year):
+        self.year = year
         
-        r += '  <a class="%s" title="%s" href="%s">%d</a>\n' % \
-             (selected, title,
-              self.calui.path(int_year, d), d.year)
-
-    if prev is not None:
-        request.navigation.set_prev(self.calui.path(int_year, prev))
-
-    if next is not None:
-        request.navigation.set_next(self.calui.path(int_year, next))
-
-    page.menupane(request)
-
-    '<h1>Year: %d - %s</h1>\n' % (self.year, total)
-
-    '<div class="years">\n'
-
-    r.getvalue()
-    
-    '</div>\n'
+    def formatyear [html] (self, year, user):
+        import imagestore.calendar as calendar
         
-    '<table class="calendar-year">\n'
+        pics = self.year.calendar.pics_grouped(calendar.int_year, user=user)
 
-    ya = [ [ None ] * 3,
-           [ None ] * 3,
-           [ None ] * 3,
-           [ None ] * 3 ]
+        total = 0
+        for d,c in pics:
+            if d.year == self.year.year:
+                total = c.count()
 
-    for m in year:
-        mi = m.month - 1
-        ya[mi / 3][mi % 3] = m
+        total = page.plural(total, 'picture')
 
-    for row in ya:
-        '<tr>\n'
-        for m in row:
-            ' <td>'
-            if m is not None:
-                emitmonth(request, self.calui, self.year, m)
-            '</td>\n'
-        '</tr>\n'
-        
-    '</table>'
+        page.pre(None, "Year %d: %s" % (self.year.year, total), 'calendar')
 
-    page.post()
+        r = TemplateIO(html=True)
+
+        prev = None
+        next = None
+
+        for d,c in pics:
+            if d.year < self.year.year:
+                prev = d
+            if next is None and d.year > self.year.year:
+                next = d
+
+            selected=''
+            if d.year == self.year.year:
+                selected='selected'
+
+            title = page.plural(c.count(), 'picture')
+
+            r += '  <a class="%s" title="%s" href="%s">%d</a>\n' % \
+                 (selected, title,
+                  self.year.calendar.path(calendar.int_year, d), d.year)
+
+        if prev is not None:
+            request.navigation.set_prev(self.calendar.path(calendar.int_year, prev))
+
+        if next is not None:
+            request.navigation.set_next(self.calendar.path(calendar.int_year, next))
+
+        page.menupane(None)
+
+        '<h1>Year: %d - %s</h1>\n' % (self.year.year, total)
+
+        '<div class="years">\n'
+
+        r.getvalue()
+
+        '</div>\n'
+
+        '<table class="calendar-year">\n'
+
+        ya = [ [ None ] * 3,
+               [ None ] * 3,
+               [ None ] * 3,
+               [ None ] * 3 ]
+
+        for m in year:
+            mi = m.month - 1
+            ya[mi / 3][mi % 3] = m
+
+        for row in ya:
+            '<tr>\n'
+            for m in row:
+                ' <td>'
+                if m is not None:
+                    self.year.calendar.ui.emitmonth(self.year.year, m)
+                '</td>\n'
+            '</tr>\n'
+
+        '</table>'
+
+        page.post()

@@ -4,7 +4,7 @@ from quixote.html import htmltext as H, TemplateIO
 #from sqlobject.sqlbuilder import AND, OR, IN
 from sqlobject import SQLObjectNotFound
 
-from calendarui import int_day
+from calendar import int_day
 
 import imagestore
 import imagestore.db as db

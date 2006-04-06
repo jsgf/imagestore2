@@ -26,13 +26,15 @@ import imagestore.db as db
 # collection permissions for the user before the main query
 
 def _inCollection(collection, filt):
-    return AND(db.Picture.q.collectionID == collection.id, filt)
+    return (db.Picture.q.collectionID == collection.id) & filt
 
 def mayViewFilter(collection, user = None):
     " Rules for which pictures a user may view - user==None for anonymous "
 
-    ok = [ False ]
+    print 'dbfilters.mayViewFilter user=%s, collection=%s' % (user, collection.name)
+    ok = [ ]
 
+    # If the collection is public, then anyone can look at public pictures in it
     if collection.visibility == 'public':
         ok.append(db.Picture.q.visibility == 'public')
 
@@ -44,7 +46,6 @@ def mayViewFilter(collection, user = None):
         if user.mayViewall or user.mayAdmin or (perms and perms.mayViewall):
             ok = [ True ]               # overrides all
         else:
-
             if collection.visibility != 'public' and perms and perms.mayView:
                 # if collection is public, we've already tested for this
                 ok.append(db.Picture.q.visibility == 'public')
@@ -52,7 +53,9 @@ def mayViewFilter(collection, user = None):
             if perms and perms.mayViewRestricted:
                 ok.append(db.Picture.q.visibility == 'restricted')
 
-    return _inCollection(collection, AND(db.Picture.q.uploadID == None, OR(*ok)))
+    ret = _inCollection(collection, (db.Picture.q.uploadID == None) & OR(*ok))
+    print 'ret=%s, %s'% (ret, ret.op)
+    return ret
 
 def mayEditFilter(collection, user):
     ok = False

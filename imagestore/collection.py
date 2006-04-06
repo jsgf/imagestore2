@@ -4,6 +4,7 @@ import re
 import json
 
 from sqlobject import SQLObjectNotFound
+from sqlobject.sqlbuilder import AND
 
 import quixote
 from quixote.errors import AccessError
@@ -12,7 +13,7 @@ from quixote.html import htmltext as H
 import imagestore
 import imagestore.image as image
 import imagestore.collection_page as collection_page
-import imagestore.calendarui as calendarui
+import imagestore.calendar as calendar
 import imagestore.search as search
 import imagestore.upload as upload
 import imagestore.menu as menu
@@ -20,6 +21,8 @@ import imagestore.auth as auth
 import imagestore.insert as insert
 import imagestore.http as http
 import imagestore.collection_page as collection_page
+import imagestore.dbfilters as dbfilters
+import imagestore.db as db
 
 _re_number = re.compile('^[0-9]+$')
 _re_hash = re.compile('^(?:hash|sha1?):([0-9a-f]{40})$', re.I)
@@ -32,7 +35,7 @@ class Collection:
         self.parent = parent
         self.db = db  
 
-        self.calendar = calendarui.CalendarUI(self)
+        self.calendar = calendar.Calendar(self)
         self.search = search.SearchUI(self)
         self.upload = upload.Upload(self)
         self.ui = collection_page.CollectionUI(self)
@@ -240,6 +243,11 @@ class Collection:
             return True
 
         return False
+
+    def db_filter(self, user):
+        """ Basic filter for database requests to make sure we only return
+        viewable images from this collection """
+        return dbfilters.mayViewFilter(self.db, user)
 
     def admin(self):
         if not self.mayAdminCol():

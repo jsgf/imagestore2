@@ -1,5 +1,7 @@
 # -*- python -*-
 
+import quixote
+
 import imagestore.base_paths as paths
 import imagestore.auth as auth
 from menu import Menu, SubMenu, Link, Heading
@@ -11,7 +13,9 @@ def plural(n, word):
         s='s'
     return '%d %s%s' % (n, word, s)
 
-def pre [html] (request, title, bodyid, trail=True, brieftitle=None):        
+def pre [html] (request, title, bodyid, trail=True, brieftitle=None):
+    request = quixote.get_request()
+    
     if trail:
         request.session.add_breadcrumb(brieftitle or title,
                                        request.get_path(),
@@ -39,7 +43,7 @@ def post [html] ():
     "\n</body>\n</html>\n"
 
 def html(request, title, page, bodyid=''):
-    return pre(request, title, bodyid) + page + post()
+    return pre(None, title, bodyid) + page + post()
 
 def _emit_attrib [html] (a,v):
     if v is None:
@@ -80,6 +84,7 @@ def generate_extra [html] (extra, depth=0):
 # Generate a menu pane.  extra is a list of items to add to the list;
 # it's in the form of nested lists of tuples
 def menupane [html] (request, extra=None):
+    request = quixote.get_request()
     
     crumbs = request.session.breadcrumbs
     if crumbs:

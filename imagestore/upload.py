@@ -35,7 +35,7 @@ import imagestore.db as db
 import imagestore.insert as insert
 import imagestore.search as search
 import imagestore.image as image
-import imagestore.calendarui as calendarui
+import imagestore.calendar as calendar
 import imagestore.pages as page
 import imagestore.auth as auth
 import imagestore.http as http
@@ -272,8 +272,8 @@ class UploadUI:
             return r.getvalue()
         else:
             user = request.session.getuser()
-            start = calendarui.int_day.rounddown(gmt())
-            end = calendarui.int_day.roundup(gmt())
+            start = calendar.int_day.rounddown(gmt())
+            end = calendar.int_day.roundup(gmt())
             upload = db.Upload.select(AND(db.Upload.q.import_time >= start,
                                           db.Upload.q.import_time < end,
                                           db.Upload.q.userID == user.id,
@@ -333,9 +333,9 @@ class UploadUI:
             body += H('<h2>Import into "%s" on %s</h2>\n') % (u.collection.name,
                                                            u.import_time.strftime('%Y-%m-%d')) # XXX
 
-            for (d, pics) in search.group_by_time(pics, calendarui.int_day):
-                body += H('<div id="%s" class="day">\n') % calendarui.int_day.num_fmt(d)
-                body += H('<h3>%s</h3>\n') % calendarui.int_day.num_fmt(d)
+            for (d, pics) in search.group_by_time(pics, calendar.int_day):
+                body += H('<div id="%s" class="day">\n') % calendar.int_day.num_fmt(d)
+                body += H('<h3>%s</h3>\n') % calendar.int_day.num_fmt(d)
                 body += H('<div class="day-pics">\n')
 
                 body += H('<form method="POST" action="commit">\n')
