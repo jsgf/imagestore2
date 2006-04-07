@@ -4,7 +4,10 @@ import quixote
 
 import imagestore.base_paths as paths
 import imagestore.auth as auth
+
+import menu
 from menu import Menu, SubMenu, Link, Heading
+
 
 def plural(n, word):
     n=int(n)
@@ -31,7 +34,7 @@ def pre [html] (request, title, bodyid, trail=True, brieftitle=None):
   <script type="text/javascript" src="%(static)simagestore.js"></script>
   <title>%(title)s</title>
 %(nav)s</head>
-<body id="%(id)s" class="no-auth want-edit">\n""" % {
+<body id="%(id)s">\n""" % {
       'title': title,
       'base': paths.path(),
       'static': paths.static_path(),
@@ -81,6 +84,25 @@ def generate_extra [html] (extra, depth=0):
         elif isinstance(e, str) or isinstance(e, htmltext):
             pfx+'<li class="subhead">' + e + '\n'
 
+class EditSwitchItem(menu.MenuItem):
+    def __init__(self, classes=None, extra=None):
+        menu.MenuItem.__init__(self, classes=classes, extra=extra)
+
+        self.classes.append('editswitch')
+        self.classes.append('need-auth')
+
+    def render [html] (self, depth=0):
+        """<span %(tags)s>
+                Editing: 
+                <a class="set-wantedit" 
+                  onClick="dojo.html.replaceClass(dojo.html.body(),'want-edit', 'no-want-edit')">On</a>
+                <span class="selected set-wantedit">Off</span>
+                
+                <span class="selected set-nowantedit">On</span>
+                <a class="set-nowantedit" 
+                  onClick="dojo.html.replaceClass(dojo.html.body(), 'no-want-edit', 'want-edit')">Off</a>
+        </span>""" % { 'tags': self.tags() }
+
 # Generate a menu pane.  extra is a list of items to add to the list;
 # it's in the form of nested lists of tuples
 def menupane [html] (request, extra=None):
@@ -102,7 +124,8 @@ def menupane [html] (request, extra=None):
     menu = Menu()
 
     menu += [ Heading('Login', extra={ 'dojoType': 'Login' }) ]
-        
+    menu += [ EditSwitchItem() ]
+    
     # Context menu
     menu += request.context_menu
 

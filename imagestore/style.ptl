@@ -31,7 +31,8 @@ def style_css [plain] (request):
 
         'view-margin':          view_margin,
 
-        'thumb-frame':          '#aaa',
+        'thumb-frame':          '#777',
+        'thumb-editable':       '#aaa',
         'thumb-size':           thumb_size,
 
         'large-arrow-width':          lg_arrow_width,
@@ -127,7 +128,7 @@ UL.thumb-set > LI {
 
 /* Editable thumbnails are emphasized */
 .auth.want-edit .thumbnail.mayedit { 
-  background-color: %(active-color)s;
+  background-color: %(thumb-editable)s;
 }
 /* No images have borders */
 .thumbnail IMG { 
@@ -168,7 +169,7 @@ UL.thumb-set > LI {
   
   /* use png backgrounds to indicate visibility */
   width: %(vis-size)dpx;
-  height: %(vis-size)d15px;
+  height: %(vis-size)dpx;
   background-repeat: no-repeat;
   background-position: center;
 }
@@ -207,7 +208,7 @@ UL.thumb-set > LI {
   background: transparent no-repeat center;
 }
 .thumbnail > .ui > A.arrow:hover {
-  background-color: orange;
+/* background-color: orange; */
 }
 
 .thumbnail > .ui > A.left {
@@ -215,6 +216,7 @@ UL.thumb-set > LI {
   top: %(rotate-top)dpx;
   width: %(large-arrow-height)dpx;
   height: %(large-arrow-width)dpx;
+  cursor: url(%(staticdir)sstock-rotate-cw-16.png) 8 8, w-resize;
 }
 .thumbnail > .ui.hover > A.left {
   background-image: url(%(staticdir)sarrow-large-left.png);
@@ -225,6 +227,7 @@ UL.thumb-set > LI {
   top: %(rotate-top)dpx;
   width: %(large-arrow-height)dpx;
   height: %(large-arrow-width)dpx;
+  cursor: url(%(staticdir)sstock-rotate-ccw-16.png) 8 8, e-resize;
 }
 .thumbnail > .ui.hover > A.right {
   background-image: url(%(staticdir)sarrow-large-right.png);
@@ -235,6 +238,7 @@ UL.thumb-set > LI {
   left: %(rotate-left)dpx;
   width: %(large-arrow-width)dpx;
   height: %(large-arrow-height)dpx;
+  cursor: url(%(staticdir)sstock-rotate-180-16.png) 8 8, s-resize;
 }
 .thumbnail .ui.hover > A.down {
   background-image: url(%(staticdir)sarrow-large-down.png);
@@ -255,14 +259,41 @@ A > I.hide {
 .auth .need-auth { 
   display: block;
 }
+.auth .need-auth.inline { 
+  display: inline;
+}
 .need-no-auth { 
   display: block;
+}
+.need-no-auth.inline { 
+  display: inline;
 }
 .auth .need-no-auth { 
   display: none;
 }
 """ % params
 
+    """
+    /* Switch to select whether the editing interface is visible */
+    .editswitch {
+        white-space: nowrap;
+    }
+    .editswitch > A {
+        cursor: pointer;
+    }
+    .want-edit .editswitch > .set-wantedit {
+        display: none;
+    }
+    .no-want-edit .editswitch > .set-wantedit {
+        display: inline;
+    }
+    .want-edit .editswitch > .set-nowantedit {
+        display: inline;
+    }
+    .no-want-edit .editswitch > .set-nowantedit {
+        display: none;
+    }
+""" % params
     """
 .selected	{
   background-color: %(highlight-color)s;

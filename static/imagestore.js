@@ -396,6 +396,11 @@ auth_styles = {
 		dojo.html.replaceClass(dojo.html.body(), to, from);
 	}
 };
+// Initially, no auth and no editing
+dojo.addOnLoad(function () {
+		       dojo.html.replaceClass(dojo.html.body(), 'no-auth', 'auth');
+		       dojo.html.replaceClass(dojo.html.body(), 'no-want-edit', 'want-edit');
+	       })
 dojo.event.topic.subscribe('IS/Auth', auth_styles, 'update');
 
 // Subscribe the auth object to events coming from the auth UI
