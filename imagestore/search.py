@@ -127,7 +127,8 @@ class KWSearchUI:
             pics = []
 
         # Filter for visibility
-        pics = [ p for p in pics if (not p.isPending() and self.col.mayView(request, p)) ]
+        pics = [ p for p in pics
+                 if (not p.isPending() and self.col.mayView(p, quiet=True)) ]
 
         # Sort by time
         pics.sort(lambda a,b: cmp(a.record_time, b.record_time))
@@ -218,7 +219,7 @@ class KWSearchUI:
 
         r += H('<h1>%s</h1>\n') % heading
 
-        r += calendar_page.picsbyday(request, groups, self.col)
+        r += self.col.calendar.ui.picsbyday(groups)
 
         if refining:
             # Refine by ANDing more keywords in
