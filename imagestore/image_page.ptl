@@ -80,9 +80,9 @@ class ImageUI:
 
         thumb = """
             <div id="%(id)s" class="thumbnail %(mayedit)s">
-              <img title="%(title)s" src="%(img)s"
+              <img alt="%(title)s" src="%(img)s"
                 style="width:%(th-width)dpx;height:%(th-height)dpx;left:%(pos-x)dpx;top:%(pos-y)dpx;">
-              <div class="ui"
+              <div title="%(title)s" class="ui"
                 onmouseover="dojo.html.addClass(this, 'hover');"
                 onmouseout="dojo.html.removeClass(this, 'hover');">
                 <a class="view" href="%(link)s"><i class="hide">view larger</i></a>
