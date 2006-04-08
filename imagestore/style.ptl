@@ -10,6 +10,7 @@ lg_arrow_height = 28
 vis_size = 13
 
 thumb_size = 180                        # 180x180 thumbnails
+thumb_margin = .25                      # thumbnail margin in ems
 thumb_padding = 5
 thumb_hover_border = 1
 
@@ -34,15 +35,19 @@ def style_css [plain] (request):
         'thumb-frame':          '#777',
         'thumb-editable':       '#aaa',
         'thumb-size':           thumb_size,
-
+        'thumb-margin':         thumb_margin,
+        
         'large-arrow-width':          lg_arrow_width,
         'large-arrow-height':         lg_arrow_height,
         'rotate-left':          (thumb_size - lg_arrow_height) / 2,
         'rotate-top':           (thumb_size - lg_arrow_width) / 2,
 
         'vis-size':             vis_size+2,
-        
-        'staticdir':    imagestore.static_path()
+
+        'staticdir':            imagestore.static_path(),
+
+        'arrow-width':          arrow_width,
+        'arrow-height':         arrow_height,
         }
 
     # First, some basic definitions
@@ -58,7 +63,6 @@ def style_css [plain] (request):
 
    Overall classes:
    .picture:	<img>s referring to full-sized pictures
-   .thumb:	<img>s referring to thumbnails
    .arrow:	<img>s for little arrows
 
    .selected:	any selected option
@@ -80,22 +84,14 @@ A:visited	{ color: %(link-color)s; }
 A:hover		{ color: %(active-color)s; }
 A:active	{ color: %(active-color)s; }
 
-.picture	{ border: 0; padding: 0; }
+IMG     	{ border: 0; padding: 0; }
 
-/* A group of thumbnails */
-UL.thumb-set {
-  list-style-type: none;
-  margin: 0;
-  padding: 0;
-  border: none;
+/* Small arrows */
+.left-arrow, .right-arrow {
+        vertical-align: middle;
+        width: %(arrow-height)dpx;
+        height: %(arrow-width)dpx;
 }
-UL.thumb-set > LI { 
-  width: 180px;
-  height: 180px;
-  float: left;
-  margin: 0.5em;
-}
-
 """ % params
 
     """
@@ -115,8 +111,21 @@ UL.thumb-set > LI {
    .thumbnail > IMG needs to have inline styles to set its size and
    position itself properly within the thumbnail frame.
 */
+/* A group of thumbnails */
+UL.thumb-set {
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+UL.thumb-set > LI { 
+  width: 180px;
+  height: 180px;
+  float: left;
+  margin: %(thumb-margin)gem;
+}
+
 .thumbnail { 
-  margin: .5em;
   position: absolute;
   width: %(thumb-size)dpx;  
   height: %(thumb-size)dpx;
