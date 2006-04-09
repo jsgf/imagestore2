@@ -529,13 +529,13 @@ BODY#view {
   border: 0;
   background-color: black;
 }
-BODY#view > A {
+/* BODY#view > A {
   padding: 0;
   margin: 0;
   border: 0;
-}
+} */
 
-BODY#view IMG.picture {
+BODY#view .picture {
   padding: 0;
   border: 0;
   margin-left: %(view-margin)dpx;
@@ -567,7 +567,7 @@ BODY#view #nav .options A {
   background-color: black;
 }
 BODY#view #nav .options A.selected {
-  background-color: #888888;
+  background-color: #888;
 }
 BODY#view #nav .prev {
   position: absolute;
@@ -578,6 +578,12 @@ BODY#view #nav .next {
   position: absolute;
   right: 20px;
   background-color: black;
+}
+BODY#view .image-link {
+  position: absolute;
+  bottom: 2px;
+  left: 2px;
+  font-size: 60%%;
 }
 """ % params
     

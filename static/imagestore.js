@@ -9,6 +9,7 @@ var log = dojo.debug;
 
 dojo.require("dojo.crypto.MD5");
 dojo.require("dojo.json");
+dojo.require("dojo.io.cookie");
 
 var widget = {};	// widget package
 dojo.require('widget.Login');
@@ -408,3 +409,69 @@ dojo.event.topic.subscribe('IS/Auth/UI', auth, 'authevent');
 
 // Make sure the auth object has up-to-date information
 dojo.addOnLoad(function () { window.auth.update_auth() });
+
+function size_window(win, w,h)
+{
+	var bw = w - win.innerWidth;
+	var bh = h - win.innerHeight;
+	if (bw != 0 || bh != 0)
+		win.resizeTo(w + bw, h + bh);
+}
+
+function create_sized_window(url,id,w,h,extra)
+{
+	if (!extra) {
+		extra = [];
+	}
+	extra.push('width='+w);
+	extra.push('height='+h);
+	var win = window.open(url, id, extra.join(','));
+
+	size_window(win, w, h);
+	return win;
+}
+
+function create_view_window(id, portrait, padding, extra)
+{
+	var size = get_preference('image_size');
+
+	alert('size='+size);
+	size = dojo.json.evalJSON(size);
+	var w,h;
+
+	w = size[1][0];
+	h = size[1][1];
+
+	if (portrait) {
+		var t = w;
+		w = h;
+		h = t;
+	}
+
+	return create_sized_window(null, id, w+padding, h+padding, extra);
+}
+
+function set_want_edit(on)
+{
+	var set, clear;
+
+	if (on) {
+		set = 'want-edit';
+		clear = 'no-want-edit';
+	} else {
+		set = 'no-want-edit';
+		clear = 'want-edit';
+	}
+	dojo.html.replaceClass(dojo.html.body(), set, clear);
+}
+
+function set_preference(pref, val)
+{
+	document.cookie = 'IS-pref-'+pref+'='+val+';path='+base_path;
+}
+
+function get_preference(pref)
+{
+	pref = 'IS-pref-'+pref;
+	return dojo.io.cookie.getCookie(pref);
+}

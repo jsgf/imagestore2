@@ -399,6 +399,13 @@ class Image:
     def thumb_path(self):
         return self.path() + 'thumb.jpg'
 
+    def image_path(self, size='default'):
+        p = self.pic()
+        return '%s%s.%s' % (self.path(), size, ImageTransform.extmap[p.mimetype])
+
+    def download_path(self):
+        return self.path() + 'download'
+    
     def rotate_path(self, angle):
         return self.path() + 'rotate?angle=%d' % angle
 
@@ -464,7 +471,7 @@ class Image:
             if not p.mayView(user):
                 raise AccessError('may not view picture')
 
-    def download(self, request):
+    def download(self, request=None):
         """ Get the raw image, but set the content disposition
         to attachment to get the browser to download it. """
         ret = self._q_index(request)
@@ -525,11 +532,8 @@ class Image:
 
         size,width,height,ext = m.groups()
 
-        if size == 'default':
-            size = 'small'              # TODO get user pref cookie
-
         if ext == 'html':
-            pass                        # TODO return HTML page
+            return self.ui.view(size)
 
         return self.display_image(size, ext)
 

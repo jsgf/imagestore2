@@ -7,11 +7,14 @@ from quixote.html import htmltext as H, TemplateIO
 
 from sqlobject.sqlbuilder import AND
 
+import imagestore
 import imagestore.db as db
 import imagestore.pages as page
 import imagestore.dbfilters as dbfilters
 import imagestore.image as image
 import imagestore.auth as auth
+import imagestore.ImageTransform as ImageTransform
+import imagestore.style as style
 
 def freqlist(list):
     " Take a list of items, and return a list of unique (item, count) tuples. "
@@ -159,7 +162,19 @@ class CalendarUI:
             '<ul class="day-pics thumb-set">\n'
             for p in pl:
                 im = image.Image(collection, p)
-                '<li>'+im.ui.thumbnail(wantedit=True)
+                (w,h) = ImageTransform.transformed_size(p, imagestore.prefs.image_size)
+                linkextra = {}
+                if imagestore.prefs.view_new_window:
+                    linkextra = {
+                        'target': 'view:%d' % p.id,
+                        'onClick': "create_view_window('view:%(id)d', %(portrait)d, %(padding)d, ['resizable=1', 'scrollbars=1', 'location=1', 'toolbar=1'])" % {
+                        'id': p.id,
+                        'padding': style.view_margin*2,
+                        'portrait': p.orientation in (90, 270),
+                        }
+                        }
+                    
+                '<li>'+im.ui.thumbnail(wantedit=True, linkextra = linkextra)
             '</ul>\n'
             '</div>\n'
 

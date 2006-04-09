@@ -94,13 +94,11 @@ class EditSwitchItem(menu.MenuItem):
     def render [html] (self, depth=0):
         """<span %(tags)s>
                 Editing: 
-                <a class="set-wantedit" 
-                  onClick="dojo.html.replaceClass(dojo.html.body(),'want-edit', 'no-want-edit')">On</a>
+                <a class="set-wantedit" onClick="set_want_edit(true)">On</a>
                 <span class="selected set-wantedit">Off</span>
                 
                 <span class="selected set-nowantedit">On</span>
-                <a class="set-nowantedit" 
-                  onClick="dojo.html.replaceClass(dojo.html.body(), 'no-want-edit', 'want-edit')">Off</a>
+                <a class="set-nowantedit" onClick="set_want_edit(false)">Off</a>
         </span>""" % { 'tags': self.tags() }
 
 # Generate a menu pane.  extra is a list of items to add to the list;

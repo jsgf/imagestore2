@@ -1,5 +1,7 @@
 # -*- python -*-
 
+import quixote
+
 import imagestore
 import imagestore.pages as page
 import imagestore.style as style
@@ -64,11 +66,14 @@ class ImageUI:
     def __init__(self, image):
         self.image = image
 
-    def thumbnail [html] (self, link=None, wantedit=False):
+    def thumbnail [html] (self, link=None, wantedit=False, linkextra=None):
         #""" Generate a thumbnail with all the trimmings. """
 
         if link is None:
-            link = self.image.path() + 'default.html'
+            link = self.view_path()
+
+        if linkextra is None:
+            linkextra = {}
 
         user = auth.login_user(quiet=True)
         p = self.image.pic()
@@ -85,7 +90,7 @@ class ImageUI:
               <div title="%(title)s" class="ui"
                 onmouseover="dojo.html.addClass(this, 'hover');"
                 onmouseout="dojo.html.removeClass(this, 'hover');">
-                <a class="view" href="%(link)s"><i class="hide">view larger</i></a>
+                <a class="view" href="%(link)s" %(linkextra)s><i class="hide">view larger</i></a>
                 <div class="need-auth visibility %(visibility)s"><a href="setvis"><i class="hide">setvis</i></a></div>
                 <a class="need-auth arrow right" href="%(rot90)s"><i class="hide">rightisup</i></a>
                 <a class="need-auth arrow down" href="%(rot180)s"><i class="hide">downisup</i></a>
@@ -104,6 +109,7 @@ class ImageUI:
 
             'img':      self.image.thumb_path(),
             'link':     link,
+            'linkextra':page.join_extra(linkextra),
             'th-width': tw,
             'th-height':th,
             'pos-x':    (style.thumb_size - tw) / 2,
@@ -114,67 +120,75 @@ class ImageUI:
             'mayedit':  mayedit,
             }
         
-
-def view [html] (self, request, p, size, default):
-    import imagestore.image as image
-
-    id = p.id
-    if size is None:
-        size = image.preferred_size(request)
-    elif size == 'orig':
-        return self.image_orig(request, p)
-    elif default:
-        image.set_preferred_size(request, size)
-
-    (pw,ph) = ImageTransform.transformed_size(p, size)
-
-    self.set_prevnext(request, id, size)
-        
-    for s in sorted_sizes:
-        if ImageTransform.sizes[s][0]*ImageTransform.sizes[s][1] < (640*480):
-            continue
-        if s != 'full' and \
-               ImageTransform.sizes[s][0] > p.width and \
-               ImageTransform.sizes[s][1] > p.height:
-            continue
-        
-        request.navigation.add_option(self.view_path(p, size=s, preferred=True),
-                                      link=s.capitalize(),
-                                      title='%dx%d' % ImageTransform.transformed_size(p, s),
-                                      selected= s==size)
-
-    if self.collection.mayViewOrig(request, p, quiet=True):
-        request.navigation.add_option(self.view_path(p, size='orig'),
-                                      link='Original',
-                                      title='For printing')
-
-    page.pre(request, 'View image %d' % id,
-             bodyid='view', trail=False)
-
-    request.navigation.render()
+    def view_path(self, size='default'):
+        return self.image.path() + size + '.html'
     
-    # Try to resize the window to a useful inner size.
-    # - do the simple thing
-    # - see if it worked
-    # - if not, try again
-    #
-    # XXX FIXME: apparently IE doesn't support innerWidth/Height,
-    # and you have to use something else.  See
-    # http://webfx.eae.net/dhtml/wincontrols/wincontrols.html
-    if False:
-        """\
-<script language="JavaScript"><!--
-        window.resizeTo(%(w)d, %(h)d);
-        bw = %(w)d - window.innerWidth;
-        bh = %(h)d - window.innerHeight;
-        if (bw != 0 || bh != 0) {
-          window.resizeTo(%(w)d + bw, %(h)d + bh);
-        }
---></script>\n""" % { 'w': pw+(2*style.view_margin), 'h': ph+(2*style.view_margin) }
+    def view [html] (self, size):
+        request = quixote.get_request()
+        p = self.image.pic()
+        
+        id = p.id
+        if size is None or size == 'default':
+            size = imagestore.prefs.image_size
+        elif size == 'orig':
+            return self.image.download()
+            
+        (pw,ph) = ImageTransform.transformed_size(p, size)
 
-    self.details_link(p, self.picture_img(p, size, default)) + '\n'
+        #self.set_prevnext(request, id, size)
 
-    page.post()
+        for s in sorted_sizes:
+            if ImageTransform.sizes[s][0]*ImageTransform.sizes[s][1] < (640*480):
+                continue
+            if s != 'full' and \
+                   ImageTransform.sizes[s][0] > p.width and \
+                   ImageTransform.sizes[s][1] > p.height:
+                continue
+
+            request.navigation.add_option(self.view_path(s),
+                                          link=s.capitalize(),
+                                          title='%dx%d' % ImageTransform.transformed_size(p, s),
+                                          selected=(s==size),
+                                          extra={ 'onclick': imagestore.prefs.set_client('image_size', s) })
+
+        if self.image.collection.mayViewOrig(p, quiet=True):
+            request.navigation.add_option(self.image.download_path(),
+                                          link='Download original',
+                                          title='For printing')
+
+        page.pre(request, 'View image %d' % id,
+                 bodyid='view', trail=False)
+
+        request.navigation.render()
+
+        # Try to resize the window to a useful inner size.
+        # - do the simple thing
+        # - see if it worked
+        # - if not, try again
+        #
+        # XXX FIXME: apparently IE doesn't support innerWidth/Height,
+        # and you have to use something else.  See
+        # http://webfx.eae.net/dhtml/wincontrols/wincontrols.html
+
+        if imagestore.prefs.resize_view:
+            """\
+    <script language="JavaScript"><!--
+        size_window(window, %(w)d,%(h)h);
+    --></script>\n""" % { 'w': pw+(2*style.view_margin), 'h': ph+(2*style.view_margin) }
+
+
+        """
+        <object style="width:%(width)dpx;height:%(height)dpx" type="%(mimetype)s" data="%(img)s" class="picture">
+          <img style="width:%(width)dpx;height:%(height)dpx" src="%(img)s" class="picture">
+        </object>\n""" % {
+              'width':          pw,
+              'height':         ph,
+              'mimetype':       p.mimetype,
+              'img':            self.image.image_path(size),
+              }
+
+        '<a class="image-link" href="%s">Image link</a>' % self.image.image_path(size)
+        page.post()
 
                 
 

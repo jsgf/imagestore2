@@ -61,8 +61,8 @@ class Nav:
         assert self.next is None, 'resetting prev?'
         self.prev = _link('prev', url, link, title)
 
-    def add_option(self, url, link, title=None, selected=False):
-        self.options.append((url, link, title, selected))
+    def add_option(self, url, link, title=None, selected=False, extra=None):
+        self.options.append((url, link, title, selected, extra))
         
     def render_links(self, depth=0):
         r = TemplateIO(html=True)
@@ -88,14 +88,21 @@ class Nav:
         r = TemplateIO(html=True)
             
         if self.options:
-            p = '  '*depth
-            r += H('%s<span class="options">\n') % p
-            for o in self.options:
-                t = o[2] and (H('title="%s"') % o[2]) or ''
-                r += H('%s  <a %s class="%s" href="%s">%s</a>\n') % (p, t,
-                                                                     o[3] and 'selected' or '',
-                                                                     o[0], o[1])
-            r += H('%s</span>\n') % p
+            pfx = '  '*depth
+            r += H('%s<span class="options">\n') % pfx
+            for url,link,title,selected,extra in self.options:
+                t = title and (H('title="%s"') % title) or ''
+                if extra is None:
+                    extra = {}
+                r += H('%(pfx)s  <a %(title)s class="%(sel)s" href="%(url)s" %(extra)s>%(link)s</a>\n') % {
+                    'pfx': pfx,
+                    'title': t,
+                    'sel': selected and 'selected' or '',
+                    'url': url,
+                    'link': link,
+                    'extra': page.join_extra(extra)
+                    }
+            r += H('%s</span>\n') % pfx
         return r.getvalue()
 
     def render(self, depth=0):
