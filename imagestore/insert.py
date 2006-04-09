@@ -177,7 +177,7 @@ update_maps({
     }, StillImageImporter)
 
 
-class MPEGImporter(Importer):
+class VideoImporter(Importer):
     def import_image(self, imgfile, imgdata, owner, public, collection,
                      mimetype=None, keywords=[], **imgattr):
         sha1 = sha.new(imgdata)
@@ -190,7 +190,7 @@ class MPEGImporter(Importer):
         try:
             m = db.setmedia(imgdata)
 
-            thumbdata = open('static/thumb-mpeg.jpg').read()
+            thumbdata = open('static/thumb-video.jpg').read()
             th_img = Image_from_data(thumbdata)
             thumb = db.setmedia(thumbdata)
 
@@ -219,9 +219,10 @@ class MPEGImporter(Importer):
         return pic.id
     
 update_maps({
-    'video/mpeg':   [ 'mpg', 'mpeg' ],
-    'video/quicktime':   [ 'mov' ],
-    }, MPEGImporter)
+    'video/mpeg':       [ 'mpg', 'mpeg' ],
+    'video/quicktime':  [ 'mov' ],
+    'video/x-msvideo':  [ 'avi' ],
+    }, VideoImporter)
 
 
 class ImportException(Exception):
