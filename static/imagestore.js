@@ -428,23 +428,43 @@ function create_sized_window(url,id,w,h,extra)
 	var win = window.open(url, id, extra.join(','));
 
 	size_window(win, w, h);
+
+	win.focus();		// pop up existing window
+
 	return win;
 }
 
-function create_view_window(id, portrait, padding, extra)
+function create_view_window(id, pw, ph, portrait, padding, extra)
 {
 	var size = get_preference('image_size');
 
 	size = dojo.json.evalJSON(size);
-	var w,h;
-
-	w = size[1][0];
-	h = size[1][1];
+	
+	var sw = size[1][0];
+	var sh = size[1][1];
 
 	if (portrait) {
-		var t = w;
-		w = h;
-		h = t;
+		var t = pw;
+		pw = ph;
+		ph = t;
+	}
+
+	var w, h;
+
+	if (pw < sw && ph < sh) {
+		w = pw;
+		h = ph;
+	} else {
+		var fx = sw / pw;
+		var fy = sh / ph;
+
+		if (fx < fy) {
+			w = sw;
+			h = ph * fx;
+		} else {
+			w = pw * fy;
+			h = sh;
+		}
 	}
 
 	return create_sized_window(null, id, w+padding, h+padding, extra);
