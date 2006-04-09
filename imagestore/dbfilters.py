@@ -31,7 +31,6 @@ def _inCollection(collection, filt):
 def mayViewFilter(collection, user = None):
     " Rules for which pictures a user may view - user==None for anonymous "
 
-    print 'dbfilters.mayViewFilter user=%s, collection=%s' % (user, collection.name)
     ok = [ ]
 
     # If the collection is public, then anyone can look at public pictures in it
@@ -54,7 +53,6 @@ def mayViewFilter(collection, user = None):
                 ok.append(db.Picture.q.visibility == 'restricted')
 
     ret = _inCollection(collection, (db.Picture.q.uploadID == None) & OR(*ok))
-    print 'ret=%s, %s'% (ret, ret.op)
     return ret
 
 def mayEditFilter(collection, user):
