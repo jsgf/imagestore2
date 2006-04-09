@@ -134,6 +134,9 @@ UL.thumb-set > LI {
 
   z-index: 0;
 }
+.thumbnail:target {
+  background-color:%(active-color)s;
+}
 
 /* Editable thumbnails are emphasized */
 .auth.want-edit .thumbnail.mayedit { 
