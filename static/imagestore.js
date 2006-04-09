@@ -435,7 +435,6 @@ function create_view_window(id, portrait, padding, extra)
 {
 	var size = get_preference('image_size');
 
-	alert('size='+size);
 	size = dojo.json.evalJSON(size);
 	var w,h;
 
