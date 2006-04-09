@@ -20,12 +20,12 @@ import imagestore.style
 import imagestore.menu as menu
 import imagestore.nav as nav
 import imagestore.auth as auth
-
-#import imagestore.user as user
+import imagestore.preferences as preferences
 
 _q_exports = [ 'user', 'auth', 'admin', 'rss', 'static', ('style.css', 'style_css') ]
 
 style_css = imagestore.style.style_css
+prefs = preferences.Preferences(imagestore)
 
 def _q_index(request):
     return quixote.redirect('%sdefault/' % path())
