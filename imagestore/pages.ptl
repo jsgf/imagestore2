@@ -2,6 +2,7 @@
 
 import quixote
 
+import imagestore
 import imagestore.base_paths as paths
 import imagestore.auth as auth
 
@@ -23,6 +24,12 @@ def pre [html] (request, title, bodyid, trail=True, brieftitle=None):
         request.session.add_breadcrumb(brieftitle or title,
                                        request.get_path(),
                                        brieftitle and title)
+
+    user = auth.login_user(quiet=True)
+    setuser = ''
+    if user is not None:
+        setuser = 'auth.set_auth(%d, "%s");' % (user.id, user.fullname.encode(str('string-escape')))
+        
     """\
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
         "http://www.w3.org/TR/html4/strict.dtd">
@@ -55,15 +62,20 @@ def pre [html] (request, title, bodyid, trail=True, brieftitle=None):
                 },
   };
   Behaviour.register(hover_rules);
+
+  %(setuser)s
   </script>
   <title>%(title)s</title>
 %(nav)s</head>
-<body id="%(id)s">\n""" % {
+<body id="%(id)s" class="%(wantedit)s %(auth)s">\n""" % {
       'title': title,
       'base': paths.path(),
       'static': paths.static_path(),
       'id': bodyid,
       'nav': request.navigation.render_links(depth=1),
+      'wantedit': imagestore.prefs.want_edit and 'want-edit' or 'no-want-edit',
+      'auth': auth.login_user(quiet=True) and 'auth' or 'no-auth',
+      'setuser': setuser,
       }
 
 def post [html] ():
@@ -118,12 +130,12 @@ class EditSwitchItem(menu.MenuItem):
     def render [html] (self, depth=0):
         """<span %(tags)s>
                 Editing: 
-                <a class="set-wantedit" href="wantedit?q=1">On</a>
+                <a class="set-wantedit" href="%(pref)swant_edit?set=true">On</a>
                 <span class="selected set-wantedit">Off</span>
                 
                 <span class="selected set-nowantedit">On</span>
-                <a class="set-nowantedit" href="wantedit?q=0">Off</a>
-        </span>""" % { 'tags': self.tags() }
+                <a class="set-nowantedit" href="%(pref)swant_edit?set=false">Off</a>
+        </span>""" % { 'tags': self.tags(), 'pref': imagestore.prefs.path() }
 
 # Generate a menu pane.  extra is a list of items to add to the list;
 # it's in the form of nested lists of tuples

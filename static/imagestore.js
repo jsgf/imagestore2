@@ -46,6 +46,14 @@ var auth = {
 	userid: null,		// set when state valid
 	fullname: null,		// set when state valid
 
+	// Called on page load to set auth state
+	set_auth: function(userid, fullname) {
+		var user = { id: userid, fullname: fullname };
+		this._setstate('valid', user);
+		this.publish('valid', user);
+	},
+
+	// Called by login UI widget to make auth state changes
 	authevent: function(event, user, pass) {
 		log('auth.authevent: '+event+' user="'+user+'" pass="'+pass+'"');
 
@@ -78,6 +86,7 @@ var auth = {
 		}
 	},
 
+	// user wants to log in
 	login: function(user, pass) {
 		if (user == '')
 			user = null;
@@ -103,6 +112,7 @@ var auth = {
 		this.update_auth();
 	},
 
+	// user wants to log out
 	logout: function() {
 		this.user = null;
 		this.pass = null;
@@ -115,11 +125,13 @@ var auth = {
 		this.update_auth();
 	},
 
+	// tell anyone who cares about something
 	_publish: function() {
 		dojo.debug('auth publish: '+arguments[0]);
 		dojo.event.topic.publish('IS/Auth', arguments);		
 	},
 
+	// set current auth state
 	_setstate: function(state, user) {
 		log('this.state '+this.state+' -> '+state);
 		this.state = state;
@@ -131,6 +143,7 @@ var auth = {
 		}
 	},
 
+	// check with the server to see what our auth state really is
 	update_auth: function() {
 		var _this = this;
 
@@ -164,6 +177,7 @@ var auth = {
 		request(req);
 	},
 
+	// compute a response for HTTP Digest authentication
 	_auth_response: function(method, uri, challenge) {
 		function H(x) {
 			return dojo.crypto.MD5.compute(x, dojo.crypto.outputTypes.Hex);
@@ -221,6 +235,7 @@ var auth = {
 		return 'Digest '+ret;
 	},
 
+	// parse an HTTP Digest authentication challenge
 	_parse_challenge: function(authhdr) {
 		// This matches name=value, where value can either be
 		// a number, an identifier or a quoted string.
@@ -299,6 +314,7 @@ var auth = {
 		return this.challenge;
 	},
 
+	// Make sure a request has authorizing information attached to it, if we have it
 	authorize_request: function(origreq) {
 		var req = dojo.lang.shallowCopy(origreq);
 
@@ -383,6 +399,7 @@ function request(origreq, challenge)
 }
 
 // Update the auth classes on BODY so the auth-sensitive styles work.
+// Responds to events published by the auth object.
 auth_styles = {
 	update: function(event) {
 		var from, to;
@@ -397,18 +414,17 @@ auth_styles = {
 		dojo.html.replaceClass(dojo.html.body(), to, from);
 	}
 };
-// Initially, no auth and no editing
-dojo.addOnLoad(function () {
-		       dojo.html.replaceClass(dojo.html.body(), 'no-auth', 'auth');
-		       dojo.html.replaceClass(dojo.html.body(), 'no-want-edit', 'want-edit');
-	       })
 dojo.event.topic.subscribe('IS/Auth', auth_styles, 'update');
 
 // Subscribe the auth object to events coming from the auth UI
 dojo.event.topic.subscribe('IS/Auth/UI', auth, 'authevent');
 
 // Make sure the auth object has up-to-date information
+// XXX Should only be necessary if the server didn't already prime us with auth info
 dojo.addOnLoad(function () { window.auth.update_auth() });
+
+
+
 
 function size_window(win, w,h)
 {
@@ -468,6 +484,8 @@ function create_view_window(id, pw, ph, portrait, padding, extra)
 	return create_sized_window(null, id, w+padding, h+padding, extra);
 }
 
+
+
 function set_want_edit(on)
 {
 	var set, clear;
@@ -482,6 +500,8 @@ function set_want_edit(on)
 	set_preference('want_edit', on);
 	dojo.html.replaceClass(dojo.html.body(), set, clear);
 }
+
+
 
 function set_preference(pref, val)
 {

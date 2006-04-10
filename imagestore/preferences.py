@@ -5,6 +5,7 @@ import json
 import quixote
 
 import imagestore.ImageTransform as ImageTransform
+import imagestore.http as http
 
 class PreferenceError(Exception):
     pass
@@ -62,6 +63,8 @@ def _propname(pref):
     return '_pref_%s' % pref
 
 class Preferences(object):
+    _q_exports = []
+    
     @staticmethod
     def _cookiename(pref):
         return 'IS-pref-%s' % pref
@@ -81,7 +84,17 @@ class Preferences(object):
 
     def __init__(self, parent):
         self.parent = parent
-        
+
+    def _set_cookie(self, pref):
+        response = quixote.get_response()
+        value = getattr(self, pref);
+        prop = self.__properties__[pref]
+        response.set_cookie(self._cookiename(pref), prop.encode(value), path=self.parent.path())
+
+    def _set_cookies(self):
+        for p in self.__properties__:
+            self._set_cookie(p)
+            
     def _set_pref(self, pref, value):
         prop = self.__properties__[pref]
 
@@ -89,8 +102,7 @@ class Preferences(object):
             raise PreferenceError('bad value')
         
         setattr(self, _propname(pref), value)
-        response = quixote.get_response()
-        response.set_cookie(self._cookiename(pref), prop.encode(value), path=self.parent.path())
+        self._set_cookie(pref)
 
     def _del_pref(self, pref):
         delattr(self, _propname(pref))
@@ -118,9 +130,42 @@ class Preferences(object):
                                                         prop.encode(val),
                                                         self.parent.path())
 
-import imagestore
-p = Preferences(imagestore)
+    def path(self):
+        return self.parent.path() + 'prefs/'
+    
+    def _q_index(self, request):
+        ret = {}
+        for k in self.__properties__:
+            ret[k] = self._get_pref(k)
+        self._set_cookies()
+        http.json_response()
+        return json.write(ret)
 
+    def _q_lookup(self, request, component):
+        if component not in self.__properties__:
+            raise TraversalError()
+
+        def prop(request):
+            request = quixote.get_request()
+            response = quixote.get_response()
+
+            self._set_cookie(component)
+            
+            if 'set' in request.form:
+                setattr(self, _propname(component), json.read(request.form['set']))
+
+                back=request.get_environ('HTTP_REFERER')
+                if back is not None:
+                    response.set_status(204) # no content
+                    return quixote.redirect(back)
+                else:
+                    return 'pref set';
+            else:
+                http.json_response()
+                return json.write(getattr(self, _propname(component)))
+
+        return prop
+    
 # Set a property for each preference
 for k in Preferences.__properties__.keys():
     def pget(self, k=k):
