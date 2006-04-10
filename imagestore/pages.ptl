@@ -94,11 +94,13 @@ class EditSwitchItem(menu.MenuItem):
     def render [html] (self, depth=0):
         """<span %(tags)s>
                 Editing: 
-                <a class="set-wantedit" onClick="set_want_edit(true)">On</a>
+                <a class="set-wantedit" href="wantedit?q=1"
+                onClick="set_want_edit(true); return false">On</a>
                 <span class="selected set-wantedit">Off</span>
                 
                 <span class="selected set-nowantedit">On</span>
-                <a class="set-nowantedit" onClick="set_want_edit(false)">Off</a>
+                <a class="set-nowantedit" href="wantedit?q=0"
+                onClick="set_want_edit(false); return false;">Off</a>
         </span>""" % { 'tags': self.tags() }
 
 # Generate a menu pane.  extra is a list of items to add to the list;

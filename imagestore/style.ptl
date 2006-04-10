@@ -130,7 +130,7 @@ UL.thumb-set > LI {
   width: %(thumb-size)dpx;  
   height: %(thumb-size)dpx;
 
-  background: %(thumb-frame)s;
+  background-color: %(thumb-frame)s;
 
   z-index: 0;
 }
@@ -289,9 +289,6 @@ A > I.hide {
     /* Switch to select whether the editing interface is visible */
     .editswitch {
         white-space: nowrap;
-    }
-    .editswitch > A {
-        cursor: pointer;
     }
     .want-edit .editswitch > .set-wantedit {
         display: none;

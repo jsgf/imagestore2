@@ -437,8 +437,6 @@ function create_sized_window(url,id,w,h,extra)
 function create_view_window(id, pw, ph, portrait, padding, extra)
 {
 	var size = get_preference('image_size');
-
-	size = dojo.json.evalJSON(size);
 	
 	var sw = size[1][0];
 	var sh = size[1][1];
@@ -481,16 +479,20 @@ function set_want_edit(on)
 		set = 'no-want-edit';
 		clear = 'want-edit';
 	}
+	set_preference('want_edit', on);
 	dojo.html.replaceClass(dojo.html.body(), set, clear);
 }
 
 function set_preference(pref, val)
 {
+	val = dojo.json.serialize(val);
 	document.cookie = 'IS-pref-'+pref+'='+val+';path='+base_path;
 }
 
 function get_preference(pref)
 {
 	pref = 'IS-pref-'+pref;
-	return dojo.io.cookie.getCookie(pref);
+	var val = dojo.io.cookie.getCookie(pref);
+	val = dojo.json.evalJSON(val);
+	return val;
 }
