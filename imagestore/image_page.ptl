@@ -66,7 +66,7 @@ class ImageUI:
     def __init__(self, image):
         self.image = image
 
-    def thumbnail [html] (self, link=None, wantedit=False, linkextra=None):
+    def thumbnail [html] (self, link=None, wantedit=False, linkextra=None, linkclasses=None):
         #""" Generate a thumbnail with all the trimmings. """
 
         if link is None:
@@ -74,6 +74,10 @@ class ImageUI:
 
         if linkextra is None:
             linkextra = {}
+
+        if linkclasses is None:
+            linkclasses = []
+        linkclasses.append('link')
 
         user = auth.login_user(quiet=True)
         p = self.image.pic()
@@ -87,10 +91,8 @@ class ImageUI:
             <div id="%(id)s" class="thumbnail %(mayedit)s">
               <img alt="%(title)s" src="%(img)s"
                 style="width:%(th-width)dpx;height:%(th-height)dpx;left:%(pos-x)dpx;top:%(pos-y)dpx;">
-              <div title="%(title)s" class="ui"
-                onmouseover="dojo.html.addClass(this, 'hover');"
-                onmouseout="dojo.html.removeClass(this, 'hover');">
-                <a class="view" href="%(link)s" %(linkextra)s><i class="hide">view larger</i></a>
+              <div title="%(title)s" class="ui hoverable">
+                <a class="%(linkclasses)s" href="%(link)s" %(linkextra)s><i class="hide">link</i></a>
                 <div class="need-auth visibility %(visibility)s"><a href="setvis"><i class="hide">setvis</i></a></div>
                 <a class="need-auth arrow right" href="%(rot90)s"><i class="hide">rightisup</i></a>
                 <a class="need-auth arrow down" href="%(rot180)s"><i class="hide">downisup</i></a>
@@ -110,6 +112,8 @@ class ImageUI:
             'img':      self.image.thumb_path(),
             'link':     link,
             'linkextra':page.join_extra(linkextra),
+            'linkclasses':' '.join(linkclasses),
+            
             'th-width': tw,
             'th-height':th,
             'pos-x':    (style.thumb_size - tw) / 2,

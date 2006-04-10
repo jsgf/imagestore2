@@ -163,20 +163,25 @@ class CalendarUI:
             for p in pl:
                 im = image.Image(collection, p)
                 (w,h) = ImageTransform.transformed_size(p, imagestore.prefs.image_size)
-                linkextra = {}
+                linkextra = None
+                linkclasses = None
                 if imagestore.prefs.view_new_window:
                     linkextra = {
                         'target': 'view:%d' % p.id,
+                        # Can't really use behavours here, since every call is different
                         'onClick': "create_view_window('view:%(id)d',%(pw)d,%(ph)d,%(portrait)d,%(padding)d,['resizable=1','scrollbars=1','location=1','toolbar=1'])" % {
                         'id': p.id,
                         'pw': p.width,
                         'ph': p.height,
                         'padding': style.view_margin*2,
                         'portrait': p.orientation in (90, 270),
+                        },
                         }
-                        }
+                    linkclasses = [ 'view' ]
                     
-                '<li>'+im.ui.thumbnail(wantedit=True, linkextra = linkextra)
+                '<li>'
+                im.ui.thumbnail(wantedit=True, linkextra=linkextra, linkclasses=linkclasses)
+                '</li>\n'
             '</ul>\n'
             '</div>\n'
 

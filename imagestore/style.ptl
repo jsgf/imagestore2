@@ -102,7 +102,7 @@ IMG     	{ border: 0; padding: 0; }
    <.thumbnail>		-- container (maybe .mayedit)	z=0
      <img>		-- thumbnail itself		z=1
      <.ui>		-- .ui element hover to activate other UI parts	z=2
-       <A.view>         -- link to view large image	z=3
+       <A.link>         -- link something       	z=3
        <DIV.visibility>	-- image visibility indicator	z=4
          <A.need-auth>	-- edit image visibility	
        <A.arrow.need-edit>  -- rotate arrows		z=4
@@ -161,14 +161,14 @@ UL.thumb-set > LI {
 }
 
 /* View-larger link */
-.thumbnail > .ui > A.view { 
+.thumbnail > .ui > A.link { 
   position: absolute;
   width: 100%%;
   height: 100%%;
   z-index: 3;
   background-color: transparent;
 }
-.thumbnail > .ui.hover > A.view { 
+.thumbnail > .ui.hover > A.link { 
   background: url(%(staticdir)strans-50perc.png) repeat;
 }
 
