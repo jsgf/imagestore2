@@ -21,7 +21,6 @@ class Property(object):
         return v in self.validset
 
     def encode(self, v):
-        print 'encoding "%s"' % v
         v = self.tocookie(v)
         v = json.write(v)
         v = urllib.quote(v)
@@ -89,7 +88,8 @@ class Preferences(object):
         response = quixote.get_response()
         value = getattr(self, pref);
         prop = self.__properties__[pref]
-        response.set_cookie(self._cookiename(pref), prop.encode(value), path=self.parent.path())
+        response.set_cookie(self._cookiename(pref), prop.encode(value),
+                            path=self.parent.path())
 
     def _set_cookies(self):
         for p in self.__properties__:
@@ -98,6 +98,7 @@ class Preferences(object):
     def _set_pref(self, pref, value):
         prop = self.__properties__[pref]
 
+        #print '_set_pref(%s,%s)' % (pref, value)
         if not prop.valid(value):
             raise PreferenceError('bad value')
         
@@ -112,12 +113,16 @@ class Preferences(object):
     def _get_pref(self, pref):
         prop = self.__properties__[pref]
 
+        #print '_get_pref(%s)' % pref
         ret = getattr(self, _propname(pref), None)
+        #print '\tattr is %s' % ret
         if ret is None:
             request = quixote.get_request()
             ret = prop.decode(request.get_cookie(self._cookiename(pref)))
+            #print '\tcookie is %s' % ret
             if ret is None:
                 ret = prop.default
+                #print '\tdefault is %s' % ret
                 self._set_pref(pref, ret)
 
         return ret
@@ -154,7 +159,7 @@ class Preferences(object):
             if 'set' in request.form:
                 setattr(self, _propname(component), json.read(request.form['set']))
 
-                back=request.get_environ('HTTP_REFERER')
+                back = request.get_environ('HTTP_REFERER')
                 if back is not None:
                     response.set_status(204) # no content
                     return quixote.redirect(back)
