@@ -597,7 +597,7 @@ BODY#view .image-link {
 }
 #details .name {
   font-weight: bold;
-  display: inline-block;
+  display: inline;
 }
 #details .detail-thumb { 
   display: block;
@@ -623,7 +623,7 @@ BODY#calendar .calendar-year .years A {
   margin: 1em;
 }
 BODY#calendar .calendar-year TABLE.month {
-  display: inline-table;
+  display: table;
   float: left;
   margin: 1em;
   border: 1px solid #555555;
