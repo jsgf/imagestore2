@@ -64,6 +64,7 @@ dojo.widget.html.Login = function() {
 			this._setstate('invalid');
 			break;
 		case 'valid':
+			dojo.debug('user: '+user+'; '+user.username);
 			this._setstate('valid', user);
 			break;
 		case 'unauth':

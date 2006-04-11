@@ -47,10 +47,12 @@ var auth = {
 	fullname: null,		// set when state valid
 
 	// Called on page load to set auth state
-	set_auth: function(userid, fullname) {
-		var user = { id: userid, fullname: fullname };
+	set_auth: function(userid, username, fullname) {
+		var user = { id: userid,
+			     username: username,
+			     fullname: fullname };
 		this._setstate('valid', user);
-		this.publish('valid', user);
+		this._publish('valid', user);
 	},
 
 	// Called by login UI widget to make auth state changes
@@ -75,7 +77,10 @@ var auth = {
 				this._publish('details', this.user, this.pass);
 				break;
 			case 'valid':
-				this._publish('valid', { fullname: this.fullname, id: this.userid });
+				var this_ = this;
+				this._publish('valid', { id: this_.userid,
+							 username: this_.user,
+							 fullname: this_.fullname });
 				break;
 			case 'invalid':
 				this._publish('invalid', this.user, '');
@@ -128,6 +133,10 @@ var auth = {
 	// tell anyone who cares about something
 	_publish: function() {
 		dojo.debug('auth publish: '+arguments[0]);
+		if (typeof(arguments[1]) != 'undefined') {
+			var u = arguments[1];
+			dojo.debug('id='+u.id+' user '+u.username+' full '+u.fullname);
+		}
 		dojo.event.topic.publish('IS/Auth', arguments);		
 	},
 
@@ -137,9 +146,9 @@ var auth = {
 		this.state = state;
 		if (user) {
 			log(' user.fullname='+user.fullname+' username='+user.username+' id='+user.id);
-			this.fullname = user.fullname;
-			this.user = user.username;
 			this.userid = user.id;
+			this.user = user.username;
+			this.fullname = user.fullname;
 		}
 	},
 
@@ -172,7 +181,7 @@ var auth = {
 			}
 		};
 
-		log("validating auth token");
+		log("validating auth token user "+this.user);
 	
 		request(req);
 	},
@@ -318,10 +327,10 @@ var auth = {
 	authorize_request: function(origreq) {
 		var req = dojo.lang.shallowCopy(origreq);
 
-		if (this.state != 'unset') {
+		if (this.state != 'unset' && this.pass != null) {
 			if (!this.response[req.url]) {
 				challenge = this._get_challenge();
-				//alert('got challenge for '+origreq.url+': '+challenge);
+				log('got challenge for '+origreq.url+': '+challenge);
 			}
 
 			// If we have a challenge, then generate a response
@@ -338,7 +347,7 @@ var auth = {
 			if (this.response[req.url]) {
 				var resp = this.response[req.url];
 
-				//alert('url='+req.url+' auth='+auth);
+				log('url='+req.url+' auth='+resp);
 				//_set_req_header(req, 'authorization', resp);
 				_set_req_header(req, 'x-authorization', resp);
 			} else {

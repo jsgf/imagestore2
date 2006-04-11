@@ -28,7 +28,9 @@ def pre [html] (request, title, bodyid, trail=True, brieftitle=None):
     user = auth.login_user(quiet=True)
     setuser = ''
     if user is not None:
-        setuser = 'auth.set_auth(%d, "%s");' % (user.id, user.fullname.encode(str('string-escape')))
+        setuser = 'auth.set_auth(%d, "%s", "%s");' % (user.id,
+                                                      user.username.encode(str('string-escape')),
+                                                      user.fullname.encode(str('string-escape')))
         
     """\
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
@@ -79,7 +81,10 @@ def pre [html] (request, title, bodyid, trail=True, brieftitle=None):
       }
 
 def post [html] ():
-    "\n</body>\n</html>\n"
+    """
+    <div id="log" style="clear:both"></div>
+</body>
+</html>"""
 
 def html(request, title, page, bodyid=''):
     return pre(None, title, bodyid) + page + post()
