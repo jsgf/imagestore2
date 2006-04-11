@@ -62,7 +62,7 @@ def _propname(pref):
     return '_pref_%s' % pref
 
 class Preferences(object):
-    _q_exports = []
+    _q_exports = [ 'set_defaults' ]
     
     @staticmethod
     def _cookiename(pref):
@@ -170,6 +170,18 @@ class Preferences(object):
                 return json.write(getattr(self, _propname(component)))
 
         return prop
+
+    def set_defaults(self, request=None):
+        for k in self.__properties__:
+            delattr(self, k)
+
+        back = request.get_environ('HTTP_REFERER')
+        if back is not None:
+            response.set_status(204) # no content
+            return quixote.redirect(back)
+        else:
+            return 'prefs set to defaults\n';
+
     
 # Set a property for each preference
 for k in Preferences.__properties__.keys():
