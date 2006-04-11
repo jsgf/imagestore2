@@ -434,23 +434,39 @@ dojo.addOnLoad(function () { window.auth.update_auth() });
 
 
 
+/*
+  Try to resize the window to a useful inner size.
+  - do the simple thing
+  - see if it worked
+  - if not, try again
 
+  XXX FIXME: apparently IE doesn't support innerWidth/Height,
+  and you have to use something else.  See
+  http://webfx.eae.net/dhtml/wincontrols/wincontrols.html
+*/
 function size_window(win, w,h)
 {
 	var bw = w - win.innerWidth;
 	var bh = h - win.innerHeight;
+
+	//alert('w='+w+' h='+h+' bw='+bw+' bh='+bh);
+
 	if (bw != 0 || bh != 0)
 		win.resizeTo(w + bw, h + bh);
 }
 
 function create_sized_window(url,id,w,h,extra)
 {
-	if (!extra) {
+	if (!extra)
 		extra = [];
-	}
+
 	extra.push('width='+w);
 	extra.push('height='+h);
-	var win = window.open(url, id, extra.join(','));
+	extra = extra.join(',');
+
+	//alert(extra);
+
+	var win = window.open(url, id, extra);
 
 	size_window(win, w, h);
 
@@ -461,7 +477,7 @@ function create_sized_window(url,id,w,h,extra)
 
 function create_view_window(id, pw, ph, portrait, padding, extra)
 {
-	var size = get_preference('image_size');
+	var size = get_preference('image_size', [ '', [ 640, 480 ] ]);
 	
 	var sw = size[1][0];
 	var sh = size[1][1];
@@ -490,7 +506,7 @@ function create_view_window(id, pw, ph, portrait, padding, extra)
 		}
 	}
 
-	return create_sized_window(null, id, w+padding, h+padding, extra);
+	return create_sized_window('', id, w+padding, h+padding, extra);
 }
 
 
@@ -518,10 +534,13 @@ function set_preference(pref, val)
 	document.cookie = 'IS-pref-'+pref+'='+val+';path='+base_path;
 }
 
-function get_preference(pref)
+function get_preference(pref, defl)
 {
 	pref = 'IS-pref-'+pref;
 	var val = dojo.io.cookie.getCookie(pref);
-	val = dojo.json.evalJSON(val);
+	if (val != null)
+		val = dojo.json.evalJSON(val);
+	else
+		val = defl;
 	return val;
 }

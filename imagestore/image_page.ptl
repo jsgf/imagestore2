@@ -165,20 +165,13 @@ class ImageUI:
 
         request.navigation.render()
 
-        # Try to resize the window to a useful inner size.
-        # - do the simple thing
-        # - see if it worked
-        # - if not, try again
-        #
-        # XXX FIXME: apparently IE doesn't support innerWidth/Height,
-        # and you have to use something else.  See
-        # http://webfx.eae.net/dhtml/wincontrols/wincontrols.html
-
         if imagestore.prefs.resize_view:
             """\
-    <script language="JavaScript"><!--
-        size_window(window, %(w)d,%(h)h);
-    --></script>\n""" % { 'w': pw+(2*style.view_margin), 'h': ph+(2*style.view_margin) }
+    <script language="JavaScript">
+        size_window(window, %(w)d,%(h)d);
+    </script>\n""" % {
+        'w': pw+(2*style.view_margin),
+        'h': ph+(2*style.view_margin) }
 
 
         """
