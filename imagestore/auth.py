@@ -92,6 +92,11 @@ def _auth_challenge(scheme, realm, stale=False):
 
     return ret
     
+def _format_auth(scheme, dict):
+    return '%s %s' % (scheme.capitalize(),
+                      ', '.join([ '%s="%s"' % (k, v.encode('string-escape'))
+                                  for k,v in dict.items() ]))
+
 class UnauthorizedError(AccessError):
     """The request requires user authentication.
     
@@ -113,9 +118,7 @@ class UnauthorizedError(AccessError):
         response = quixote.get_response()
         (exp,dict) = _auth_challenge(self.scheme, self.realm, self.stale)
 
-        auth = '%s %s' % (self.scheme.capitalize(),
-                          ', '.join([ '%s="%s"' % (k, v.encode('string-escape'))
-                                      for k,v in dict.items() ]))
+        auth = _format_auth(self.scheme, dict)
 
         #print 'auth=%s' % auth
         response.set_header('WWW-Authenticate', auth)
@@ -276,6 +279,9 @@ def _do_authenticate(auth_hdr, method):
         if scheme not in _schemes_allowed:
             return None
 
+        method = dict.get('method', method)
+        dict['method'] = method
+
         try:
             if _schemes[scheme](dict, method):
                 username = dict.get('username')
@@ -293,7 +299,7 @@ def _do_authenticate(auth_hdr, method):
         if user is None:
             response.expire_cookie(_auth_cookie, path=imagestore.path())
         else:
-            response.set_cookie(_auth_cookie, auth_hdr, path=imagestore.path())
+            response.set_cookie(_auth_cookie, _format_auth('digest', dict), path=imagestore.path())
 
     return user
 
