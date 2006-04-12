@@ -259,21 +259,23 @@ class ImageMeta:
         'focal_length': lambda p: p.focal_length,
         }
     
-    def set_title(p, t):
-        p.title = t
+    def set_title(self, t):
+        self.image.pic().title = t
         return t
 
-    def set_description(p, d):
+    def set_description(self, d):
+        p = self.image.pic()
         p.description = d
         return d
 
-    def set_visibility(p, v):
+    def set_visibility(self, v):
         if v not in ('public', 'restricted', 'private'):
             raise QueryError('bad visibility')
+        p = self.image.pic()
         p.visibility = v
         return v
 
-    def set_orientation(p, o):
+    def set_orientation(self, o):
         try:
             o = int(o)
         except ValueError:
@@ -282,10 +284,11 @@ class ImageMeta:
             raise QueryError('bad orientation')
         if o not in (0, 90, 180, 270):
             raise QueryError('bad orientation')
+        p = self.image.pic()
         p.orientation = o
         return o
 
-    def set_keywords(p, kw):
+    def set_keywords(self, kw):
         pass
 
     set_fields = {
@@ -298,18 +301,17 @@ class ImageMeta:
         
     def __init__(self, image):
         self.image = image
-
+        
     def set_meta(self, name, value):
-        p = self.image.pic()
-
         user = auth.login_user()
+        p = self.image.pic()
         if not p.mayEdit(user):
             raise AccessError('Must log in to change picture')
 
         if name not in self.set_fields:
             raise http.ForbiddenError("can't change '%s' field" % name)
 
-        return self.set_fields[name](p, value)
+        return self.set_fields[name](self, value)
 
     def get_meta(self):
         p = self.image.pic()
@@ -379,7 +381,7 @@ _re_xform_image = re.compile('^([a-z]+|([0-9]+)x([0-9]+))\.([a-z]+)$')
 
 class Image:
     """ Class for a specific image, and its namespace. """
-    _q_exports = [ 'download', 'meta', 'exif', 'details' ]
+    _q_exports = [ 'download', 'meta', 'exif', 'details', 'rotate' ]
 
     def __init__(self, collection, pic):
         self.collection = collection
@@ -406,8 +408,34 @@ class Image:
     def download_path(self):
         return self.path() + 'download'
     
-    def rotate_path(self, angle):
-        return self.path() + 'rotate?angle=%d' % angle
+    def rotate_path(self):
+        ret = self.path() + 'rotate'
+        return ret
+
+    def rotate(self, request):
+        request = quixote.get_request()
+        response = quixote.get_response()
+
+        if request.get_method() != 'POST':
+            http.MethodError(('POST',))
+
+        p = self.pic();
+
+        if not self.collection.mayEdit(p):
+            raise AccessError('may not edit image')
+        
+        angle = request.form.get('angle', None)
+
+        self.meta.set_orientation(angle)
+
+        ref = request.get_environ('HTTP_REFERER')
+        if ref is not None:
+            response.redirect(ref + '#pic%d' % p.id)
+        response.set_content_type('text/html', 'utf-8')
+
+        # XXX We want this to return the thumbnail block in the same
+        # form as the original.  Not sure how yet.
+        return self.ui.thumbnail(wantedit=True)
 
     def pic(self):
         """ Defer looking up the picture until we actually need it. """

@@ -205,54 +205,56 @@ UL.thumb-set > LI {
 }
 
 /* arrow links invisible by default */
-.thumbnail > .ui > A.arrow {
+.thumbnail > .ui > .rotate,
+.thumbnail > .ui .arrow {
   display: none;
 }
 /* visible if we can edit */
-.auth.want-edit .thumbnail.mayedit > .ui > A.arrow {
+.auth.want-edit .thumbnail.mayedit > .ui > .rotate,
+.auth.want-edit .thumbnail.mayedit > .ui .arrow {
   display: block;
 }
 
 /* Arrow link positioning */
-.thumbnail > .ui > A.arrow {
+.thumbnail > .ui .arrow {
   position: absolute;
   z-index: 4;
   background: transparent no-repeat center;
 }
-.thumbnail > .ui > A.arrow:hover {
+.thumbnail > .ui .arrow:hover {
 /* background-color: orange; */
 }
 
-.thumbnail > .ui > A.left {
+.thumbnail > .ui .arrow.left {
   left: 0px;
   top: %(rotate-top)dpx;
   width: %(large-arrow-height)dpx;
   height: %(large-arrow-width)dpx;
   cursor: url(%(staticdir)sstock-rotate-cw-16.png) 8 8, w-resize;
 }
-.thumbnail > .ui.hover > A.left {
+.thumbnail > .ui.hover .arrow.left {
   background-image: url(%(staticdir)sarrow-large-left.png);
 }
 
-.thumbnail > .ui > A.right { 
+.thumbnail > .ui .arrow.right { 
   right: 0px;
   top: %(rotate-top)dpx;
   width: %(large-arrow-height)dpx;
   height: %(large-arrow-width)dpx;
   cursor: url(%(staticdir)sstock-rotate-ccw-16.png) 8 8, e-resize;
 }
-.thumbnail > .ui.hover > A.right {
+.thumbnail > .ui.hover .arrow.right {
   background-image: url(%(staticdir)sarrow-large-right.png);
 }
 
-.thumbnail > .ui > A.down { 
+.thumbnail > .ui .arrow.down { 
   bottom: 0px;
   left: %(rotate-left)dpx;
   width: %(large-arrow-width)dpx;
   height: %(large-arrow-height)dpx;
   cursor: url(%(staticdir)sstock-rotate-180-16.png) 8 8, s-resize;
 }
-.thumbnail .ui.hover > A.down {
+.thumbnail .ui.hover .arrow.down {
   background-image: url(%(staticdir)sarrow-large-down.png);
 }
 

@@ -94,18 +94,23 @@ class ImageUI:
               <div title="%(title)s" class="ui hoverable">
                 <a class="%(linkclasses)s" href="%(link)s" %(linkextra)s><i class="hide">link</i></a>
                 <div class="need-auth visibility %(visibility)s"><a href="setvis"><i class="hide">setvis</i></a></div>
-                <a class="need-auth arrow right" href="%(rot90)s"><i class="hide">rightisup</i></a>
-                <a class="need-auth arrow down" href="%(rot180)s"><i class="hide">downisup</i></a>
-                <a class="need-auth arrow left" href="%(rot270)s"><i class="hide">leftisup</i></a>
+                <form class="need-auth rotate" method="POST" action="%(rotate)s">
+                  <input class="arrow right" type="image" src="%(blank)s" name="angle" title="This way up" value="%(rot90)d">
+                  <input class="arrow down" type="image" src="%(blank)s" name="angle" title="This way up" value="%(rot180)d">
+                  <input class="arrow left" type="image" src="%(blank)s" name="angle" title="This way up" value="%(rot270)d">
+                </form>
               </div>
             </div>\n"""
 
         thumb % {
             'id':       'pic%d' % p.id,
             
-            'rot90':    self.image.rotate_path(( 90 + p.orientation) % 360),
-            'rot180':   self.image.rotate_path((180 + p.orientation) % 360),
-            'rot270':   self.image.rotate_path((270 + p.orientation) % 360),
+            'rotate':   self.image.rotate_path(),
+            'rot90':    ( 90 + p.orientation) % 360,
+            'rot180':   (180 + p.orientation) % 360,
+            'rot270':   (270 + p.orientation) % 360,
+
+            'blank':    imagestore.static_path() + 'trans-0perc.png',
 
             'title':    p.title or 'Image %d' % p.id,
 
