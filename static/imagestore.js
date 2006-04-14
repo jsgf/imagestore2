@@ -544,3 +544,125 @@ function get_preference(pref, defl)
 		val = defl;
 	return val;
 }
+
+// Handle thumbnail rotation.  This assumes 'container' refers to the
+// outer DIV of a thumbnail on a page.  It sends the request to the
+// server to actually rotate the image, and the server returns the new
+// thumbnail size and position, which is used to update the page.
+//
+// XXX Is there a better way to handle IMG reloads without just
+// tacking '?'s onto the end of the SRC URL?
+function do_rotate(container, action, angle, post)
+{
+	req = {
+		url: action,
+		mimetype: 'text/json',
+		method: 'POST',
+		content: { angle: angle },
+
+
+		error: function(type, data, event) {
+			//alert('rotate failed: '+event.status);
+			if (event.status == 401)
+				window.auth.update_auth();
+		},
+		load: function(type, data, event) {
+			var rot = data;
+			var thumb = rot.thumb;
+
+			if (0)
+				alert('thumb='+thumb +
+				      ' thumb.width='+thumb.width +
+				      ' thumb.height='+thumb.height +
+				      ' thumb.pos_left='+thumb.pos_left +
+				      ' thumb.pos_top='+thumb.pos_top);
+
+			// Update the IMGs width, height and position styles
+			var img = container.getElementsByTagName('img');
+			if (img.length != 1) {
+				alert('no IMG in container');
+				return;
+			}
+			img = img[0];
+
+			//alert('IMG.src='+img.src+' style='+img.style);
+
+			img.style.width = thumb.width + 'px';
+			img.style.height = thumb.height + 'px';
+			img.style.left = thumb.pos_left + 'px';
+			img.style.top = thumb.pos_top + 'px';
+
+			// Force image reload somehow...
+			var src = img.src;
+			if (src.indexOf('?') != -1)
+				src = img.src.split(/\?/)[0];
+			img.src = src + '?' + rot.image.orientation;
+
+			// update the FORM INPUT values to reflect the new orientation
+			var inputs = container.getElementsByTagName('input');
+			
+			for(var i = 0; i < inputs.length; i++) {
+				var input = inputs[i];
+
+				if (input.name != 'angle')
+					continue;
+
+				if (dojo.html.hasClass(input, 'right'))
+					input.value = rot.rot90.toString();
+				else if (dojo.html.hasClass(input, 'down'))
+					input.value = rot.rot180.toString();
+				else if (dojo.html.hasClass(input, 'left'))
+					input.value = rot.rot270.toString();
+			}
+
+		}
+	};
+
+	request(req);
+}
+
+
+// Behaviours
+
+var wantedit_rules = {
+        'A.set-wantedit': function(el) {
+                el.onclick = function () { set_want_edit(true); return false; }
+                el = null;      // break cycle
+	},
+        'A.set-nowantedit': function(el) {
+                el.onclick = function () { set_want_edit(false); return false; }
+                el = null;      // break cycle
+	},
+};
+Behaviour.register(wantedit_rules);
+
+var hover_rules = {
+        '.hoverable': function(el) {
+                el.onmouseover = function() { dojo.html.addClass(this, 'hover'); }
+                el.onmouseout  = function() { dojo.html.removeClass(this, 'hover'); }
+                el = null;      // break cycle
+	},
+};
+Behaviour.register(hover_rules);
+
+var img_form_rules = {
+        '.thumbnail FORM INPUT.arrow': function(el) {
+                el.onclick = function() {
+                        var form = this.parentNode;
+                        form.angle = this.value;
+                }
+        },
+        '.thumbnail FORM.rotate': function(el) {
+                el.onsubmit = function() {
+                        var container = this.parentNode.parentNode;
+                        do_rotate(container, this.action, this.angle,
+                                  function () {
+					  alert('applying behaviour: '+container.innerHTML);
+					  Behaviour.apply()
+						  });
+                        return false;
+                }
+                el = null;      // break cycle
+        }
+};
+Behaviour.register(img_form_rules);

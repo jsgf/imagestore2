@@ -431,11 +431,24 @@ class Image:
         ref = request.get_environ('HTTP_REFERER')
         if ref is not None:
             response.redirect(ref + '#pic%d' % p.id)
-        response.set_content_type('text/html', 'utf-8')
+        http.json_response()
 
-        # XXX We want this to return the thumbnail block in the same
-        # form as the original.  Not sure how yet.
-        return self.ui.thumbnail(wantedit=True)
+        (tw,th) = ImageTransform.thumb_size(p)
+        
+        ret = { 'thumb': { 'width':        tw,
+                           'height':       th,
+                           'pos_left':     (style.thumb_size - tw) / 2,
+                           'pos_top':      (style.thumb_size - th) / 2,
+                           },
+                'image': { 'width':        p.width,
+                           'height':       p.height,
+                           'orientation':  p.orientation,
+                           },
+                'rot90':        ( 90 + p.orientation) % 360,
+                'rot180':       (180 + p.orientation) % 360,
+                'rot270':       (270 + p.orientation) % 360,
+                }
+        return json.write(ret)
 
     def pic(self):
         """ Defer looking up the picture until we actually need it. """

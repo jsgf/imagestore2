@@ -40,31 +40,10 @@ def pre [html] (request, title, bodyid, trail=True, brieftitle=None):
   <link type="text/css" rel="stylesheet" href="%(base)sstyle.css">
   <script type="text/javascript" src="%(static)sdojo.js"></script>
   <script type="text/javascript">base_path="%(base)s";</script>
-  <script type="text/javascript" src="%(static)simagestore.js"></script>
   <script type="text/javascript" src="%(static)sbehaviour.js"></script>
   <script type="text/javascript" src="%(static)sbehaviour-plus.js"></script>
+  <script type="text/javascript" src="%(static)simagestore.js"></script>
   <script type="text/javascript">
-  var wantedit_rules = {
-        'A.set-wantedit': function(el) {
-                el.onclick = function () { set_want_edit(true); return false; }
-                el = null;      // break cycle
-                },
-        'A.set-nowantedit': function(el) {
-                el.onclick = function () { set_want_edit(false); return false; }
-                el = null;      // break cycle
-                },
-    };
-  Behaviour.register(wantedit_rules);
-
-  var hover_rules = {
-        '.hoverable': function(el) {
-                el.onmouseover = function() { dojo.html.addClass(this, 'hover'); }
-                el.onmouseout  = function() { dojo.html.removeClass(this, 'hover'); }
-                el = null;      // break cycle
-                },
-  };
-  Behaviour.register(hover_rules);
-
   %(setuser)s
   </script>
   <title>%(title)s</title>
