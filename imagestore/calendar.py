@@ -28,16 +28,10 @@ def kw_summary(pics):
     return [ t[0] for t in tot ]
 
 def ordinal(n):
-    o='th'
-
-    if n%10 == 1:
-        o = 'st'
-    elif n%10 == 2:
-        o = 'nd'
-    elif n%10 == 3:
-        o = 'rd'
-
-    return '%d%s' % (n,o)
+    o = { 11: 'th', 12: 'th', 13: 'th' }.get(n % 100, None) or \
+        {  1: 'st',  2: 'nd',  3: 'rd' }.get(n % 10, 'th')
+    
+    return '%d%s' % (n, o)
 
 class Interval:
     def __init__(self, name, step, round):
