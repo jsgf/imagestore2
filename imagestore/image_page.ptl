@@ -94,11 +94,23 @@ class ImageUI:
               <div title="%(title)s" class="ui hoverable">
                 <a class="%(linkclasses)s" href="%(link)s" %(linkextra)s><i class="hide">link</i></a>
                 <div class="alert" title=""><i class="hide">Problem</i></div>
-                <div class="need-auth visibility %(visibility)s"><a href="setvis"><i class="hide">setvis</i></a></div>
-                <form name="pic_form%(id)d" class="need-auth rotate" method="POST" action="%(rotate)s">
-                  <input class="arrow right" type="image" src="%(blank)s" title="This way up" name="angle" value="%(rot90)d">
-                  <input class="arrow down" type="image" src="%(blank)s" title="This way up" name="angle" value="%(rot180)d">
-                  <input class="arrow left" type="image" src="%(blank)s" title="This way up" name="angle" value="%(rot270)d">
+                <div class="need-auth visibility %(visibility)s">
+                  <form class="setvis" method="POST" action="%(setvis)s">
+                    <input class="public" type="image" src="%(blank)s"
+                           title="Public" name="_json" value="&quot;public&quot;">
+                    <input class="restricted" type="image" src="%(blank)s"
+                           title="Restricted" name="_json" value="&quot;restricted&quot;">
+                    <input class="private" type="image" src="%(blank)s"
+                           title="Private" name="_json" value="&quot;private&quot;">
+                  </form>
+                </div>
+                <form class="need-auth rotate" method="POST" action="%(rotate)s">
+                  <input class="arrow right" type="image" src="%(blank)s"
+                         title="This way up" name="angle" value="%(rot90)d">
+                  <input class="arrow down" type="image" src="%(blank)s"
+                         title="This way up" name="angle" value="%(rot180)d">
+                  <input class="arrow left" type="image" src="%(blank)s"
+                         title="This way up" name="angle" value="%(rot270)d">
                 </form>
               </div>
             </div>\n"""
@@ -107,6 +119,8 @@ class ImageUI:
             'id':       p.id,
             
             'rotate':   self.image.rotate_path(),
+            'setvis':   self.image.path() + 'meta/visibility',
+            
             'rot90':    ( 90 + p.orientation) % 360,
             'rot180':   (180 + p.orientation) % 360,
             'rot270':   (270 + p.orientation) % 360,

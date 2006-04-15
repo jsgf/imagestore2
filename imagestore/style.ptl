@@ -186,7 +186,7 @@ UL.thumb-set > LI {
 }
 
 /* Visibility indicator */
-.thumbnail > .ui > .visibility {
+.thumbnail > .ui > DIV.visibility {
   position: absolute;
   left: 10px;
   bottom: 10px;
@@ -198,23 +198,35 @@ UL.thumb-set > LI {
   background-repeat: no-repeat;
   background-position: center;
 }
-.thumbnail > .ui > .visibility.public {
-  background-image: url(%(staticdir)spublic.png);
+.thumbnail > .ui > .visibility > FORM {
+  display: none;
+  position: absolute;
+  left: 0px;
+  bottom: 0px;
+  background: #eee;
+  border: solid #777 1px;
+  padding: 3px;
 }
-.thumbnail > .ui > .visibility.private {
-  background-image: url(%(staticdir)sprivate.png);
-}
-.thumbnail > .ui > .visibility.restricted {
-  background-image: url(%(staticdir)srestricted.png);
-}
-
-/* May change the visibility - make the link visible*/
-.auth.want-edit .thumbnail.mayedit > .ui > .visibility > A { 
+/* May change the visibility - make the form visible*/
+.auth.want-edit .thumbnail.mayedit > .ui.hover > .visibility FORM { 
   display: block;
 }
-/* If visibility isn't changable, no link */
-.thumbnail > .ui > .visibility > A { 
-  display: none;
+.thumbnail > .ui FORM.setvis INPUT {
+  background-repeat: no-repeat;
+  background-position: center;
+  width: %(vis-size)dpx;
+  height: %(vis-size)dpx;
+  float: left;
+  display: inline;
+}
+.thumbnail > .ui .public {
+  background-image: url(%(staticdir)spublic.png);
+}
+.thumbnail > .ui .private {
+  background-image: url(%(staticdir)sprivate.png);
+}
+.thumbnail > .ui .restricted {
+  background-image: url(%(staticdir)srestricted.png);
 }
 
 /* arrow links invisible by default */

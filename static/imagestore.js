@@ -546,16 +546,21 @@ function get_preference(pref, defl)
 }
 
 
-function find_alert(container)
+function find_by_class(container, el, class)
 {
-	var divs = container.getElementsByTagName('div');
+	var divs = container.getElementsByTagName(el);
 	for(var i = 0; i < divs.length; i++) {
 		var div = divs[i];
-		if (dojo.html.hasClass(div, 'alert')) {
+		if (dojo.html.hasClass(div, class)) {
 			return div;
 		}
 	}
 	return null;
+}
+
+function find_alert(container)
+{
+	return find_by_class(container, 'div', 'alert');
 }
 
 function set_error(container, message)
@@ -585,7 +590,7 @@ function clear_error(container)
 //
 // XXX Is there a better way to handle IMG reloads without just
 // tacking '?'s onto the end of the SRC URL?
-function do_rotate(container, action, angle, post)
+function do_rotate(container, action, angle)
 {
 	req = {
 		url: action,
@@ -656,6 +661,36 @@ function do_rotate(container, action, angle, post)
 	request(req);
 }
 
+function do_set_visibility(container, action, visibility)
+{
+	req = {
+		url: action,
+		mimetype: 'text/json',
+		method: 'POST',
+		content: { _json: visibility },
+
+		error: function(type, data, event) {
+			//alert('rotate failed: '+event.status);
+			set_error(container, 'Set visiblity failed: '+event.status);
+			if (event.status == 401)
+				window.auth.update_auth();
+		},
+
+		load: function(type, data, event) {
+			var vis = data;
+			var visdiv = find_by_class(container, 'div', 'visibility')
+
+			clear_error(container);
+
+			dojo.html.removeClass(visdiv, 'public');
+			dojo.html.removeClass(visdiv, 'restricted');
+			dojo.html.removeClass(visdiv, 'private');
+			dojo.html.addClass(visdiv, vis);
+		}
+	};
+
+	request(req);
+}
 
 // Behaviours
 
@@ -681,24 +716,38 @@ var hover_rules = {
 Behaviour.register(hover_rules);
 
 var img_form_rules = {
-        '.thumbnail FORM INPUT.arrow': function(el) {
+        '.thumbnail FORM.rotate INPUT.arrow': function(el) {
                 el.onclick = function() {
                         var form = this.parentNode;
                         form.angle = this.value;
                 }
+		el = null;
         },
         '.thumbnail FORM.rotate': function(el) {
                 el.onsubmit = function() {
                         var container = this.parentNode.parentNode;
-                        do_rotate(container, this.action, this.angle,
-                                  function () {
-					  alert('applying behaviour: '+container.innerHTML);
-					  Behaviour.apply()
-						  });
+                        do_rotate(container, this.action, this.angle);
                         return false;
                 }
                 el = null;      // break cycle
         },
+
+	'.thumbnail FORM.setvis INPUT': function(el) {
+		el.onclick = function() {
+			var form = this.parentNode;
+			form.visibility = this.value;
+		}
+		el = null;
+	},
+	'.thumbnail FORM.setvis': function(el) {
+		el.onsubmit = function() {
+			var container = this.parentNode.parentNode.parentNode;
+			do_set_visibility(container, this.action, this.visibility);
+			return false;
+		}
+		el = null;
+	},
+
 	'.alert': function(el) {
 		el.onclick = function() {
 			clear_error(this.parentNode);

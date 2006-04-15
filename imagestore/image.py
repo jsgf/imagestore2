@@ -331,8 +331,6 @@ class ImageMeta:
         request = quixote.get_request()
         response = quixote.get_response()
 
-        http.json_response()
-
         if request.get_method() in ('POST', 'PUT'):
             if '_json' in request.form:
                 ret = {}
@@ -342,6 +340,12 @@ class ImageMeta:
                     for n,v in changes.items():
                         ret[n] = self.set_meta(n, v)
 
+                    ref = request.get_environ('HTTP_REFERER')
+                    if ref is not None:
+                        p = self.image.pic()
+                        response.redirect(ref + '#pic%d' % p.id)
+
+                    http.json_response()
                     return json.write(ret)
                 except json.ReadException:
                     raise QueryError('badly formatted JSON')
@@ -351,6 +355,7 @@ class ImageMeta:
             
         meta = self.get_meta()
 
+        http.json_response()
         return json.write(meta)
 
     def _q_lookup(self, request, component):
@@ -365,8 +370,19 @@ class ImageMeta:
         if request.get_method() in ('POST', 'PUT'):
             if '_json' in request.form:
                 data = json.read(request.form['_json'])
+                
                 # Return a callable thing
-                return lambda r: self.set_meta(component, data)
+                def set_a_meta(request):
+                    ret = self.set_meta(component, data)
+                    ref = request.get_environ('HTTP_REFERER')
+                    if ref is not None:
+                        p = self.image.pic()
+                        response.redirect(ref + '#pic%d' % p.id)
+
+                    http.json_response()
+                    return json.write(ret)
+
+                return set_a_meta
             
             respose.set_status(204)     # no content
             return ''
