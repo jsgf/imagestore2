@@ -545,6 +545,39 @@ function get_preference(pref, defl)
 	return val;
 }
 
+
+function find_alert(container)
+{
+	var divs = container.getElementsByTagName('div');
+	for(var i = 0; i < divs.length; i++) {
+		var div = divs[i];
+		if (dojo.html.hasClass(div, 'alert')) {
+			return div;
+		}
+	}
+	return null;
+}
+
+function set_error(container, message)
+{
+	var alert = find_alert(container);
+
+	if (alert != null) {
+		alert.style.display = 'block';
+		alert.title = message;
+	}
+}
+
+function clear_error(container)
+{
+	var alert = find_alert(container);
+
+	if (alert != null) {
+		alert.style.display = 'none';
+		alert.title = '';
+	}
+}
+
 // Handle thumbnail rotation.  This assumes 'container' refers to the
 // outer DIV of a thumbnail on a page.  It sends the request to the
 // server to actually rotate the image, and the server returns the new
@@ -560,15 +593,17 @@ function do_rotate(container, action, angle, post)
 		method: 'POST',
 		content: { angle: angle },
 
-
 		error: function(type, data, event) {
 			//alert('rotate failed: '+event.status);
+			set_error(container, 'Rotate failed: '+event.status);
 			if (event.status == 401)
 				window.auth.update_auth();
 		},
 		load: function(type, data, event) {
 			var rot = data;
 			var thumb = rot.thumb;
+
+			clear_error(container);
 
 			if (0)
 				alert('thumb='+thumb +
@@ -663,6 +698,12 @@ var img_form_rules = {
                         return false;
                 }
                 el = null;      // break cycle
-        }
+        },
+	'.alert': function(el) {
+		el.onclick = function() {
+			clear_error(this.parentNode);
+		}
+		el = null;
+	}
 };
 Behaviour.register(img_form_rules);

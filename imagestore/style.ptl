@@ -103,6 +103,7 @@ IMG     	{ border: 0; padding: 0; }
      <img>		-- thumbnail itself		z=1
      <.ui>		-- .ui element hover to activate other UI parts	z=2
        <A.link>         -- link something       	z=3
+       <DIV.alert>      -- problem alert indicator      z=4
        <DIV.visibility>	-- image visibility indicator	z=4
          <A.need-auth>	-- edit image visibility	
        <A.arrow.need-edit>  -- rotate arrows		z=4
@@ -170,6 +171,18 @@ UL.thumb-set > LI {
 }
 .thumbnail > .ui.hover > A.link { 
   background: url(%(staticdir)strans-50perc.png) repeat;
+}
+
+.thumbnail > .ui > .alert {
+  display: none;        /* set visible by javascript */
+  
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  z-index: 4;
+  width: 32px;
+  height: 32px;
+  background-image: url(%(staticdir)salert32.png);
 }
 
 /* Visibility indicator */
@@ -260,7 +273,7 @@ UL.thumb-set > LI {
 
 
 /* Use an <i></i> for marking hidden content in the links */
-A > I.hide { 
+I.hide { 
   visibility: hidden;
 }
 """ % params

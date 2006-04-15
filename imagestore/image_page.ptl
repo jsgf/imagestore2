@@ -93,6 +93,7 @@ class ImageUI:
                 style="width:%(th-width)dpx;height:%(th-height)dpx;left:%(pos-x)dpx;top:%(pos-y)dpx;">
               <div title="%(title)s" class="ui hoverable">
                 <a class="%(linkclasses)s" href="%(link)s" %(linkextra)s><i class="hide">link</i></a>
+                <div class="alert" title=""><i class="hide">Problem</i></div>
                 <div class="need-auth visibility %(visibility)s"><a href="setvis"><i class="hide">setvis</i></a></div>
                 <form name="pic_form%(id)d" class="need-auth rotate" method="POST" action="%(rotate)s">
                   <input class="arrow right" type="image" src="%(blank)s" title="This way up" name="angle" value="%(rot90)d">
