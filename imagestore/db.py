@@ -302,13 +302,8 @@ def strToKeyword(word, collection, create):
 class Picture(SQLObject):
     "Pictures - including movies and other media"
 
-#     def __getattr__(self, name):
-#         if not hasattr(self, 'mimeproxy'):
-#             self.mimeproxy = mime.getMimeType(self.mimetype)
-#         m = getattr(self.mimeproxy, name)
-#         m = lambda s=self, px=self.mimeproxy, m=m, *args: m(m, self, *args)
-#         setattr(self.__class__, name, m)
-#         return m
+    class sqlmeta:
+        cacheValues = False
     
     def getimage(self, verify=False):
         """ Return the entire image in one chunk """
