@@ -201,9 +201,9 @@ UL.thumb-set > LI {
 .thumbnail > .ui > .visibility > FORM {
   display: none;
   position: absolute;
-  left: 0px;
-  bottom: 0px;
-  background: #eee;
+  left: 16px;
+  bottom: -3px;
+  background: url(%(staticdir)strans-50perc.png) repeat;
   border: solid #777 1px;
   padding: 3px;
 }
