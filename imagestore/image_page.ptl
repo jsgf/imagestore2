@@ -94,6 +94,7 @@ class ImageUI:
               <div title="%(title)s" class="ui hoverable">
                 <a class="%(linkclasses)s" href="%(link)s" %(linkextra)s><i class="hide">link</i></a>
                 <div class="alert" title=""><i class="hide">Problem</i></div>
+                <a class="info" href="%(info)s">i</a>
                 <div class="need-auth visibility %(visibility)s">
                   <form class="setvis" method="POST" action="%(setvis)s">
                     <input class="public" type="image" src="%(blank)s"
@@ -120,7 +121,8 @@ class ImageUI:
             
             'rotate':   self.image.rotate_path(),
             'setvis':   self.image.path() + 'meta/visibility',
-            
+            'info':     self.image.path() + 'info',
+           
             'rot90':    ( 90 + p.orientation) % 360,
             'rot180':   (180 + p.orientation) % 360,
             'rot270':   (270 + p.orientation) % 360,
