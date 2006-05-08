@@ -278,11 +278,9 @@ class ImageMeta:
     def set_orientation(self, o):
         try:
             o = int(o)
-        except ValueError:
-            raise QueryError('bad orientation')
-        except TypeError:
-            raise QueryError('bad orientation')
-        if o not in (0, 90, 180, 270):
+            if o not in (0, 90, 180, 270):
+                raise ValueError()
+        except (ValueError, TypeError):
             raise QueryError('bad orientation')
         p = self.image.pic()
         p.orientation = o

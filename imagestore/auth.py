@@ -60,9 +60,7 @@ def checknonce(n):
     and that it hasn't expired."""
     try:
         e, r, s = struct.unpack(_pack_nonce, n.decode('base64'))
-    except struct.error:
-        return False
-    except binascii.Error:
+    except (struct.error, binascii.Error):
         return False
     
     if e != 0 and int(time.time()) > e:
@@ -286,9 +284,7 @@ def _do_authenticate(auth_hdr, method):
             if _schemes[scheme](dict, method):
                 username = dict.get('username')
                 user = db.User.byUsername(username)
-        except KeyError:
-            pass
-        except SQLObjectNotFound:
+        except (KeyError, SQLObjectNotFound):
             pass
 
         # If we got an auth string but login failed, then delay a bit
