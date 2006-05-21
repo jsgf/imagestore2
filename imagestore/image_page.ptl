@@ -94,7 +94,7 @@ class ImageUI:
               <div title="%(title)s" class="ui hoverable">
                 <a class="%(linkclasses)s" href="%(link)s" %(linkextra)s><i class="hide">link</i></a>
                 <div class="alert" title=""><i class="hide">Problem</i></div>
-                <a class="info" href="%(info)s">i</a>
+                <a class="info" href="%(info)s"><div id="meta%(id)d" class="meta">Foo</div>i</a>
                 <div class="need-auth visibility %(visibility)s">
                   <form class="setvis" method="POST" action="%(setvis)s">
                     <input class="public" type="image" src="%(blank)s"

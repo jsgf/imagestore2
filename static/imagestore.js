@@ -678,7 +678,7 @@ function do_set_visibility(container, action, visibility)
 
 		load: function(type, data, event) {
 			var vis = data;
-			var visdiv = find_by_class(container, 'div', 'visibility')
+			var visdiv = find_by_class(container, 'div', 'visibility');
 
 			clear_error(container);
 
@@ -752,6 +752,35 @@ var img_form_rules = {
 		el.onclick = function() {
 			clear_error(this.parentNode);
 		}
+		el = null;
+	},
+
+
+	'.thumbnail .info': function(el) {
+		el.onmouseover = function() {
+			var meta = find_by_class(this, 'div', 'meta');
+			meta.style.display = 'block';
+			meta.innerHTML = 'info for image';
+			return false;
+		};
+		el.onmouseout = function() {
+			var meta = find_by_class(this, 'div', 'meta');
+			meta.style.display = 'none';
+			return false;
+		};
+		el = null;
+	},
+
+	'.thumbnail .meta': function(el) {
+		el.onmouseover = function() {
+			this.style.display = 'block';
+			return false;
+		};
+		el.onmouseout = function () {
+			this.style.display = 'none';
+			return false;
+		};
+
 		el = null;
 	}
 };

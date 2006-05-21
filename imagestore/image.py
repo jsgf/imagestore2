@@ -399,7 +399,7 @@ class Image:
 
     def __init__(self, collection, pic):
         self.collection = collection
-        if type(pic) == int:
+        if type(pic) == int or type(pic) == long:
             self.id = pic
         else:
             self.id = pic.id

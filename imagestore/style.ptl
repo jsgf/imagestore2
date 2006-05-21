@@ -108,7 +108,7 @@ IMG     	{ border: 0; padding: 0; }
        <DIV.visibility>	-- image visibility indicator	z=4
          <A.need-auth>	-- edit image visibility	
        <A.arrow.need-edit>  -- rotate arrows		z=4
-       <.meta>          -- metadata view		z=4
+       <DIV.meta>       -- metadata popup               z=5
 
    .thumbnail > IMG needs to have inline styles to set its size and
    position itself properly within the thumbnail frame.
@@ -289,7 +289,7 @@ UL.thumb-set > LI {
 }
 
 /* info icon */
-.thumbnail .ui .info {
+.thumbnail .ui > .info {
   position: absolute;
   display: block;
 
@@ -309,8 +309,33 @@ UL.thumb-set > LI {
   font-size: 10pt;
   text-align: center;
 }
-.thumbnail .ui .info:hover {
+.thumbnail .ui > .info:hover {
   color: white;
+}
+.thumbnail .ui .meta {
+  position: absolute;
+  display: none;
+
+  z-index: 5000;        /* high enough to be over everything */
+
+  right: -3px;
+  left: auto;
+  bottom: -3px;
+  top: auto;
+
+  width: auto;
+  height: auto;
+
+  text-align: left;
+  font-family: bitstream vera sans, verdana, arial, helvetica, sans-serif;
+  font-style: normal;
+  font-weight: normal;
+
+  padding: .25em;
+
+  color: #222;
+  background: url(%(staticdir)strans-50perc.png) repeat;
+  border: 1px solid #888;
 }
 
 /* Use an <i></i> for marking hidden content in the links */

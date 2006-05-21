@@ -22,7 +22,8 @@ import imagestore.http as http
 # Alternatively, change regularly to force digest renegotations.  We
 # return the 'stale' flag in these cases, so the browser should just
 # do it without pestering the user.
-_private = os.urandom(20)
+#_private = os.urandom(20)
+_private = 'x' * 20
 
 _nonce_random = 12
 _sha_len = 20

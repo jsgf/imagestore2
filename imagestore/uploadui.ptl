@@ -1,0 +1,81 @@
+# -*- python -*-
+
+import quixote
+
+import imagestore.pages as page
+import imagestore.calendar as calendar
+import imagestore.search as search
+import imagestore.image as image
+
+class UploadUI(object):
+    def __init__(self, parent):
+        self.parent = parent
+
+    def uploadform [html] (self, uploads):
+        request = quixote.get_request()
+        page.pre(request, 'Uploads', 'upload')
+        page.menupane(request)
+
+        uploads = [ u for u in uploads if len(u.pictures) > 0 ]
+        if len(uploads) > 0:
+            '<h2>Pending uploaded images:</h2>\n'
+            '<ul>\n'
+            for u in uploads:
+                '<li><a href="%d/">%s: %d pictures</a></li>\n' % (u.id,
+                                                                 str(u.import_time),
+                                                                 len(u.pictures))
+            '</ul>\n'
+            '<hr>\n'
+            
+        """
+        <form method="POST" action="%(path)s" enctype="multipart/form-data">
+           <select name="visibility">
+              <option value="public" selected>Public</option>
+              <option value="restricted">Restricted</option>
+              <option value="private">Private</option>
+           </select>
+           <div class="files">
+              <input type="file" name="file" size="40">
+           </div>
+           <input type="submit" name="upload" value="Upload Pictures">
+        </form>""" % { 'path': self.parent.path() }
+
+        page.post()
+
+class PendingUploadUI(object):
+    _q_exports = []
+    
+    def __init__(self, parent):
+        self.parent = parent
+
+    def _q_index[html](self, request):
+        collection = self.parent.collection
+        page.pre(request, 'Pending uploaded images for "%s"' % collection.db.name,
+                 'pending', brieftitle='pending uploads')
+        page.menupane(request)
+
+        """
+        <div class="title-box upload">
+        <h2>Import into "%s" on %s</h2>
+        """ % (collection.db.name,
+               self.parent.db.import_time.strftime(str('%Y-%m-%d')))
+
+        pics = self.parent.db.pictures
+
+        pics.sort(lambda a,b: cmp(a.record_time, b.record_time))
+        for (d, pics) in search.group_by_time(pics, calendar.int_day):
+            """
+            <div id="%(fmt)s" class="day">
+            <h3>%(fmt)s</h3>
+            <ul class="day-pics thumb-set">
+            """ % { 'fmt': calendar.int_day.num_fmt(d) }
+
+            for p in pics:
+                im = image.Image(collection, p)
+                '<li>'
+                im.ui.thumbnail(wantedit=True)
+                '</li>\n'
+                    
+                   
+        '</ul>\n'
+        page.post()
