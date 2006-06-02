@@ -94,7 +94,7 @@ class ImageUI:
               <div title="%(title)s" class="ui hoverable">
                 <a class="%(linkclasses)s" href="%(link)s" %(linkextra)s><i class="hide">link</i></a>
                 <div class="alert" title=""><i class="hide">Problem</i></div>
-                <a class="info" href="%(info)s"><div id="meta%(id)d" class="meta">Foo</div>i</a>
+                <a class="info" href="%(info)s"><!-- div id="meta%(id)d" class="meta">Foo</div -->i</a>
                 <div class="need-auth visibility %(visibility)s">
                   <form class="setvis" method="POST" action="%(setvis)s">
                     <input class="public" type="image" src="%(blank)s"
@@ -209,7 +209,40 @@ class ImageUI:
         '<a class="image-link" href="%s">Image link</a>' % self.image.image_path(size)
         page.post()
 
-                
+    def infopanel [html] (self):
+        p = self.image.pic()
+        id = p.id
+
+        """
+        outer:
+        <div class="need-auth">
+        info:
+          <form method="POST" action=""><input type="text" value="%(title)s"><input type=submit name="set" value="Set"></form>
+          <form method="POST" action=""><input type="text" value="%(description)s"></form>
+          <form method="POST" action=""><input type="text" value="%(copyright)s"></form>
+          <form method="POST" action=""><input type="text" value="%(keywords)s"></form>
+        </div>
+        """ % {
+              'title': p.title,
+              'copyright': p.copyright,
+              'description': p.description,
+              'keywords': ', '.join([ k.word for k in p.keywords ]),
+              }
+        
+    def infopage [html] (self):
+        request = quixote.get_request()
+        p = self.image.pic()
+        id = p.id
+        
+        page.pre(request, 'View image %d info' % id, bodyid='meta')
+        page.menupane(request)
+
+        self.infopanel()
+        """<ul class="thumbset"><li>"""
+        self.thumbnail(wantedit=True)
+        """</li></ul>"""
+        
+        page.post()
 
 def detail_table [html] (p):
     camera = p.camera

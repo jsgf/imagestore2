@@ -395,7 +395,7 @@ _re_xform_image = re.compile('^([a-z]+|([0-9]+)x([0-9]+))\.([a-z]+)$')
 
 class Image:
     """ Class for a specific image, and its namespace. """
-    _q_exports = [ 'download', 'meta', 'exif', 'details', 'rotate' ]
+    _q_exports = [ 'download', 'meta', 'exif', 'details', 'rotate', 'info' ]
 
     def __init__(self, collection, pic):
         self.collection = collection
@@ -591,6 +591,9 @@ class Image:
             return self.ui.view(size)
 
         return self.display_image(size, ext)
+
+    def info(self, request):
+        return self.ui.infopage()
 
 _re_old_style_url = re.compile('^([0-9]+)(?:-([a-z]+)!?)?\.([a-z]+)$')
 
